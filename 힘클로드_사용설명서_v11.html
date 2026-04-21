@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>힘클로드 사용설명서</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  :root{--bg:#f8f9fb;--bg2:#ffffff;--bg3:#f1f3f7;--border:#e2e6ed;--text:#1a1d23;--text2:#5a6072;--accent:#2563eb;--green:#16a34a;--yellow:#d97706;--red:#dc2626;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh;}
+
+  .top-header{background:linear-gradient(135deg,#1e40af 0%,#2563eb 50%,#0ea5e9 100%);padding:44px 48px 36px;position:relative;overflow:hidden;}
+  .top-header::before{content:'힘CEO';position:absolute;right:-20px;top:50%;transform:translateY(-50%);font-size:140px;font-weight:900;color:rgba(255,255,255,0.06);letter-spacing:-4px;pointer-events:none;}
+  .badge{display:inline-block;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);color:#fff;font-size:11px;font-weight:700;letter-spacing:2px;padding:4px 14px;border-radius:20px;margin-bottom:14px;text-transform:uppercase;}
+  .top-header h1{font-size:32px;font-weight:900;color:#fff;margin-bottom:6px;}
+  .top-header h1 span{color:#bfdbfe;}
+  .top-header p{color:rgba(255,255,255,0.75);font-size:13px;}
+
+  .tab-bar{background:var(--bg2);border-bottom:2px solid var(--border);display:flex;overflow-x:auto;padding:0 32px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+  .tab-bar::-webkit-scrollbar{height:3px;}
+  .tab-bar::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px;}
+  .tab-btn{display:flex;align-items:center;gap:8px;padding:16px 20px;cursor:pointer;border:none;background:transparent;color:var(--text2);font-size:13px;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.15s;font-weight:500;}
+  .tab-btn:hover{color:var(--accent);background:rgba(37,99,235,0.04);}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:700;}
+
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+  .container{max-width:800px;margin:0 auto;padding:40px 48px 80px;}
+
+  .sec-title{font-size:20px;font-weight:800;color:var(--text);margin-bottom:24px;padding-bottom:14px;border-bottom:2px solid var(--border);display:flex;align-items:center;gap:10px;}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+  .card-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .card p,.card li{font-size:13px;color:var(--text2);line-height:1.9;}
+  .card ul{padding-left:20px;}
+  .card li{margin-bottom:6px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+
+  .alert{border-radius:10px;padding:14px 18px;margin:14px 0;font-size:13px;display:flex;gap:12px;align-items:flex-start;line-height:1.8;}
+  .alert-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;}
+  .alert-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;}
+  .alert-success{background:#f0fdf4;border:1px solid #86efac;color:#166534;}
+  .alert-gray{background:#f8fafc;border:1px solid #e2e8f0;color:#475569;}
+
+  /* 이름 선택 데모 */
+  .name-demo-wrap{background:var(--bg3);border-radius:12px;padding:20px 24px;margin:14px 0;}
+  .demo-label{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+  .demo-step{display:flex;align-items:flex-start;gap:16px;margin-bottom:16px;}
+  .demo-step:last-child{margin-bottom:0;}
+  .demo-step-num{width:24px;height:24px;min-width:24px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-top:2px;}
+  .demo-step-content{flex:1;}
+  .demo-step-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;}
+  .avatar-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .avatar{width:44px;height:44px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--accent);}
+  .avatar.selected{background:var(--accent);color:#fff;}
+  .avatar-wrap{display:flex;flex-direction:column;align-items:center;}
+  .avatar-label{font-size:10px;color:var(--text2);text-align:center;margin-top:3px;}
+  .dropdown-demo{background:#fff;border:1px solid var(--border);border-radius:8px;margin-top:8px;max-width:220px;box-shadow:0 4px 12px rgba(0,0,0,0.1);overflow:hidden;}
+  .d-option{padding:9px 14px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+  .d-option:last-child{border-bottom:none;}
+  .d-option.active{background:#eff6ff;color:var(--accent);font-weight:700;}
+  .d-dot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+  .d-dot.on{background:var(--accent);}
+
+  /* 주의사항 */
+  .notice-box{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fcd34d;border-radius:12px;padding:20px 24px;margin:16px 0;}
+  .notice-title{font-size:14px;font-weight:700;color:#92400e;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .notice-list{list-style:none;padding:0;}
+  .notice-list li{font-size:13px;color:#92400e;padding:6px 0;border-bottom:1px solid rgba(251,191,36,0.3);display:flex;gap:10px;align-items:flex-start;line-height:1.7;}
+  .notice-list li:last-child{border-bottom:none;}
+  .notice-list li::before{content:'⚠';font-size:13px;flex-shrink:0;margin-top:1px;}
+
+  /* FAQ */
+  .faq-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;}
+  .faq-q{padding:14px 20px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;}
+  .faq-q:hover{background:var(--bg3);}
+  .faq-arrow{color:var(--text2);font-size:12px;transition:transform 0.2s;}
+  .faq-a{max-height:0;overflow:hidden;transition:max-height 0.3s ease;}
+  .faq-a.open{max-height:400px;}
+  .faq-a-inner{padding:12px 20px 16px;font-size:13px;color:var(--text2);line-height:1.8;border-top:1px solid var(--border);}
+
+  .footer{border-top:2px solid var(--border);padding:20px 48px;display:flex;justify-content:space-between;font-size:12px;color:var(--text2);background:var(--bg2);}
+  @media(max-width:700px){
+    .container{padding:24px 16px 60px;}
+    .grid-2{grid-template-columns:1fr;}
+    .top-header{padding:28px 20px;}
+    .tab-btn{padding:12px 12px;font-size:12px;}
+    .footer{padding:16px 20px;flex-direction:column;gap:6px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="top-header">
+  <div class="badge">더힘이엔씨(주) · 직원 전용</div>
+  <h1>힘클로드 <span>사용설명서</span></h1>
+  <p>AI 업무보고 자동화 시스템 힘클로드 사용 안내 · 2026년 4월 17일 · 제작자: 박제형</p>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('intro',this)"><span>💡</span> 힘클로드란?</button>
+  <button class="tab-btn" onclick="showTab('howto',this)"><span>📝</span> 사용 방법</button>
+  <button class="tab-btn" onclick="showTab('time',this)"><span>⏰</span> 보고 시간</button>
+  <button class="tab-btn" onclick="showTab('notice',this)"><span>⚠️</span> 주의사항</button>
+</div>
+
+<!-- TAB 1 -->
+<div class="tab-content active" id="tab-intro">
+  <div class="container">
+    <div class="sec-title">💡 힘클로드란?</div>
+    <div class="card">
+      <div class="card-title">🤖 힘클로드가 하는 일</div>
+      <p>힘클로드는 더힘이엔씨(주)의 <strong style="color:var(--text)">AI 업무보고 자동화 시스템</strong>입니다. 직원이 오늘 한 일을 입력하면 AI가 자동으로 내용을 정리하고, 매일 아침 <strong style="color:var(--text)">전직원 이메일로 레벨별 요약 보고서가 자동으로 전송</strong>됩니다.</p>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">✅ 직원이 할 일</div>
+        <ul>
+          <li>힘클로드 HTML 파일 열기</li>
+          <li>이름 선택</li>
+          <li>업무 내용 텍스트로 입력</li>
+          <li>제출 버튼 클릭</li>
+        </ul>
+        <p style="margin-top:10px;font-size:12px;color:var(--accent)">→ 이게 전부입니다!</p>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ 자동으로 되는 것</div>
+        <ul>
+          <li>AI가 내용 자동 정리·분류</li>
+          <li>보고서 자동 생성</li>
+          <li>전직원 이메일 자동 발송</li>
+          <li>28일치 이력 누적 관리</li>
+        </ul>
+      </div>
+    </div>
+    <div class="alert alert-info">
+      <span>ℹ️</span>
+      <div><strong>현재 지원 입력 형식: 텍스트만 가능</strong><br>이미지, 오디오 파일, PDF 등의 파일 첨부는 현재 지원되지 않으며, 차후 코드가 수정된 후 입력이 가능할 예정입니다.</div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2 -->
+<div class="tab-content" id="tab-howto">
+  <div class="container">
+    <div class="sec-title">📝 힘클로드 사용 방법</div>
+    <div class="card">
+      <div class="card-title">🖥️ STEP 1 — 힘클로드 파일 열기</div>
+      <p>담당자에게 전달받은 <strong style="color:var(--text)">힘클로드 HTML 파일</strong>을 더블클릭해서 웹브라우저로 열어주세요.</p>
+      <p style="margin-top:8px;font-size:12px;color:var(--text2)">※ 별도 설치 필요 없음. 인터넷 브라우저(크롬, 엣지 등)에서 바로 열립니다.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">👤 STEP 2 — 본인 이름 선택하기</div>
+      <p style="margin-bottom:14px">이름 선택은 아래 두 단계로 진행됩니다.</p>
+      <div class="name-demo-wrap">
+        <div class="demo-label">이름 선택 방법</div>
+        <div class="demo-step">
+          <div class="demo-step-num">1</div>
+          <div class="demo-step-content">
+            <div class="demo-step-title">화면 왼쪽 상단의 동그라미에서 본인 성씨 클릭</div>
+            <div class="avatar-row">
+              <div class="avatar-wrap"><div class="avatar">김</div><div class="avatar-label">김</div></div>
+              <div class="avatar-wrap"><div class="avatar">박</div><div class="avatar-label">박</div></div>
+              <div class="avatar-wrap"><div class="avatar selected">이</div><div class="avatar-label" style="color:var(--accent);font-weight:700;">이 ←클릭</div></div>
+              <div class="avatar-wrap"><div class="avatar">민</div><div class="avatar-label">민</div></div>
+              <div class="avatar-wrap"><div class="avatar">유</div><div class="avatar-label">유</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="demo-step">
+          <div class="demo-step-num">2</div>
+          <div class="demo-step-content">
+            <div class="demo-step-title">펼쳐진 목록에서 본인 이름 클릭</div>
+            <div class="dropdown-demo">
+              <div class="d-option"><div class="d-dot"></div>이경현</div>
+              <div class="d-option active"><div class="d-dot on"></div>이경현 ← 본인 이름 클릭</div>
+              <div class="d-option"><div class="d-dot"></div>이현석</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-warn" style="margin-top:12px">
+        <span>⚠️</span>
+        <span><strong>반드시 본인 이름을 선택하세요.</strong> 다른 사람 이름으로 제출하면 보고서가 잘못된 사람 것으로 처리됩니다.</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">✏️ STEP 3 — 업무 내용 입력하기</div>
+      <p style="margin-bottom:10px">텍스트 입력창에 오늘 진행한 업무 내용을 자유롭게 입력하세요. 형식 없이 자연스럽게 쓰시면 됩니다.</p>
+      <div style="background:var(--bg3);border-radius:8px;padding:14px 16px;margin-top:10px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:8px;">입력 예시</div>
+        <p style="font-size:13px;color:var(--text);line-height:1.8;">오늘 양동숲길 보행로 조성사업 관련 담당부서 연락처 확인 완료했고, 제기동 타당성 조사 보고서 수정 중입니다. 내일까지 완성 예정이고 CJ가양 설계도서 취합도 진행했습니다. 내일 10시에 용산전자상가 회의 있습니다.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🚀 STEP 4 — 제출하기</div>
+      <p>내용 입력 후 <strong style="color:var(--text)">제출 버튼</strong>을 클릭하면 자동으로 전송됩니다.</p>
+      <div class="alert alert-success" style="margin-top:12px">
+        <span>✅</span>
+        <span>제출 완료 메시지가 뜨면 정상 전송된 것입니다. 이후 모든 처리는 자동으로 이루어집니다.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3 -->
+<div class="tab-content" id="tab-time">
+  <div class="container">
+    <div class="sec-title">⏰ 업무보고 입력 시간</div>
+    <div class="card">
+      <div class="card-title">📅 당일 보고서에 포함되는 시간대</div>
+      <p style="margin-bottom:16px">아래 시간대에 입력된 업무보고만 <strong style="color:var(--text)">당일 아침 보고서</strong>에 포함됩니다.</p>
+
+      <div style="background:var(--bg3);border-radius:12px;padding:20px 24px;margin:16px 0;">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;">24시간 기준 보고 가능 시간대</div>
+
+        <!-- 당일 막대 -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;">당일 (오늘)</div>
+          <div style="display:flex;height:52px;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+            <div style="flex:8.83;background:linear-gradient(135deg,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;padding:4px 8px;min-width:120px;">
+              <span style="color:#fff;font-size:11px;font-weight:700;white-space:nowrap;">✅ 보고 가능 (00:00~08:50)</span>
+            </div>
+            <div style="flex:7;background:#dc2626;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 6px;min-width:110px;">
+              <span style="color:#fff;font-size:10px;font-weight:900;white-space:nowrap;">📋 08:50 마감</span>
+              <span style="color:#fecaca;font-size:9px;font-weight:700;white-space:nowrap;">지금까지 제출된 보고서로</span>
+              <span style="color:#fecaca;font-size:9px;font-weight:700;white-space:nowrap;">업무회의 시작</span>
+            </div>
+            <div style="flex:7;background:#cbd5e1;display:flex;align-items:center;justify-content:center;padding:4px 8px;min-width:90px;">
+              <span style="color:#64748b;font-size:11px;font-weight:700;white-space:nowrap;">✖ 제출 불가 (09:00~16:00)</span>
+            </div>
+            <div style="flex:8;background:linear-gradient(135deg,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;padding:4px 8px;min-width:100px;">
+              <span style="color:#fff;font-size:11px;font-weight:700;white-space:nowrap;">✅ 보고 가능 (16:00~)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 다음날 막대 -->
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600;">다음날 (내일)</div>
+          <div style="display:flex;height:52px;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+            <div style="flex:8.83;background:linear-gradient(135deg,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;padding:4px 8px;min-width:120px;">
+              <span style="color:#fff;font-size:11px;font-weight:700;white-space:nowrap;">✅ 보고 가능 (00:00~08:50)</span>
+            </div>
+            <div style="flex:7;background:#dc2626;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 6px;min-width:110px;">
+              <span style="color:#fff;font-size:10px;font-weight:900;white-space:nowrap;">📋 08:50 마감</span>
+              <span style="color:#fecaca;font-size:9px;font-weight:700;white-space:nowrap;">지금까지 제출된 보고서로</span>
+              <span style="color:#fecaca;font-size:9px;font-weight:700;white-space:nowrap;">업무회의 시작</span>
+            </div>
+            <div style="flex:15;background:#cbd5e1;display:flex;align-items:center;justify-content:center;padding:4px 8px;">
+              <span style="color:#64748b;font-size:11px;font-weight:700;white-space:nowrap;">✖ 마감 이후 → 다음날 보고서로 이월</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 범례 -->
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;">
+          <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#2563eb,#3b82f6);flex-shrink:0;"></div><span style="color:var(--text2);">✅ 보고 가능 (당일 보고서 포함)</span></div>
+          <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;border-radius:3px;background:#cbd5e1;flex-shrink:0;"></div><span style="color:var(--text2);">✖ 제출 불가 또는 다음날 이월</span></div>
+          <div style="display:flex;align-items:center;gap:6px;"><div style="width:14px;height:14px;border-radius:3px;background:#dc2626;flex-shrink:0;"></div><span style="color:var(--text2);">📋 마감 시각 (08:50) · 업무회의 시작</span></div>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <span>ℹ️</span>
+        <div><strong>보고 마감: 매일 오전 08:50</strong><br>
+        08:50 이전에 제출된 내용만 당일 보고서에 포함됩니다. <strong>08:50 이후에 제출하면 당일 보고서에는 포함되지 않고, 다음날 보고서에 이력으로 포함됩니다.</strong></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title" style="color:var(--green)">✅ 당일 보고서 포함</div>
+        <ul>
+          <li>전날 오후 4시 이후 제출</li>
+          <li>당일 오전 8시 50분 이전 제출</li>
+          <li>퇴근 후 귀가해서 제출해도 포함</li>
+          <li>출근 전 아침 일찍 제출도 포함</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:var(--red)">❌ 다음날 보고서로 이월</div>
+        <ul>
+          <li>오전 8시 50분 이후 제출</li>
+          <li>전날 오후 4시 이전 제출</li>
+          <li>→ 다음날 보고서 참고 이력으로 포함됨</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="alert alert-warn">
+      <span>⚠️</span>
+      <span>보고서가 자동 생성되는 <strong>오전 8:50~9:00 사이</strong>에는 제출을 잠시 피해주세요.</span>
+    </div>
+
+    <div class="alert alert-gray">
+      <span>💬</span>
+      <span>아직 완벽하지 않습니다. 오류나 문의사항이 있으면 담당자에게 문의해 주세요.</span>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 4 -->
+<div class="tab-content" id="tab-notice">
+  <div class="container">
+    <div class="sec-title">⚠️ 주의사항 및 자주 묻는 질문</div>
+
+    <div class="notice-box">
+      <div class="notice-title">⚠️ 꼭 지켜주세요</div>
+      <ul class="notice-list">
+        <li>반드시 <strong>본인 이름</strong>을 선택하고 제출하세요.</li>
+        <li>현재는 <strong>텍스트 입력만</strong> 가능합니다. 이미지·오디오·PDF 파일 첨부는 차후 지원 예정입니다.</li>
+        <li>보고 마감은 <strong>매일 오전 08:50</strong>입니다. 그 이후 제출은 다음날 보고서에 반영됩니다.</li>
+        <li>제출 완료 메시지가 뜨지 않으면 전송이 안 된 것입니다. 다시 시도해주세요.</li>
+        <li>내용은 간단해도 됩니다. 핵심 업무 내용만 자연스럽게 입력하면 AI가 알아서 정리합니다.</li>
+      </ul>
+    </div>
+
+    <div class="sec-title" style="margin-top:32px;font-size:16px;">❓ 자주 묻는 질문</div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>제출했는데 확인이 안 돼요. 잘 전송된 건가요?</span>
+        <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">
+        <div class="faq-a-inner">제출 후 화면에 완료 메시지가 뜨면 정상 전송된 것입니다. 완료 메시지가 뜨지 않으면 인터넷 연결을 확인하고 다시 시도해주세요. 같은 내용을 두 번 제출해도 시스템이 자동으로 중복을 제거하므로 걱정하지 않아도 됩니다.</div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>보고서를 잘못 제출하면 어떻게 되나요?</span>
+        <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">
+        <div class="faq-a-inner">
+          잘못 제출하더라도 수정본을 다시 제출하시면 됩니다. 다만 다시 제출하실 때 아래와 같이 한 줄 추가해주세요.<br><br>
+          <div style="background:#f1f5f9;border-radius:6px;padding:10px 14px;margin:8px 0;font-size:13px;color:#1e40af;border-left:3px solid #2563eb;">
+            예시: "예전 보고서가 잘못돼 다시 제출합니다. (이하 정정 내용 입력)"
+          </div>
+          이렇게 입력하면 AI가 이전 보고와 구분하여 수정 내용을 보고서에 반영합니다.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>퇴근 후 집에서 제출해도 되나요?</span>
+        <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">
+        <div class="faq-a-inner">됩니다. 전날 오후 4시 이후부터 당일 오전 8:50 이전이면 언제 어디서든 제출 가능합니다. 퇴근 후 귀가해서 제출하거나, 다음날 출근 전 아침에 제출해도 당일 보고서에 포함됩니다.</div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>내 이름이 목록에 없어요.</span>
+        <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">
+        <div class="faq-a-inner">담당자에게 연락해주세요. 직원 목록에 이름을 추가해드립니다. 이름이 없는 상태로 제출하면 보고서에 반영되지 않습니다.</div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>어떤 내용을 써야 하나요? 형식이 있나요?</span>
+        <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">
+        <div class="faq-a-inner">정해진 형식 없습니다. 오늘 진행한 업무, 미팅 내용, 이슈, 내일 일정 등을 자유롭게 적으시면 됩니다. AI가 자동으로 정리해줍니다. 짧게 써도 됩니다.</div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>이미지나 파일을 첨부하고 싶어요.</span>
+        <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">
+        <div class="faq-a-inner">현재는 텍스트 입력만 지원합니다. 이미지, 오디오 파일, PDF 등의 파일 첨부 기능은 차후 코드가 수정된 후 지원될 예정입니다. 현재는 파일 내용을 텍스트로 요약해서 입력해주세요.</div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">
+        <span>보고서는 언제, 어떻게 받나요?</span>
+        <span class="faq-arrow">▼</span>
+      </div>
+      <div class="faq-a">
+        <div class="faq-a-inner">매일 오전 8:50 이후 자동으로 생성되어 전직원 등록 이메일로 발송됩니다. 본인 등급(L1~L4)에 해당하는 보고서가 HTML 파일 첨부 형태로 이메일로 옵니다.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer" style="justify-content:center;text-align:center;border-top:2px solid var(--border);padding:24px 48px;background:var(--bg2);">
+  <span style="font-size:13px;color:var(--text2);">힘클로드 사용설명서 &nbsp;·&nbsp; 더힘이엔씨(주) &nbsp;·&nbsp; 제작자: 박제형 &nbsp;·&nbsp; 2026년 4월 17일</span>
+</div>
+
+<script>
+  function showTab(name,btn){
+    document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    btn.classList.add('active');
+    window.scrollTo(0,0);
+  }
+  function toggleFaq(el){
+    const body=el.nextElementSibling;
+    const arrow=el.querySelector('.faq-arrow');
+    const isOpen=body.classList.contains('open');
+    body.classList.toggle('open',!isOpen);
+    arrow.style.transform=isOpen?'':'rotate(180deg)';
+  }
+</script>
+</body>
+</html>

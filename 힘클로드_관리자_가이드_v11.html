@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>힘쎄오 시스템 관리자 가이드</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+  :root{--bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--border:#30363d;--text:#e6edf3;--text2:#8b949e;--accent:#2563eb;--green:#3fb950;--yellow:#d29922;--red:#f85149;--purple:#a371f7;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh;}
+  .top-header{background:linear-gradient(135deg,#1a3a5c 0%,#0d1117 60%);border-bottom:1px solid var(--border);padding:36px 48px 28px;position:relative;overflow:hidden;}
+  .top-header::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;background:radial-gradient(circle,rgba(37,99,235,0.15) 0%,transparent 70%);border-radius:50%;pointer-events:none;}
+  .badge{display:inline-block;background:rgba(37,99,235,0.2);border:1px solid rgba(37,99,235,0.4);color:#60a5fa;font-size:11px;font-weight:700;letter-spacing:2px;padding:4px 12px;border-radius:20px;margin-bottom:12px;text-transform:uppercase;}
+  .top-header h1{font-size:28px;font-weight:900;color:#fff;margin-bottom:6px;}
+  .top-header h1 span{color:#60a5fa;}
+  .top-header p{color:var(--text2);font-size:13px;}
+  .tab-bar{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 24px;position:sticky;top:0;z-index:100;}
+  .tab-bar::-webkit-scrollbar{height:3px;}
+  .tab-bar::-webkit-scrollbar-thumb{background:var(--accent);border-radius:2px;}
+  .tab-btn{display:flex;align-items:center;gap:7px;padding:14px 16px;cursor:pointer;border:none;background:transparent;color:var(--text2);font-size:13px;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;border-bottom:2px solid transparent;transition:all 0.15s;}
+  .tab-btn:hover{color:var(--text);background:rgba(255,255,255,0.03);}
+  .tab-btn.active{color:#60a5fa;border-bottom-color:var(--accent);}
+  .tab-btn.todo{color:#a371f7;}
+  .tab-btn.todo.active{color:#a371f7;border-bottom-color:#a371f7;}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+  .container{max-width:860px;margin:0 auto;padding:36px 48px 80px;}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:14px;}
+  .card-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .card p,.card li{font-size:13px;color:var(--text2);line-height:1.8;}
+  .card ul{padding-left:18px;}
+  .card li{margin-bottom:5px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .flow{margin:8px 0 16px;}
+  .flow-item{display:flex;align-items:flex-start;gap:14px;padding:14px 0;position:relative;}
+  .flow-item:not(:last-child)::after{content:'';position:absolute;left:16px;top:44px;bottom:-14px;width:2px;background:linear-gradient(to bottom,var(--accent),transparent);}
+  .flow-num{width:32px;height:32px;min-width:32px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;}
+  .flow-content strong{display:block;font-size:13px;color:var(--text);margin-bottom:3px;}
+  .flow-content p{font-size:12px;color:var(--text2);}
+  .tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 14px;}
+  .tbl th{background:var(--bg3);color:var(--text2);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:9px 14px;text-align:left;border-bottom:1px solid var(--border);}
+  .tbl td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;}
+  .tbl tr:last-child td{border-bottom:none;}
+  .tbl tr:hover td{background:rgba(255,255,255,0.02);}
+  .mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:#60a5fa;}
+  .mono-sm{font-family:'JetBrains Mono',monospace;font-size:10px;color:#60a5fa;word-break:break-all;}
+  .tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+  .tag-green{background:rgba(63,185,80,0.15);color:var(--green);border:1px solid rgba(63,185,80,0.3);}
+  .tag-blue{background:rgba(37,99,235,0.15);color:#60a5fa;border:1px solid rgba(37,99,235,0.3);}
+  .tag-yellow{background:rgba(210,153,34,0.15);color:var(--yellow);border:1px solid rgba(210,153,34,0.3);}
+  .tag-red{background:rgba(248,81,73,0.15);color:var(--red);border:1px solid rgba(248,81,73,0.3);}
+  .tag-gray{background:rgba(139,148,158,0.15);color:var(--text2);border:1px solid rgba(139,148,158,0.3);}
+  .alert{border-radius:8px;padding:12px 16px;margin:12px 0;font-size:13px;display:flex;gap:10px;align-items:flex-start;line-height:1.7;}
+  .alert-warn{background:rgba(210,153,34,0.1);border:1px solid rgba(210,153,34,0.3);color:#e3b341;}
+  .alert-info{background:rgba(37,99,235,0.1);border:1px solid rgba(37,99,235,0.3);color:#60a5fa;}
+  .alert-danger{background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.3);color:#ff7b72;}
+  .alert-purple{background:rgba(163,113,247,0.1);border:1px solid rgba(163,113,247,0.3);color:var(--purple);}
+  .step-list{margin:10px 0;}
+  .step-item{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start;}
+  .step-badge{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);white-space:nowrap;margin-top:2px;}
+  .step-text{font-size:13px;color:var(--text2);line-height:1.7;}
+  .step-text strong{color:var(--text);}
+  .error-msg{font-family:'JetBrains Mono',monospace;font-size:11px;color:#ff7b72;background:rgba(248,81,73,0.08);padding:2px 8px;border-radius:4px;display:inline-block;}
+  .checklist{list-style:none;margin:8px 0;}
+  .checklist li{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:13px;color:var(--text2);border-bottom:1px solid rgba(48,54,61,0.5);}
+  .checklist li:last-child{border-bottom:none;}
+  .checklist li::before{content:'□';color:var(--accent);font-size:14px;margin-top:1px;flex-shrink:0;}
+  .folder-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:8px;}
+  .folder-icon{font-size:18px;}
+  .folder-info{flex:1;}
+  .folder-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;}
+  .folder-id{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);}
+  .sec-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+  .func-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:14px;overflow:hidden;}
+  .func-header{background:var(--bg3);padding:14px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);}
+  .func-num{width:26px;height:26px;min-width:26px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace;}
+  .func-name{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#60a5fa;flex:1;}
+  .func-file{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;}
+  .func-body{padding:16px 20px;}
+  .func-body p{font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:8px;}
+  .func-body p:last-child{margin-bottom:0;}
+  .func-note{display:flex;align-items:flex-start;gap:10px;background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);border-radius:6px;padding:10px 14px;margin-top:10px;}
+  .func-note p{font-size:12px;color:var(--text2);margin:0;}
+  .todo-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden;}
+  .todo-header{padding:16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);background:var(--bg3);}
+  .todo-num{width:28px;height:28px;min-width:28px;background:rgba(163,113,247,0.2);border:1px solid rgba(163,113,247,0.4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--purple);font-family:'JetBrains Mono',monospace;}
+  .todo-title{font-size:14px;font-weight:700;color:var(--text);flex:1;}
+  .todo-body{padding:18px 20px;}
+  .todo-body p{font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:12px;}
+  .todo-body p:last-child{margin-bottom:0;}
+  .code-block{background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin:10px 0 16px;overflow:hidden;}
+  .code-header{background:var(--bg2);border-bottom:1px solid var(--border);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;}
+  .code-header span{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);}
+  .code-label{background:rgba(37,99,235,0.2);color:#60a5fa;border:1px solid rgba(37,99,235,0.3);border-radius:4px;padding:1px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;}
+  .code-body{padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#a5d6ff;overflow-x:auto;white-space:pre;line-height:1.7;}
+  .hl{color:#ffa657;font-weight:600;}
+  .hl2{color:#7ee787;}
+  .hl3{color:#ff7b72;}
+  .explain-box{background:rgba(163,113,247,0.06);border:1px solid rgba(163,113,247,0.2);border-radius:8px;padding:14px 18px;margin:10px 0;}
+  .explain-box p{font-size:13px;color:var(--text2);line-height:1.8;margin-bottom:6px;}
+  .explain-box p:last-child{margin-bottom:0;}
+
+  /* 당부 메시지 전용 */
+  .message-box{
+    background:linear-gradient(135deg,rgba(163,113,247,0.08) 0%,rgba(37,99,235,0.06) 100%);
+    border:1px solid rgba(163,113,247,0.3);
+    border-radius:12px;
+    padding:28px 32px;
+    margin-bottom:28px;
+    position:relative;
+    overflow:hidden;
+  }
+  .message-box::before{
+    content:'"';
+    position:absolute;
+    top:-10px;right:20px;
+    font-size:120px;
+    color:rgba(163,113,247,0.08);
+    font-family:Georgia,serif;
+    line-height:1;
+  }
+  .message-from{
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:2px;
+    color:var(--purple);
+    text-transform:uppercase;
+    margin-bottom:16px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .message-from::before{content:'';display:inline-block;width:24px;height:2px;background:var(--purple);}
+  .message-body{font-size:14px;color:var(--text2);line-height:2;position:relative;z-index:1;}
+  .message-body p{margin-bottom:14px;}
+  .message-body p:last-child{margin-bottom:0;}
+  .message-body strong{color:var(--text);}
+  .message-sig{margin-top:20px;padding-top:16px;border-top:1px solid rgba(163,113,247,0.2);font-size:12px;color:var(--text2);text-align:right;}
+
+  .footer{border-top:1px solid var(--border);padding:20px 48px;display:flex;justify-content:space-between;font-size:12px;color:var(--text2);}
+  @media(max-width:700px){
+    .container{padding:20px 16px 60px;}
+    .grid-2{grid-template-columns:1fr;}
+    .top-header{padding:24px 20px;}
+    .tab-btn{padding:12px 10px;font-size:12px;}
+    .footer{padding:16px 20px;flex-direction:column;gap:6px;}
+    .message-box{padding:20px 20px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="top-header">
+  <div class="badge">관리자 전용</div>
+  <h1>Apps Script <span>관리자 가이드</span></h1>
+  <p>더힘이엔씨(주) 일일업무보고 자동화 시스템 운영 및 유지보수 매뉴얼 · 2026년 4월 17일 제작 · 제작자: 박제형</p>
+  
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('overview',this)"><span>🗺️</span> 시스템 개요</button>
+  <button class="tab-btn" onclick="showTab('files',this)"><span>📁</span> 파일 구성</button>
+  <button class="tab-btn" onclick="showTab('flow',this)"><span>🔄</span> 자동화 흐름</button>
+  <button class="tab-btn" onclick="showTab('triggers',this)"><span>⏰</span> 트리거 설정</button>
+  <button class="tab-btn" onclick="showTab('drive',this)"><span>📂</span> Drive 폴더</button>
+  <button class="tab-btn" onclick="showTab('sheets',this)"><span>📊</span> 시트 구조</button>
+  <button class="tab-btn" onclick="showTab('apikey',this)"><span>🔑</span> API 키 관리</button>
+  <button class="tab-btn" onclick="showTab('errors',this)"><span>🚨</span> 오류 대응</button>
+  <button class="tab-btn" onclick="showTab('daily',this)"><span>📋</span> 일상 점검</button>
+  <button class="tab-btn todo" onclick="showTab('todo',this)"><span>🔧</span> 해야할 일</button>
+</div>
+
+<!-- TAB 1: 시스템 개요 -->
+<div class="tab-content active" id="tab-overview">
+  <div class="container">
+    <div class="sec-title">🗺️ 시스템 개요</div>
+    <div class="card">
+      <div class="card-title">💡 이 시스템이 하는 일</div>
+      <p>직원들이 힘클로드(HTML 입력기)에 업무보고를 입력하면, 자동으로 JSON 변환 → Gmail 수신 → 큐 시트 저장 → 레벨별 브리핑 생성 → 직원 이메일 발송까지 전 과정이 자동화됩니다.</p>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📍 핵심 계정</div>
+        <ul>
+          <li>허브 Gmail: <strong>luri7305@gmail.com</strong> (삼촌 계정)</li>
+          <li>Claude API 키: 삼촌 계정 소유</li>
+          <li>Apps Script 프로젝트: 삼촌 계정 소유</li>
+          <li>Google Drive 폴더: 삼촌 계정 소유</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">📍 핵심 리소스</div>
+        <ul>
+          <li>스프레드시트 ID:<br><span class="mono-sm">1FUsy2EzmlahpbND9IBYhr2CS0c0I5mitp-R8xLVFURY</span></li>
+          <li style="margin-top:6px">Claude 모델:<br><span class="mono-sm">claude-haiku-4-5-20251001</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🖥️ Apps Script 접속 방법</div>
+      <p style="margin-bottom:10px">Apps Script = 코드 및 트리거(각각의 함수가 자동 실행되는 주기를 설정하는 것)를 관리하는 구글 도구입니다.</p>
+      <div class="step-list">
+        <div class="step-item"><span class="step-badge">STEP 1</span><span class="step-text"><strong>삼촌 계정(luri7305)</strong>의 구글 드라이브 접속</span></div>
+        <div class="step-item"><span class="step-badge">STEP 2</span><span class="step-text"><strong>더힘이엔씨 일일업무보고 ㄹㅇㄹㅇ</strong> 스프레드시트 열기</span></div>
+        <div class="step-item"><span class="step-badge">STEP 3</span><span class="step-text">상단 메뉴 <strong>확장 프로그램</strong> 클릭 → <strong>Apps Script</strong> 클릭</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: 파일 구성 -->
+<div class="tab-content" id="tab-files">
+  <div class="container">
+    <div class="sec-title">📁 파일 구성 — 실행 순서대로</div>
+    <div class="alert alert-info">
+      <span>ℹ️</span>
+      <div>
+        <strong>함수(Function)란?</strong><br>
+        함수는 특정 작업을 수행하는 코드 묶음입니다. 예를 들어 <code style="font-family:monospace;color:#60a5fa">generateBriefing()</code>은 "브리핑을 생성하라"는 작업 전체가 담긴 코드 묶음입니다.<br><br>
+        Apps Script에서 각 파일을 열면 <strong>상단 디버그 버튼 옆 드롭다운</strong>에 해당 파일의 실행 함수 이름이 표시됩니다. 각 파일마다 실행되는 함수는 하나로 설정돼있으며, 이 함수 이름이 트리거와 연결됩니다.<br><br>
+        <strong style="color:#ffa657">⚠️ 함수 이름은 왠만하면 수정하지 않는 것을 강력히 권장합니다.</strong> 함수 이름을 바꾸면 트리거와 연결이 끊겨 자동화 전체가 중단됩니다.
+      </div>
+    </div>
+
+    <div class="func-card">
+      <div class="func-header">
+        <div class="func-num">1</div>
+        <div class="func-name">doPost()</div>
+        <span class="func-file">직원보고수신(힘클로드, 제형).gs</span>
+      </div>
+      <div class="func-body">
+        <p><strong style="color:var(--text)">이 함수가 하는 일:</strong> 직원이 힘클로드 HTML 파일에서 업무 내용을 입력하고 제출 버튼을 누르면 자동으로 이 함수가 호출됩니다. Claude API를 이용해 입력 내용을 JSON 형식으로 변환하고, luri7305@gmail.com으로 [일일보고] 메일을 발송합니다.</p>
+        <p><strong style="color:var(--text)">실행 방식:</strong> 트리거 없음. 힘클로드 HTML 파일이 이 함수가 있는 웹앱 URL로 데이터를 전송할 때만 실행됩니다. (웹앱 배포 방식)</p>
+        <div class="func-note"><span>📍</span><p>Apps Script → 직원보고수신 파일 → 상단 디버그 옆 드롭다운에 <strong>doPost</strong> 표시됨</p></div>
+      </div>
+    </div>
+
+    <div class="func-card">
+      <div class="func-header">
+        <div class="func-num">2</div>
+        <div class="func-name">checkAndSaveToQueue()</div>
+        <span class="func-file">gmail->시트에 온 순서대로.gs</span>
+      </div>
+      <div class="func-body">
+        <p><strong style="color:var(--text)">이 함수가 하는 일:</strong> 삼촌 Gmail(luri7305)에 수신된 [일일보고] 메일을 최근 28일치 범위로 검색합니다. 큐 시트에 이미 저장된 메시지ID와 비교해서 새로운 메일만 골라 큐 시트에 저장합니다. 중복 저장 방지 로직이 내장돼있어 같은 메일이 두 번 저장되지 않습니다.</p>
+        <p><strong style="color:var(--text)">실행 방식:</strong> 트리거로 5분마다 자동 실행. 삼촌 계정 소유 트리거 필수.</p>
+        <div class="func-note"><span>📍</span><p>Apps Script → gmail->시트에 온 순서대로 파일 → 상단 디버그 옆 드롭다운에 <strong>checkAndSaveToQueue</strong> 표시됨</p></div>
+      </div>
+    </div>
+
+    <div class="func-card">
+      <div class="func-header">
+        <div class="func-num">3</div>
+        <div class="func-name">generateBriefing()</div>
+        <span class="func-file">큐 생성 후 브리핑 생성하는 코드.gs</span>
+      </div>
+      <div class="func-body">
+        <p><strong style="color:var(--text)">이 함수가 하는 일:</strong> 5분마다 실행되지만 오전 08:50 이전이면 즉시 종료합니다. 08:50 이후 실행될 때 브리핑완료 시트에 오늘 날짜가 없으면 브리핑 생성을 시작합니다. 큐 시트에서 당일 보고(전날 16:00~당일 08:50)와 과거 28일 이력을 읽어 Claude API에 전달하고, L1~L4 레벨별 브리핑 4개를 생성해 각각의 Drive 폴더에 저장합니다. 완료되면 자동으로 sendBriefingToStaff()를 호출합니다.</p>
+        <p><strong style="color:var(--text)">실행 방식:</strong> 트리거로 5분마다 자동 실행. 삼촌 계정 소유 트리거 필수. 하루 1회만 실제 브리핑 생성.</p>
+        <div class="func-note"><span>📍</span><p>Apps Script → 큐 생성 후 브리핑 생성하는 코드 파일 → 상단 디버그 옆 드롭다운에 <strong>generateBriefing</strong> 표시됨</p></div>
+      </div>
+    </div>
+
+    <div class="func-card">
+      <div class="func-header">
+        <div class="func-num">4</div>
+        <div class="func-name">sendBriefingToStaff()</div>
+        <span class="func-file">브리핑 발송(4월 13일 제형).gs</span>
+      </div>
+      <div class="func-body">
+        <p><strong style="color:var(--text)">이 함수가 하는 일:</strong> generateBriefing()이 완료되면 자동으로 호출됩니다. Drive L1~L4 폴더에서 오늘 날짜 브리핑 파일을 읽고, 직원등급 시트에서 각 직원의 이메일과 등급을 조회해서 해당 등급 브리핑을 HTML 파일로 첨부해 이메일을 발송합니다.</p>
+        <p><strong style="color:var(--text)">실행 방식:</strong> 트리거 없음. generateBriefing()이 끝날 때 자동으로 호출됩니다. 직접 실행도 가능하지만 당일 Drive 파일이 있어야 작동합니다.</p>
+        <div class="func-note"><span>📍</span><p>Apps Script → 브리핑 발송 파일 → 상단 디버그 옆 드롭다운에 <strong>sendBriefingToStaff</strong> 표시됨</p></div>
+      </div>
+    </div>
+
+    <div class="alert alert-warn">
+      <span>⚠️</span>
+      <span><strong>함수 이름 수정 금지:</strong> 각 파일의 함수 이름(doPost, checkAndSaveToQueue, generateBriefing, sendBriefingToStaff)은 절대 바꾸지 마세요. 트리거와 웹앱 배포가 이 이름을 기준으로 연결돼있어서 이름이 바뀌면 전체 자동화가 중단됩니다.</span>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3: 자동화 흐름 -->
+<div class="tab-content" id="tab-flow">
+  <div class="container">
+    <div class="sec-title">🔄 자동화 흐름</div>
+    <div class="flow">
+      <div class="flow-item"><div class="flow-num">1</div><div class="flow-content"><strong>직원 보고 입력 (전날 16:00 ~ 당일 08:50)</strong><p>힘클로드 HTML에서 업무 입력 → doPost() 호출 → Claude API JSON 변환 → luri7305로 [일일보고] 메일 발송</p></div></div>
+      <div class="flow-item"><div class="flow-num">2</div><div class="flow-content"><strong>큐 시트 저장 (5분마다 자동)</strong><p>checkAndSaveToQueue() 5분마다 실행 → Gmail 28일치 검색 → 메시지ID 중복 체크 → 큐 시트 저장</p></div></div>
+      <div class="flow-item"><div class="flow-num">3</div><div class="flow-content"><strong>브리핑 생성 (매일 08:50 이후 1회)</strong><p>generateBriefing() 5분마다 실행, 08:50 이전 종료 → 브리핑완료 시트 오늘 날짜 없을 때만 실행 → 즉시 날짜 기록(중복방지) → L1~L4 브리핑 생성 → Drive 저장</p></div></div>
+      <div class="flow-item"><div class="flow-num">4</div><div class="flow-content"><strong>직원 이메일 발송</strong><p>sendBriefingToStaff() 자동 호출 → 직원등급 시트 기준 레벨별 HTML 첨부 발송</p></div></div>
+    </div>
+    <div class="alert alert-info">
+      <span>ℹ️</span>
+      <div>
+        <strong>관리자 참고 — 보고 시간 기준:</strong><br>
+        직원들에게는 "전날 16:00 ~ 당일 08:50까지"라고 안내했지만 실제로는 08:50~09:00 제외 모든 시간 제출 가능합니다.<br>
+        • 08:50 이전 보고 → <strong>당일 보고서</strong>에 포함<br>
+        • 08:50 이후 보고 → <strong>다음날 보고서</strong>에 과거 이력으로 포함
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 4: 트리거 설정 -->
+<div class="tab-content" id="tab-triggers">
+  <div class="container">
+    <div class="sec-title">⏰ 트리거 설정</div>
+    <div class="alert alert-danger"><span>🚨</span><span><strong>중요:</strong> 두 트리거 모두 반드시 <strong>삼촌 계정(luri7305)</strong>으로 설정. 다른 계정이면 Drive 폴더 접근 오류 발생.</span></div>
+    <table class="tbl">
+      <thead><tr><th>함수</th><th>유형</th><th>주기</th><th>소유자</th><th>상태</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">checkAndSaveToQueue</span></td><td style="color:var(--text2)">시간 기반</td><td style="color:var(--text2)">5분마다</td><td style="color:var(--text2)">삼촌 계정</td><td><span class="tag tag-green">✓ 활성</span></td></tr>
+        <tr><td><span class="mono">generateBriefing</span></td><td style="color:var(--text2)">시간 기반</td><td style="color:var(--text2)">5분마다</td><td style="color:var(--text2)">삼촌 계정</td><td><span class="tag tag-green">✓ 활성</span></td></tr>
+      </tbody>
+    </table>
+    <div class="card">
+      <div class="card-title">🛠️ 트리거 재설정 방법</div>
+      <div class="step-list">
+        <div class="step-item"><span class="step-badge">STEP 1</span><span class="step-text">삼촌 계정으로 Apps Script 접속 (시스템 개요 탭 참조)</span></div>
+        <div class="step-item"><span class="step-badge">STEP 2</span><span class="step-text">왼쪽 메뉴 <strong>⏰ 트리거</strong> 클릭</span></div>
+        <div class="step-item"><span class="step-badge">STEP 3</span><span class="step-text">트리거 추가 → 함수 선택 → 이벤트 소스: <strong>시간 기반</strong> → 유형: <strong>분 단위 타이머</strong> → <strong>5분마다</strong></span></div>
+        <div class="step-item"><span class="step-badge">STEP 4</span><span class="step-text">소유자가 <strong>삼촌 계정</strong>인지 반드시 확인</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 5: Drive 폴더 -->
+<div class="tab-content" id="tab-drive">
+  <div class="container">
+    <div class="sec-title">📂 Google Drive 폴더 구조</div>
+    <div class="alert alert-info"><span>ℹ️</span><span>모든 폴더는 삼촌 계정 소유. 매일 <code style="font-family:monospace">yyyy-MM-dd_브리핑_Lx.txt</code> 형식으로 자동 저장됩니다.</span></div>
+    <div class="folder-item"><span class="folder-icon">📁</span><div class="folder-info"><div class="folder-name">L1 — 대표용 (전체 재무·경영 현황)</div><div class="folder-id">ID: 1RhmHmwVaAaEOIp28PF6_SfjYkgcK4IJT</div></div><span class="tag tag-red">L1</span></div>
+    <div class="folder-item"><span class="folder-icon">📁</span><div class="folder-info"><div class="folder-name">L2 — 본부장용 (프로젝트·재무 현황, 기밀 제외)</div><div class="folder-id">ID: 1Po6pBGVTqmj4aPvJCgLsrVOU9F69bPil</div></div><span class="tag tag-yellow">L2</span></div>
+    <div class="folder-item"><span class="folder-icon">📁</span><div class="folder-info"><div class="folder-name">L3 — 실장용 (프로젝트·업무 현황)</div><div class="folder-id">ID: 1G0gQxD7c7Qx_pJlRnb13aag3ZKlq-TA1</div></div><span class="tag tag-blue">L3</span></div>
+    <div class="folder-item"><span class="folder-icon">📁</span><div class="folder-info"><div class="folder-name">L4 — 전직원용 (공개 업무 현황)</div><div class="folder-id">ID: 1bygR4Sx3mwzfR9x1et0p88aL3gW4eh-_</div></div><span class="tag tag-green">L4</span></div>
+  </div>
+</div>
+
+<!-- TAB 6: 시트 구조 -->
+<div class="tab-content" id="tab-sheets">
+  <div class="container">
+    <div class="sec-title">📊 스프레드시트 구조</div>
+    <div class="card">
+      <div class="card-title">📋 큐 시트 (A~I열)</div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px">
+        <tr style="border-bottom:1px solid var(--border)"><th style="padding:6px 10px;color:var(--text2);text-align:left;width:36px">열</th><th style="padding:6px 10px;color:var(--text2);text-align:left;width:100px">항목</th><th style="padding:6px 10px;color:var(--text2);text-align:left">설명</th></tr>
+        <tr style="border-bottom:1px solid rgba(48,54,61,0.5)"><td style="padding:7px 10px;color:#60a5fa;font-family:monospace">A</td><td style="padding:7px 10px;color:var(--text)">메시지ID</td><td style="padding:7px 10px;color:var(--text2)">Gmail 고유 ID, 중복 방지용</td></tr>
+        <tr style="border-bottom:1px solid rgba(48,54,61,0.5)"><td style="padding:7px 10px;color:#60a5fa;font-family:monospace">B</td><td style="padding:7px 10px;color:var(--text)">수신시각</td><td style="padding:7px 10px;color:var(--text2)">yyyy-MM-dd HH:mm:ss 형식</td></tr>
+        <tr style="border-bottom:1px solid rgba(48,54,61,0.5)"><td style="padding:7px 10px;color:#60a5fa;font-family:monospace">C~F</td><td style="padding:7px 10px;color:var(--text)">이름/직급/부서/등급</td><td style="padding:7px 10px;color:var(--text2)">JSON에서 추출된 직원 정보</td></tr>
+        <tr style="border-bottom:1px solid rgba(48,54,61,0.5)"><td style="padding:7px 10px;color:#60a5fa;font-family:monospace">G</td><td style="padding:7px 10px;color:var(--text)">날짜</td><td style="padding:7px 10px;color:var(--text2)">보고 날짜</td></tr>
+        <tr style="border-bottom:1px solid rgba(48,54,61,0.5)"><td style="padding:7px 10px;color:#60a5fa;font-family:monospace">H</td><td style="padding:7px 10px;color:var(--text)">JSON내용</td><td style="padding:7px 10px;color:var(--text2)">원본 JSON 전체 (브리핑 생성에 실제로 사용)</td></tr>
+        <tr><td style="padding:7px 10px;color:#60a5fa;font-family:monospace">I</td><td style="padding:7px 10px;color:var(--text)">처리여부</td><td style="padding:7px 10px;color:var(--text2)"><span class="tag tag-gray">과거의 잔재</span> 현재 사용 안 함. 신경 쓰지 않아도 됩니다.</td></tr>
+      </table>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-title">📋 브리핑완료 시트</div><p>A열에 브리핑 생성된 날짜 자동 기록. 오늘 날짜 있으면 중복 생성 방지.</p></div>
+      <div class="card"><div class="card-title">📋 직원등급 시트</div><p>A열: 이름 / B열: 이메일 / C열: 등급(L1~L4). 직원 변동 시 업데이트 필요.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 7: API 키 관리 -->
+<div class="tab-content" id="tab-apikey">
+  <div class="container">
+    <div class="sec-title">🔑 API 키 관리</div>
+    <div class="card">
+      <div class="card-title">🔐 현재 사용 중인 API 정보</div>
+      <ul>
+        <li>API 키 이름: <strong>박제형 힘클로드 테스트</strong></li>
+        <li>API 키 확인: <strong>console.anthropic.com</strong> → API Keys</li>
+        <li>소유 계정: 삼촌 계정</li>
+      </ul>
+    </div>
+    <div class="alert alert-danger"><span>🚨</span><span>API 키 절대 외부 공개 금지. 노출 시 즉시 삭제 후 재생성.</span></div>
+    <div class="alert alert-warn"><span>⚠️</span><span><strong>API 키 변경 시:</strong> 스크립트 속성 + 코드 파일 두 곳 모두 변경. 하나만 바꾸면 작동 안 함.</span></div>
+    <div class="card">
+      <div class="card-title">🔄 API 키 재생성 방법</div>
+      <div class="step-list">
+        <div class="step-item"><span class="step-badge">STEP 1</span><span class="step-text"><strong>https://platform.claude.com/settings/workspaces/default/keys</strong> 접속</span></div>
+        <div class="step-item"><span class="step-badge">STEP 2</span><span class="step-text">기존 키 삭제 → 새 키 재생성</span></div>
+        <div class="step-item"><span class="step-badge">STEP 3</span><span class="step-text">Apps Script <strong>스크립트 속성</strong>의 CLAUDE_KEY 값 업데이트</span></div>
+        <div class="step-item"><span class="step-badge">STEP 4</span><span class="step-text">관련 <strong>코드 파일</strong> 안의 API 키도 함께 업데이트</span></div>
+      </div>
+    </div>
+    <div class="alert alert-danger"><span>🚨</span><span><strong>이메일 발송 한도:</strong> 하루 100건. 현재 정상 운영 시 25건만 사용. 테스트 중 100건 초과 시 당일 발송 불가 → 익일 초기화.</span></div>
+  </div>
+</div>
+
+<!-- TAB 8: 오류 대응 -->
+<div class="tab-content" id="tab-errors">
+  <div class="container">
+    <div class="sec-title">🚨 주요 오류 대응</div>
+    <table class="tbl">
+      <thead><tr><th>오류 메시지</th><th>원인</th><th>해결 방법</th></tr></thead>
+      <tbody>
+        <tr><td><span class="error-msg">No item with the given ID</span></td><td style="color:var(--text2)">Drive 접근 권한 없음. 트리거 계정 문제.</td><td style="color:var(--text2)">트리거를 삼촌 계정으로 재설정</td></tr>
+        <tr><td><span class="error-msg">Script function not found</span></td><td style="color:var(--text2)">파일 비어있거나 함수명 변경됨.</td><td style="color:var(--text2)">코드 재입력. 함수명 확인. 불필요한 트리거 삭제.</td></tr>
+        <tr><td><span class="error-msg">Service invoked too many times: email</span></td><td style="color:var(--text2)">하루 100건 초과.</td><td style="color:var(--text2)">익일 자동 초기화. 중복 생성 여부 확인.</td></tr>
+        <tr><td><span class="error-msg">오늘 브리핑 이미 생성됨</span></td><td style="color:var(--text2)">정상 동작.</td><td style="color:var(--text2)">조치 불필요</td></tr>
+        <tr><td><span class="error-msg">오늘 미처리 보고 없음</span></td><td style="color:var(--text2)">전날 16시~당일 8:50 보고 없음.</td><td style="color:var(--text2)">직원 보고 여부 확인.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB 9: 일상 점검 -->
+<div class="tab-content" id="tab-daily">
+  <div class="container">
+    <div class="sec-title">📋 일상 점검 체크리스트</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📅 매일 오전 (09:00 이후)</div>
+        <ul class="checklist">
+          <li>브리핑완료 시트에 오늘 날짜 기록됐는지 확인</li>
+          <li>직원들 이메일로 브리핑 정상 발송됐는지 확인</li>
+          <li>Drive L1~L4 폴더에 오늘 파일 생성됐는지 확인</li>
+          <li>실행 로그 오류 없는지 확인<br><span style="font-size:11px;color:var(--text2)">→ Apps Script → 왼쪽 창 <strong>실행</strong> 메뉴</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">📅 매주 월요일</div>
+        <ul class="checklist">
+          <li>큐 시트 데이터 정상 쌓이는지 확인</li>
+          <li>토큰 사용량 콘솔에서 확인</li>
+          <li>직원등급 시트 변동사항 업데이트</li>
+          <li>트리거 2개 정상 활성화 상태 확인</li>
+        </ul>
+      </div>
+    </div>
+    <div class="alert alert-warn"><span>⚠️</span><span>Gmail 발송 한도 하루 100건. 직원 25명 × 2회 = 50건이니 여유 있지만, 브리핑 중복 생성 시 급격히 소진됩니다.</span></div>
+  </div>
+</div>
+
+<!-- TAB 10: 해야할 일 -->
+<div class="tab-content" id="tab-todo">
+  <div class="container">
+    <div class="sec-title" style="color:var(--purple)">🔧 해야할 일 — 후임자 인수인계</div>
+
+    <!-- 당부 메시지 -->
+    <div class="message-box">
+      <div class="message-from">당부 메시지</div>
+      <div class="message-body">
+        <p>이 시스템을 인수받아 관리하게 되신 분께.</p>
+        <p><strong>함수 및 트리거는 여러 개 만들지 마세요.</strong> 여러 개 만들면 뭐가 뭔지 헷갈리고 서로 충돌해서 오류가 백퍼센트 발생하게 됩니다.</p>
+        <p>하다보면 오류도 분명 생길 것이고, 코드를 수정하다보면 <strong>상당히 열받는 일</strong>들이 많이 생길 것입니다.</p>
+        <p>제가 꼭 당부드리고 싶은 것은, <strong>코드를 수정하기 전에는 항상 꼭 백업 파일을 저장해두세요.</strong> 수정한 파일이 실제로 작동하는지 테스트하려면 Apps Script 상단의 <strong>실행 버튼 왼쪽에 있는 Drive 프로젝트 저장 버튼을 꼭 먼저 누르고</strong> 테스트해야 합니다. 저장하지 않으면 수정 전의 예전 파일로 계속 작동하게 돼서 토큰이 낭비됩니다.</p>
+        <p>그리고 오류가 계속 떠서 뭐가 문제인지 확인하고 싶으시면, <strong>실행 후 하단에 뜨는 로그</strong>와 <strong>왼쪽에 있는 실행 탭</strong>을 잘 확인해보시길 바랍니다. 거기서 대부분의 원인을 찾을 수 있습니다.</p>
+      </div>
+      <p>진짜 아무리 해도 모르겠으실 때는 <strong>internethulk0403@gmail.com</strong>으로 메일 주세요.</p>
+      <div class="message-sig">— 박제형, 2026년 4월 17일</div>
+    </div>
+
+    <div class="alert alert-purple"><span>🔧</span><span>아래는 현재 시스템에서 미완성이거나 개선이 필요한 항목들입니다.</span></div>
+
+    <!-- TODO 1 -->
+    <div class="todo-item">
+      <div class="todo-header">
+        <div class="todo-num">1</div>
+        <div class="todo-title">레벨별 보고서 가이드라인 수정 방법</div>
+        <span class="tag tag-yellow">수정 가능</span>
+      </div>
+      <div class="todo-body">
+        <p>현재 L1~L4 보고서는 <strong>큐 생성 후 브리핑 생성하는 코드</strong> 파일 안의 두 곳의 텍스트를 기준으로 Claude AI가 작성합니다. 보고서의 형식, 포함 내용, 강조 사항을 바꾸고 싶으면 이 두 부분만 수정하면 됩니다.</p>
+        <p><strong style="color:var(--text)">📍 수정 위치: Apps Script → 큐 생성 후 브리핑 생성하는 코드 파일</strong></p>
+        <p style="margin-top:16px"><strong style="color:#ffa657">① 수정 위치 1 — levelDesc (각 레벨 보고서가 어떤 내용인지 AI에게 알려주는 텍스트)</strong></p>
+        <div class="explain-box">
+          <p>이 변수가 각 레벨 보고서의 목적과 대상을 정의합니다. AI는 이 텍스트를 읽고 "이 보고서는 이런 내용을 담아야 한다"고 이해하고 작성합니다. 텍스트를 더 구체적으로 바꿀수록 보고서 품질이 올라갑니다.</p>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span>큐 생성 후 브리핑 생성하는 코드.gs — levelDesc 부분</span><span class="code-label">수정 가능</span></div>
+          <div class="code-body"><span class="hl3">var</span> levelDesc = {
+  <span class="hl">L1: '전체 재무·경영 현황 포함 전체 브리핑 (대표용)',</span>
+  <span class="hl">L2: '프로젝트·재무 현황 브리핑 (본부장용, 기밀 제외)',</span>
+  <span class="hl">L3: '프로젝트·업무 현황 브리핑 (실장용)',</span>
+  <span class="hl">L4: '전직원 공개 업무 현황 브리핑 (전직원용)'</span>
+};
+<span class="hl2">// 위 주황색 텍스트만 수정하면 됩니다
+// 예: L1을 더 구체적으로 바꾸려면
+// L1: '전체 재무 수치(매출/수금/지출), 프로젝트별 긴급 이슈, 경영진 지시사항을 포함한 대표 전용 브리핑'</span></div>
+        </div>
+        <p style="margin-top:8px"><strong style="color:#ffa657">② 수정 위치 2 — system 프롬프트 (AI에게 보고서 작성 방식 전체를 지시하는 텍스트)</strong></p>
+        <div class="explain-box">
+          <p>이 텍스트가 AI의 작성 방식, 구조, 강조 항목을 결정합니다. "표로 정리", "우선순위 순으로", "재무 수치 반드시 포함" 같은 구체적인 지시를 추가할 수 있습니다.</p>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span>큐 생성 후 브리핑 생성하는 코드.gs — system 프롬프트 부분</span><span class="code-label">수정 가능</span></div>
+          <div class="code-body">payload: JSON.stringify({
+  model: <span class="hl2">'claude-haiku-4-5-20251001'</span>,
+  max_tokens: 4000,
+  <span class="hl3">system</span>: <span class="hl">'당신은 더힘이엔씨(주) 경영 브리핑 AI입니다. '</span>
+         <span class="hl">+ levelDesc[level]</span>
+         <span class="hl">+ '을 작성해주세요. '</span>
+         <span class="hl">+ '오늘 보고를 중심으로 과거 28일 이력을 참고하여 '</span>
+         <span class="hl">+ '프로젝트별로 묶어서 정리하고 '</span>
+         <span class="hl">+ '주요 이슈와 지시사항을 강조해주세요.'</span>,
+  messages: [...]
+})
+<span class="hl2">// 위 주황색 텍스트 전체가 AI 지시문입니다
+// 예시로 추가 가능한 지시:
+// + '재무 수치는 반드시 표 형식으로 정리하고, '
+// + '이슈는 긴급/주의/일반 3단계로 분류해서 나열하고, '</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TODO 2 -->
+    <div class="todo-item">
+      <div class="todo-header">
+        <div class="todo-num">2</div>
+        <div class="todo-title">힘클로드에서 파일 첨부 인식 기능 추가 (이미지, PDF, 엑셀)</div>
+        <span class="tag tag-red">미완성</span>
+      </div>
+      <div class="todo-body">
+        <p>현재 힘클로드는 텍스트 입력만 인식합니다. 이미지, PDF, 엑셀 같은 파일을 첨부해도 내용이 보고서에 반영되지 않습니다.</p>
+        <p><strong style="color:var(--text)">📍 해결 방법 — Claude AI에게 직접 요청:</strong></p>
+        <div class="code-block">
+          <div class="code-header"><span>후임자 작업 지시</span></div>
+          <div class="code-body">1. claude.ai 접속
+2. 힘클로드 HTML 파일을 첨부파일로 업로드
+3. 아래 메시지 입력:
+
+   "텍스트 입력창 뿐만 아니라 PDF, 엑셀, 이미지 같은
+    파일들을 인식하는 코드를 만들어서 줘"
+
+4. 생성된 코드로 힘클로드 HTML 파일 교체 후 테스트</div>
+        </div>
+        <p>지원 가능한 형식: 이미지(jpg/png) → Claude vision으로 인식 / PDF·엑셀 → 텍스트 추출 후 보고 내용에 합산</p>
+      </div>
+    </div>
+
+    <!-- TODO 3 -->
+    <div class="todo-item">
+      <div class="todo-header">
+        <div class="todo-num">3</div>
+        <div class="todo-title">직원 수 변경 시 시스템 업데이트</div>
+        <span class="tag tag-blue">유지보수</span>
+      </div>
+      <div class="todo-body">
+        <p>직원이 입사하거나 퇴사할 경우 아래 두 곳을 업데이트해야 합니다.</p>
+        <p><strong style="color:var(--text)">① 직원등급 시트</strong> — 스프레드시트에서 직접 수정. A열: 이름 / B열: 이메일 / C열: 등급(L1~L4)</p>
+        <p><strong style="color:var(--text)">② 힘클로드 HTML 파일</strong> — 직원 이름 드롭다운 목록이 HTML 파일 안에 하드코딩돼있음. 파일 열어서 이름 추가/삭제 필요.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">
+  <span>힘쎄오 시스템 관리자 가이드 · 더힘이엔씨(주) · 제작자: 박제형 · 2026년 4월 17일</span>
+  
+</div>
+
+<script>
+  function showTab(name,btn){
+    document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    btn.classList.add('active');
+    window.scrollTo(0,0);
+  }
+</script>
+</body>
+</html>

@@ -433,6 +433,102 @@ body{
   backdrop-filter:blur(8px);
 }
 .toast.on{opacity:1}
+
+/* 필드 편집용 텍스트박스 */
+.field-ta{
+  width:100%;
+  border:1.5px solid var(--line);
+  border-radius:10px;
+  padding:12px;
+  font-size:15px;
+  font-family:'Noto Sans KR',sans-serif;
+  background:rgba(255,255,255,.85);
+  color:var(--ink);
+  resize:vertical;
+  line-height:1.7;
+  min-height:48px;
+  -webkit-appearance:none;
+}
+.field-ta:focus{
+  outline:none;
+  border-color:var(--brush-blue);
+  background:rgba(255,255,255,1);
+  box-shadow:0 0 0 3px rgba(123,167,188,.1);
+}
+
+/* 원문 표시 박스 */
+.raw-box{
+  background:rgba(250,248,243,.9);
+  border-left:3px solid var(--brush-gold);
+  padding:12px 14px;border-radius:0 10px 10px 0;
+  font-size:13px;line-height:1.7;color:var(--ink2);
+  white-space:pre-wrap;word-break:break-word;
+}
+
+/* 재정리 버튼 (가운데) */
+.btn-mid{
+  flex:2;height:50px;border-radius:25px;
+  border:1.5px solid var(--brush-gold);
+  background:linear-gradient(135deg,rgba(196,168,122,.15),rgba(196,144,122,.12));
+  color:var(--brush-rose);font-size:14px;font-weight:500;cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.btn-mid:active{transform:scale(.97);opacity:.9}
+
+/* 프로젝트별 카드 (Page 2) */
+.proj-head{
+  display:flex;align-items:center;gap:10px;
+}
+.proj-name{
+  flex:1;
+  font-size:15px;font-weight:500;color:var(--ink);
+  background:transparent;border:none;
+  border-bottom:1.5px solid var(--brush-blue);
+  padding:4px 2px;
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none;
+}
+.proj-name:focus{
+  outline:none;border-bottom-color:var(--brush-rose);
+}
+.proj-del{
+  background:none;border:1px solid var(--line);color:var(--ink3);
+  width:28px;height:28px;border-radius:50%;cursor:pointer;
+  font-size:16px;line-height:1;flex-shrink:0;
+}
+.proj-del:hover{border-color:var(--brush-rose);color:var(--brush-rose)}
+.field-row{
+  display:flex;flex-direction:column;gap:4px;margin-bottom:10px;
+}
+.field-row:last-child{margin-bottom:0}
+.field-row label{
+  font-size:11px;color:var(--ink3);font-weight:600;letter-spacing:.5px;
+}
+.proj-field{
+  width:100%;
+  border:1.5px solid var(--line);border-radius:8px;
+  padding:10px 12px;
+  font-size:14px;font-family:'Noto Sans KR',sans-serif;
+  background:rgba(255,255,255,.85);color:var(--ink);
+  resize:vertical;line-height:1.6;min-height:36px;
+  -webkit-appearance:none;
+}
+.proj-field:focus{
+  outline:none;border-color:var(--brush-blue);background:rgba(255,255,255,1);
+}
+.common-card .rep-head{background:rgba(196,168,122,.08)}
+.proj-add-btn{
+  display:block;width:calc(100% - 40px);
+  margin:12px 20px 0;
+  padding:12px;
+  background:rgba(123,167,188,.08);
+  border:1.5px dashed var(--brush-blue);border-radius:10px;
+  color:var(--brush-blue);
+  font-size:14px;font-weight:500;cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.proj-add-btn:hover{background:rgba(123,167,188,.18)}
 </style>
 </head>
 <body>
@@ -443,7 +539,7 @@ body{
 <div class="page on" id="p0">
   <div class="p0-hero">
     <div class="p0-brush">🖌️</div>
-    <div class="p0-title">더힘이엔씨<br>일일보고</div>
+    <div class="p0-title">더힘이앤씨<br>일일보고</div>
     <div class="p0-sub" style="margin-top:8px">처음 한 번만 선택하면<br>다음부터 자동으로 시작됩니다</div>
   </div>
 
@@ -474,6 +570,12 @@ body{
       <div class="ctx-body" id="ctx-schedule-body"></div>
     </div>
 
+    <!-- 오늘 할 일 -->
+    <div class="ctx-card" id="ctx-today">
+      <div class="ctx-head">📝 <span>오늘 할 일</span></div>
+      <div class="ctx-body" id="ctx-today-body"></div>
+    </div>
+
     <!-- 어제 보고 미완료 -->
     <div class="ctx-card" id="ctx-yesterday" style="display:none">
       <div class="ctx-head">📋 <span>어제 보고 요약</span></div>
@@ -481,7 +583,7 @@ body{
     </div>
 
     <!-- 받은 지시사항 -->
-    <div class="ctx-card" id="ctx-directive" style="display:none">
+    <div class="ctx-card" id="ctx-directive">
       <div class="ctx-head">📌 <span>미완료 지시사항</span></div>
       <div class="ctx-body" id="ctx-directive-body"></div>
     </div>
@@ -540,7 +642,6 @@ body{
   <div class="p2-topbar">
     <button class="back-btn" onclick="goPage('p1')">←</button>
     <div class="p2-name" id="p2-name">보고서 확인</div>
-    <button class="edit-btn" id="edit-btn" onclick="toggleEdit()">수정</button>
   </div>
 
   <div id="p2-body">
@@ -549,6 +650,7 @@ body{
 
   <div class="p2-bottom" id="p2-btns" style="display:none">
     <button class="btn-sv" onclick="doSave()">💾 저장</button>
+    <button class="btn-mid" onclick="doReanalyze()">🔄 AI 재정리</button>
     <button class="btn-sd" onclick="doFinalSend()">📤 발송</button>
   </div>
 
@@ -562,11 +664,15 @@ body{
 var STAFF=[];
 
 // ── 설정 ──────────────────────
-var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxE7-FIN5Ne39-SOStT8gfByF8o-L4B8fxmIHABF5tCPDd_M6wA9VnMV-9vhNMMtUgw/exec';
+var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbw6_WPB9K7x5fyGV-QtSwnlmuRb2kvow5H7aQpWTpIoUK-yMGGbxUy7rOnH5jDozvhc/exec';
 var APPS_SCRIPT_TOKEN='thehim2026';
 
 // ── 상태 ──────────────────────
 var profile=null,files=[],voiceOn=false,mediaRec=null,editMode=false;
+var currentStructured=null;
+var currentRawText='';
+var yesterdayRaw='';
+var yesterdayDate='';
 var now=new Date();
 var days=['일','월','화','수','목','금','토'];
 var dateStr=now.getFullYear()+'-'+p2(now.getMonth()+1)+'-'+p2(now.getDate());
@@ -632,6 +738,20 @@ function initP1(){
   document.getElementById('user-name').textContent=profile.name+' '+profile.role+' · '+profile.dept;
   document.getElementById('user-date').textContent=dateLabel+' 일일보고';
   loadContext();
+  loadYesterdayRaw();
+}
+
+function loadYesterdayRaw(){
+  if(!profile)return;
+  fetch(APPS_SCRIPT_URL+'?action=get_yesterday_raw&name='+encodeURIComponent(profile.name))
+    .then(function(r){return r.json()})
+    .then(function(data){
+      if(data.ok){
+        yesterdayRaw=data.raw||'';
+        yesterdayDate=data.date||'';
+      }
+    })
+    .catch(function(){});
 }
 
 function loadContext(){
@@ -651,9 +771,27 @@ function loadContext(){
 }
 
 function renderContextCards(data){
+  var today=data.today||[];
   var yesterday=data.yesterday||[];
   var directive=data.directive||[];
   var generatedDate=data.generated_date||'';
+
+  if(today.length>0){
+    var tBody=document.getElementById('ctx-today-body');
+    if(generatedDate){
+      var tHead=document.querySelector('#ctx-today .ctx-head span');
+      if(tHead)tHead.textContent='오늘 할 일 ('+generatedDate+' 브리핑)';
+    }
+    today.forEach(function(item){
+      var text=typeof item==='string'?item:item.text;
+      var isEmphasis=typeof item==='object'&&item.emphasis;
+      var color=isEmphasis?'rose':'blue';
+      var d=document.createElement('div');
+      d.className='ctx-row '+color;
+      d.textContent=(isEmphasis?'⏰ ':'')+text;
+      tBody.appendChild(d);
+    });
+  }
 
   if(yesterday.length>0){
     var yEl=document.getElementById('ctx-yesterday');
@@ -757,10 +895,11 @@ function stopV(){
 // ── 분석 → P2 ──────────────────────
 function doAnalyze(){
   var txt=document.getElementById('main-input').value.trim();
-  if(!txt&&files.length===0){toast('업무 내용을 입력하거나 파일을 첨부해주세요');return}
+  if(!txt){toast('업무 내용을 입력해주세요');return;}
+
+  currentRawText=txt;
   goPage('p2');
   document.getElementById('p2-name').textContent='분석 중...';
-  document.getElementById('edit-btn').style.display='none';
   document.getElementById('p2-btns').style.display='none';
   document.getElementById('p2-body').innerHTML=
     '<div class="loading-wrap">'+
@@ -769,56 +908,255 @@ function doAnalyze(){
       '<div class="loading-sub">프로젝트·인물·요청사항을<br>분리하는 중...</div>'+
     '</div>';
 
-  var rawText=txt;
-  var fileNames=files.map(function(f){return f.name});
-
-  // 실제 환경: sendPrompt로 힘클로드 호출
-  // 시연: 1.5초 후 결과 렌더
-  setTimeout(function(){renderReport(rawText,fileNames)},1500);
+  fetch(APPS_SCRIPT_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({
+      token:APPS_SCRIPT_TOKEN,
+      action:'structure_report',
+      raw:txt
+    })
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    if(!data.ok)throw new Error(data.message||'구조화 실패');
+    currentStructured=data.structured;
+    renderStructuredReport();
+  })
+  .catch(function(err){
+    document.getElementById('p2-body').innerHTML=
+      '<div class="done-wrap">'+
+        '<div class="done-brush">❌</div>'+
+        '<div class="done-title">분석 실패</div>'+
+        '<div class="done-desc">'+err+'<br><br>다시 시도해주세요.</div>'+
+        '<button class="done-new" onclick="goPage(\'p1\')">돌아가기</button>'+
+      '</div>';
+  });
 }
 
-function renderReport(raw,fnames){
+function renderStructuredReport(){
   document.getElementById('p2-name').textContent=profile.name+' 보고서';
-  document.getElementById('edit-btn').style.display='block';
   document.getElementById('p2-btns').style.display='flex';
 
-  var lines=raw?raw.split('\n').filter(function(l){return l.trim()}).map(function(l){return l.trim()}):[];
+  var s=normalizeStructured(currentStructured);
+  currentStructured=s;
 
   var html='<div class="report-wrap">';
 
   // 작성자
-  html+=repCard('info','작성자',
-    '<div class="rep-text">'+profile.name+' '+profile.role+' · '+profile.dept+'<br>'+dateLabel+'</div>');
+  html+='<div class="rep-card">'+
+    '<div class="rep-head"><span class="rep-label">작성자</span></div>'+
+    '<div class="rep-body"><div class="rep-text">'+
+      escapeHtml(profile.name)+' '+escapeHtml(profile.role)+' · '+escapeHtml(profile.dept)+'<br>'+escapeHtml(dateLabel)+
+    '</div></div>'+
+  '</div>';
 
-  // 업무 내용
-  if(lines.length>0){
-    var taskHtml='';
-    lines.forEach(function(l){taskHtml+='<div class="rep-task">'+l+'</div>'});
-    html+=repCard('tasks','오늘 업무',taskHtml);
+  // 어제 원문
+  var ydLabel='어제 원문'+(yesterdayDate?' ('+fmtDate(yesterdayDate)+')':'');
+  var ydBody=yesterdayRaw
+    ? '<div class="raw-box">'+escapeHtml(yesterdayRaw)+'</div>'
+    : '<div class="raw-box" style="color:var(--ink3);font-style:italic">(이전 보고 기록 없음)</div>';
+  html+='<div class="rep-card">'+
+    '<div class="rep-head"><span class="rep-label">'+escapeHtml(ydLabel)+'</span></div>'+
+    '<div class="rep-body">'+ydBody+'</div>'+
+  '</div>';
+
+  // 오늘 원문
+  if(currentRawText){
+    html+='<div class="rep-card">'+
+      '<div class="rep-head"><span class="rep-label">오늘 원문</span></div>'+
+      '<div class="rep-body"><div class="raw-box">'+escapeHtml(currentRawText)+'</div></div>'+
+    '</div>';
   }
 
-  // 첨부파일
-  if(fnames.length>0){
-    var fHtml='';
-    fnames.forEach(function(f){fHtml+='<div class="rep-task">📎 '+f+'</div>'});
-    html+=repCard('files','첨부 파일',fHtml);
-  }
+  // 프로젝트별 카드
+  s.projects.forEach(function(p,idx){
+    html+=renderProjectCard(p,idx);
+  });
 
-  // AI 확인 질문 (파일 있을 때)
-  if(fnames.length>0){
-    html+=
-      '<div class="ai-card">'+
-        '<div class="ai-head">🤖 확인이 필요합니다</div>'+
-        '<div class="ai-body">'+
-          '<div class="ai-question">첨부된 <strong>'+fnames[0]+'</strong> 파일은 어떤 내용인가요?<br>한 줄로 설명해주세요.</div>'+
-          '<input class="ai-input" id="ai-ans" placeholder="예) 더케이호텔 3월 거래내역">'+
-          '<button class="ai-submit" onclick="submitAns()">확인 →</button>'+
-        '</div>'+
-      '</div>';
-  }
+  // 공통 카드 (항상 표시)
+  html+='<div class="rep-card common-card">'+
+    '<div class="rep-head"><span class="rep-label">공통 (프로젝트 무관·근태 등)</span></div>'+
+    '<div class="rep-body">'+renderFieldRows(s.common,'common')+'</div>'+
+  '</div>';
+
+  // 프로젝트 추가 버튼
+  html+='<button class="proj-add-btn" onclick="addProject()">+ 프로젝트 추가</button>';
 
   html+='</div>';
   document.getElementById('p2-body').innerHTML=html;
+}
+
+function renderProjectCard(p,idx){
+  return '<div class="rep-card proj-card" data-proj-idx="'+idx+'">'+
+    '<div class="rep-head proj-head">'+
+      '<input class="proj-name" data-proj-idx="'+idx+'" value="'+escapeHtml(p.name||'')+'" placeholder="프로젝트명">'+
+      '<button class="proj-del" onclick="removeProject('+idx+')" title="이 프로젝트 제거">×</button>'+
+    '</div>'+
+    '<div class="rep-body">'+renderFieldRows(p,idx)+'</div>'+
+  '</div>';
+}
+
+function renderFieldRows(src,idx){
+  var rows=[
+    {key:'meeting',  label:'미팅'},
+    {key:'issue',    label:'이슈 및 문제'},
+    {key:'dir',      label:'지시사항'},
+    {key:'schedule', label:'일정'}
+  ];
+  return rows.map(function(r){
+    return '<div class="field-row">'+
+      '<label>'+r.label+'</label>'+
+      '<textarea class="proj-field" data-proj-idx="'+idx+'" data-key="'+r.key+'" rows="2" placeholder="해당 없으면 비워두세요">'+escapeHtml(src[r.key]||'')+'</textarea>'+
+    '</div>';
+  }).join('');
+}
+
+function normalizeStructured(s){
+  s=s||{};
+  var projects=Array.isArray(s.projects)?s.projects:[];
+  var common=(s.common&&typeof s.common==='object')?s.common:{};
+  return {
+    projects:projects.map(function(p){
+      p=p||{};
+      return {
+        name:    typeof p.name    ==='string'?p.name:'',
+        meeting: typeof p.meeting ==='string'?p.meeting:'',
+        issue:   typeof p.issue   ==='string'?p.issue:'',
+        dir:     typeof p.dir     ==='string'?p.dir:'',
+        schedule:typeof p.schedule==='string'?p.schedule:''
+      };
+    }),
+    common:{
+      meeting: typeof common.meeting ==='string'?common.meeting:'',
+      issue:   typeof common.issue   ==='string'?common.issue:'',
+      dir:     typeof common.dir     ==='string'?common.dir:'',
+      schedule:typeof common.schedule==='string'?common.schedule:''
+    }
+  };
+}
+
+function collectStructure(){
+  var projects=[];
+  document.querySelectorAll('.proj-card').forEach(function(card){
+    var nameEl=card.querySelector('.proj-name');
+    var proj={name:nameEl?nameEl.value.trim():'',meeting:'',issue:'',dir:'',schedule:''};
+    card.querySelectorAll('.proj-field').forEach(function(ta){
+      proj[ta.getAttribute('data-key')]=ta.value.trim();
+    });
+    projects.push(proj);
+  });
+  var common={meeting:'',issue:'',dir:'',schedule:''};
+  var cCard=document.querySelector('.common-card');
+  if(cCard){
+    cCard.querySelectorAll('.proj-field').forEach(function(ta){
+      common[ta.getAttribute('data-key')]=ta.value.trim();
+    });
+  }
+  return {projects:projects,common:common};
+}
+
+function flattenToFiveFields(s){
+  s=normalizeStructured(s);
+  var validProjects=s.projects.filter(function(p){return p.name;});
+  var multi=validProjects.length>1;
+  function agg(field){
+    var parts=validProjects
+      .map(function(p){
+        if(!p[field])return '';
+        return multi?'['+p.name+'] '+p[field]:p[field];
+      })
+      .filter(Boolean);
+    if(s.common[field])parts.push(s.common[field]);
+    return parts.join(' / ');
+  }
+  return {
+    pj:       validProjects.map(function(p){return p.name;}).join(', '),
+    meeting:  agg('meeting'),
+    issue:    agg('issue'),
+    dir:      agg('dir'),
+    schedule: agg('schedule')
+  };
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(yyyymmdd){
+  if(!yyyymmdd||yyyymmdd.length!==8)return yyyymmdd||'';
+  return yyyymmdd.substr(0,4)+'-'+yyyymmdd.substr(4,2)+'-'+yyyymmdd.substr(6,2);
+}
+
+function addProject(){
+  currentStructured=collectStructure();
+  currentStructured.projects.push({name:'',meeting:'',issue:'',dir:'',schedule:''});
+  renderStructuredReport();
+  setTimeout(function(){
+    var inputs=document.querySelectorAll('.proj-name');
+    var last=inputs[inputs.length-1];
+    if(last){last.focus();last.scrollIntoView({behavior:'smooth',block:'center'});}
+  },100);
+}
+
+function removeProject(idx){
+  currentStructured=collectStructure();
+  currentStructured.projects.splice(idx,1);
+  renderStructuredReport();
+}
+
+function doReanalyze(){
+  var s=collectStructure();
+  var combined='';
+  s.projects.forEach(function(p){
+    if(!p.name&&!p.meeting&&!p.issue&&!p.dir&&!p.schedule)return;
+    combined+='['+(p.name||'(이름없음)')+']\n';
+    if(p.meeting)  combined+='미팅: '+p.meeting+'\n';
+    if(p.issue)    combined+='이슈: '+p.issue+'\n';
+    if(p.dir)      combined+='지시: '+p.dir+'\n';
+    if(p.schedule) combined+='일정: '+p.schedule+'\n';
+    combined+='\n';
+  });
+  var c=s.common;
+  if(c.meeting||c.issue||c.dir||c.schedule){
+    combined+='[공통]\n';
+    if(c.meeting)  combined+='미팅: '+c.meeting+'\n';
+    if(c.issue)    combined+='이슈: '+c.issue+'\n';
+    if(c.dir)      combined+='지시: '+c.dir+'\n';
+    if(c.schedule) combined+='일정: '+c.schedule+'\n';
+  }
+
+  if(!combined.trim()){toast('수정된 내용이 없습니다');return;}
+
+  document.getElementById('p2-body').innerHTML=
+    '<div class="loading-wrap">'+
+      '<div class="loading-brush">🔄</div>'+
+      '<div class="loading-text">AI가 다시 정리하고 있습니다</div>'+
+      '<div class="loading-sub">수정한 내용을 반영하는 중...</div>'+
+    '</div>';
+  document.getElementById('p2-btns').style.display='none';
+
+  fetch(APPS_SCRIPT_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({
+      token:APPS_SCRIPT_TOKEN,
+      action:'structure_report',
+      raw:combined
+    })
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    if(!data.ok)throw new Error(data.message||'재정리 실패');
+    currentStructured=data.structured;
+    renderStructuredReport();
+    toast('🔄 재정리 완료');
+  })
+  .catch(function(err){
+    toast('❌ 오류: '+err);
+    renderStructuredReport();
+  });
 }
 
 function repCard(id,label,bodyHtml){
@@ -893,11 +1231,9 @@ function doSave(){
 }
 
 function doFinalSend(){
-  var txt=document.getElementById('main-input').value.trim();
-  var fnames=files.map(function(f){return f.name}).join(', ');
+  currentStructured=collectStructure();
+  var structured=flattenToFiveFields(currentStructured);
   var dc=dateStr.replace(/-/g,'');
-
-  if(!txt){toast('보고 내용을 입력해주세요');return;}
 
   document.getElementById('p2-body').innerHTML=
     '<div class="done-wrap">'+
@@ -905,20 +1241,9 @@ function doFinalSend(){
       '<div class="done-title">발송 중...</div>'+
     '</div>';
   document.getElementById('p2-btns').style.display='none';
-  document.getElementById('edit-btn').style.display='none';
-
-  var body=
-    '[일일보고] '+profile.name+' '+profile.role+' ('+profile.dept+') | '+dateLabel+'\n'+
-    '━━━━━━━━━━━━━━━━━━━━━\n\n'+
-    txt+
-    (fnames?'\n\n【첨부】\n'+fnames:'')+
-    '\n\n━━━━━━━━━━━━━━━━━━━━━\n'+
-    '더힘이엔씨(주) | '+profile.name+' '+profile.role+' | '+dateStr+'\n'+
-    '자동 생성: 힘클로드 v4.1';
 
   fetch(APPS_SCRIPT_URL,{
     method:'POST',
-    mode:'no-cors',
     headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify({
       token:APPS_SCRIPT_TOKEN,
@@ -931,26 +1256,29 @@ function doFinalSend(){
       to:'luri7305@gmail.com',
       cc:'taesilkim2@gmail.com',
       subject:'[일일보고] '+profile.name+'_'+dc,
-      body:body,
-      raw:txt
+      raw:currentRawText,
+      structured:structured
     })
-  }).then(function(){
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    if(!data.ok)throw new Error(data.message||'발송 실패');
     document.getElementById('p2-body').innerHTML=
       '<div class="done-wrap">'+
         '<div class="done-brush">✅</div>'+
         '<div class="done-title">발송 완료</div>'+
-        '<div class="done-desc">'+profile.name+' '+profile.role+'님의 보고서가<br>luri7305@gmail.com으로 전송됐습니다.</div>'+
+        '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>luri7305@gmail.com으로 전송됐습니다.</div>'+
         '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
       '</div>';
-  }).catch(function(err){
+  })
+  .catch(function(err){
     document.getElementById('p2-body').innerHTML=
       '<div class="done-wrap">'+
         '<div class="done-brush">❌</div>'+
         '<div class="done-title">오류 발생</div>'+
-        '<div class="done-desc">다시 시도해주세요.<br>'+err+'</div>'+
+        '<div class="done-desc">'+err+'<br>다시 시도해주세요.</div>'+
       '</div>';
     document.getElementById('p2-btns').style.display='flex';
-    document.getElementById('edit-btn').style.display='block';
   });
 }
 

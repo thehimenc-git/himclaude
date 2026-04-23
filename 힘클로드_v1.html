@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>더힘 일일보고</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
@@ -179,6 +179,10 @@ body{
 }
 .ctx-row.blue{border-left-color:var(--brush-blue)}
 .ctx-row.green{border-left-color:var(--brush-green)}
+.ctx-row.ctx-empty{
+  color:var(--ink3);font-style:italic;font-size:12px;
+  background:transparent;border-left-color:var(--line);
+}
 .ctx-row.rose{border-left-color:var(--brush-rose)}
 .ctx-row.gold{border-left-color:var(--brush-gold)}
 .ctx-time{font-size:11px;color:var(--ink3);margin-right:5px}
@@ -394,6 +398,111 @@ body{
   background:linear-gradient(0deg,var(--paper) 60%,transparent);
   display:flex;gap:10px;
 }
+
+/* ══════════════════════════
+   2페이지 2열 레이아웃 (반응형)
+   모바일(기본): 세로 단일 컬럼, 검색은 탭으로 제어 (step 7)
+   PC ≥1024px: 편집 2/3 + 검색 1/3 가로 배치
+══════════════════════════ */
+.p2-main{display:block}
+.p2-col{min-width:0}
+.p2-col-search{display:none}  /* 모바일 기본 숨김 — 탭으로 토글 */
+
+/* 모바일 탭 (PC에서 숨김) */
+.p2-tabs{
+  display:flex;gap:6px;
+  padding:10px 16px 4px;
+  position:sticky;top:48px;
+  background:rgba(250,248,243,.95);
+  backdrop-filter:blur(8px);
+  z-index:90;
+}
+.p2-tab{
+  flex:1;padding:9px;
+  background:transparent;
+  border:1.5px solid var(--line);
+  border-radius:18px;
+  font-size:12px;font-weight:600;
+  color:var(--ink3);
+  font-family:'Noto Sans KR',sans-serif;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  display:flex;align-items:center;justify-content:center;gap:5px;
+}
+.p2-tab.active{
+  background:var(--ink);
+  color:var(--paper);
+  border-color:var(--ink);
+}
+
+/* 모바일에서 검색 탭 활성화 시: 편집 컬럼·하단 버튼 숨기고 검색 컬럼 표시 */
+#p2.tab-search .p2-col-edit{display:none}
+#p2.tab-search .p2-col-search{display:block}
+#p2.tab-search .p2-bottom{display:none !important}
+
+/* 검색 패널 UI */
+.search-box{
+  margin:16px;padding:16px;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+.search-title{
+  font-size:13px;font-weight:700;color:var(--ink);
+  margin-bottom:14px;letter-spacing:.5px;
+}
+.search-field{margin-bottom:12px}
+.search-field>label{
+  display:block;font-size:11px;font-weight:700;
+  color:var(--ink3);margin-bottom:6px;
+  letter-spacing:.5px;
+}
+.search-dates{display:flex;align-items:center;gap:8px}
+.search-dates input{flex:1;min-width:0}
+.search-dates span{color:var(--ink3);font-size:12px}
+.search-field input{
+  width:100%;padding:9px 11px;
+  border:1.5px solid var(--line);
+  border-radius:10px;
+  font-size:13px;
+  font-family:'Noto Sans KR',sans-serif;
+  background:var(--paper);color:var(--ink);
+  -webkit-appearance:none;appearance:none;
+}
+.search-field input:focus{
+  outline:none;border-color:var(--brush-green);
+}
+.search-btn{
+  width:100%;padding:11px;
+  background:linear-gradient(135deg,var(--ink),var(--ink2));
+  color:var(--paper);
+  border:none;border-radius:20px;
+  font-size:13px;font-weight:600;cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none;appearance:none;
+  margin-top:4px;
+}
+.search-btn:active{transform:scale(.98);opacity:.92}
+.search-results{margin-top:14px;min-height:80px}
+.search-results-empty{
+  padding:24px 10px;text-align:center;
+  color:var(--ink3);font-size:12px;line-height:1.7;
+  border:1.5px dashed var(--line);border-radius:10px;
+}
+
+@media (min-width:1024px){
+  .p2-tabs{display:none}  /* PC에서 탭 숨김 — 둘 다 보임 */
+  .p2-main{
+    display:flex;align-items:flex-start;gap:24px;
+    padding:0 20px;  /* 양 옆 20px 여백 고정, 폭은 창 너비에 따라 확장 */
+  }
+  .p2-col-edit{flex:2}
+  .p2-col-search{
+    display:block;flex:1;
+    position:sticky;top:72px;
+    max-height:calc(100vh - 92px);
+    overflow-y:auto;
+  }
+}
 .btn-sv{
   flex:1;height:50px;border-radius:25px;
   border:1.5px solid var(--line);
@@ -434,6 +543,106 @@ body{
 }
 .toast.on{opacity:1}
 
+/* 발송 확인 다이얼로그 */
+.dlg-back{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(30,40,31,.45);
+  backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;
+  padding:20px;
+}
+.dlg-back.on{display:flex}
+.dlg-card{
+  background:var(--paper);border-radius:18px;
+  padding:24px 20px 20px;
+  width:100%;max-width:340px;
+  box-shadow:0 20px 60px rgba(0,0,0,.18);
+}
+.dlg-title{
+  font-size:17px;font-weight:700;color:var(--ink);
+  margin-bottom:8px;text-align:center;
+}
+.dlg-desc{
+  font-size:13px;color:var(--ink2);line-height:1.6;
+  margin-bottom:18px;text-align:center;
+}
+.dlg-btns{display:flex;flex-direction:column;gap:8px}
+.dlg-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;min-height:48px;padding:0 16px;
+  border-radius:24px;
+  border:1.5px solid transparent;
+  background:transparent;
+  font-size:14px;font-weight:600;line-height:1;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none;appearance:none;
+  white-space:nowrap;
+}
+.dlg-btn:active{transform:scale(.98);opacity:.92}
+.dlg-btn-primary{
+  background:linear-gradient(135deg,var(--ink),var(--ink2));
+  color:var(--paper);
+  border-color:transparent;
+}
+.dlg-btn-secondary{
+  background:rgba(255,255,255,.9);
+  color:var(--ink2);
+  border-color:var(--line);
+}
+.dlg-btn-cancel{
+  color:var(--ink3);
+  font-weight:500;min-height:40px;
+  border-color:transparent;
+}
+
+/* 이어서 작성 배너 */
+.draft-banner{
+  display:none;align-items:center;gap:10px;
+  margin:12px 20px 0;padding:12px 14px;
+  background:#f5f1e4;border:1.5px solid var(--brush-gold);
+  border-left:4px solid var(--brush-gold);
+  border-radius:10px;
+}
+.draft-banner.on{display:flex}
+.draft-icon{font-size:18px;flex:0 0 auto}
+.draft-text{flex:1;font-size:12px;line-height:1.5;color:var(--ink2)}
+.draft-text b{color:var(--ink);display:block;font-size:13px;margin-bottom:2px}
+.draft-btns{display:flex;gap:6px;flex:0 0 auto}
+.draft-btn{
+  padding:7px 12px;border-radius:14px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  border:1.5px solid transparent;
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none;appearance:none;
+  white-space:nowrap;
+}
+.draft-btn-yes{background:var(--brush-gold);color:var(--paper);border-color:var(--brush-gold)}
+.draft-btn-no{background:transparent;color:var(--ink3);border-color:var(--line)}
+
+/* 테스트 모드 배지·프리뷰 */
+.test-badge{
+  background:#fff4d6;color:#8a6400;
+  border:1.5px solid #f2d477;
+  padding:10px 14px;border-radius:12px;
+  font-size:12px;font-weight:600;line-height:1.5;
+  margin:0 0 14px;text-align:center;
+}
+.test-preview{
+  background:#f7f5ee;border-radius:12px;
+  padding:14px;margin:16px 0;
+  text-align:left;font-size:12px;
+}
+.test-row{
+  display:flex;gap:10px;
+  padding:8px 0;border-bottom:1px solid var(--line);
+}
+.test-row:last-child{border-bottom:none}
+.test-row-label{
+  flex:0 0 56px;font-weight:600;color:var(--ink2);
+}
+.test-row-val{flex:1;color:var(--ink);word-break:break-word}
+
 /* 필드 편집용 텍스트박스 */
 .field-ta{
   width:100%;
@@ -464,12 +673,46 @@ body{
   font-size:13px;line-height:1.7;color:var(--ink2);
   white-space:pre-wrap;word-break:break-word;
 }
+.raw-box.empty{font-style:italic;color:var(--ink3)}
+.raw-box.error{background:#fff8e1;border-color:#ffc107;color:#7d5a00;font-weight:500}
+/* 다건 보고 구분용 헤더·갭 */
+.raw-item-head{
+  font-size:11px;font-weight:700;color:var(--ink3);
+  letter-spacing:1px;margin-bottom:6px;
+  display:flex;align-items:center;gap:6px;
+}
+.raw-item-head.drafting{color:#a87f00}
+.raw-item-no{font-weight:500;color:var(--ink3);font-size:10px;opacity:.8}
+.raw-item-gap{height:10px}
+/* 작성 중 raw-box — 옅은 노란 배경 + 금색 좌측 바 */
+.raw-box.drafting{
+  background:#fffbe6;
+  border-left-color:#e6b800;
+  box-shadow:inset 0 0 0 1px rgba(230,184,0,.25);
+}
+/* 접기/펼치기 */
+.rep-head.clickable, .ctx-head.clickable{cursor:pointer;user-select:none}
+.rep-head.clickable:hover{background:rgba(250,248,243,.95)}
+.rep-toggle{
+  font-size:14px;color:var(--ink3);
+  transition:transform 0.18s ease;
+  margin-left:auto;line-height:1;
+}
+.rep-card.collapsed .rep-toggle, .ctx-card.collapsed .rep-toggle{transform:rotate(-90deg)}
+.rep-card.collapsed .collapsible, .ctx-card.collapsed .collapsible{display:none}
+.ctx-loading-inline{font-size:12px;color:var(--ink3);padding:4px 0}
+.ctx-hint{
+  margin-top:8px;font-size:11px;color:var(--ink3);
+  line-height:1.5;
+}
 
 /* 재정리 버튼 (가운데) */
 .btn-mid{
   flex:2;height:50px;border-radius:25px;
   border:1.5px solid var(--brush-gold);
-  background:linear-gradient(135deg,rgba(196,168,122,.15),rgba(196,144,122,.12));
+  background:
+    linear-gradient(135deg,rgba(196,168,122,.15),rgba(196,144,122,.12)),
+    var(--paper);
   color:var(--brush-rose);font-size:14px;font-weight:500;cursor:pointer;
   font-family:'Noto Sans KR',sans-serif;
   display:flex;align-items:center;justify-content:center;gap:6px;
@@ -561,6 +804,19 @@ body{
     </div>
   </div>
 
+  <!-- 이어서 작성 배너 -->
+  <div class="draft-banner" id="draft-banner">
+    <div class="draft-icon">📝</div>
+    <div class="draft-text">
+      <b>이어서 작성하시겠어요?</b>
+      <span id="draft-time">저장된 내용이 있습니다</span>
+    </div>
+    <div class="draft-btns">
+      <button class="draft-btn draft-btn-yes" onclick="restoreDraft()">이어서</button>
+      <button class="draft-btn draft-btn-no" onclick="discardDraft()">새로 시작</button>
+    </div>
+  </div>
+
   <!-- 컨텍스트 카드 -->
   <div id="ctx-area" style="padding:14px 20px 0">
 
@@ -582,20 +838,35 @@ body{
       <div class="ctx-body" id="ctx-yesterday-body"></div>
     </div>
 
+    <!-- 어제 원문 (항상 표시, 접기/펼치기 가능 · 기본 펼침) -->
+    <div class="ctx-card" id="ctx-yd-raw">
+      <div class="ctx-head clickable" onclick="toggleCtxYdRaw()">
+        🗒️ <span id="ctx-yd-raw-head">어제 원문</span>
+        <span class="rep-toggle">▼</span>
+      </div>
+      <div class="ctx-body collapsible" id="ctx-yd-raw-body">
+        <div class="ctx-loading-inline">🌿 불러오는 중...</div>
+      </div>
+    </div>
+
     <!-- 받은 지시사항 -->
     <div class="ctx-card" id="ctx-directive">
       <div class="ctx-head">📌 <span>미완료 지시사항</span></div>
       <div class="ctx-body" id="ctx-directive-body"></div>
     </div>
 
-    <!-- 로딩 -->
-    <div id="ctx-loading" style="text-align:center;padding:14px 0;font-size:13px;color:var(--ink3)">
-      🌿 힘클로드가 오늘 컨텍스트를 가져오는 중...
-    </div>
-
   </div>
 
   <div class="sec-title" style="margin-top:6px">오늘 업무</div>
+
+  <!-- 오늘 이미 작성한 원문 (발송분 있을 때만 표시, 기본 접힘) -->
+  <div class="ctx-card collapsed" id="ctx-td-raw" style="display:none;margin-top:4px">
+    <div class="ctx-head clickable" onclick="toggleCtxTdRaw()">
+      ✅ <span id="ctx-td-raw-head">오늘 이미 작성한 원문</span>
+      <span class="rep-toggle">▼</span>
+    </div>
+    <div class="ctx-body collapsible" id="ctx-td-raw-body"></div>
+  </div>
 
   <div class="input-wrap">
     <textarea class="main-textarea" id="main-input" rows="8"
@@ -644,8 +915,46 @@ body{
     <div class="p2-name" id="p2-name">보고서 확인</div>
   </div>
 
-  <div id="p2-body">
-    <!-- 동적 생성 -->
+  <!-- 모바일 전용 탭 (PC에서는 숨김) -->
+  <div class="p2-tabs" id="p2-tabs">
+    <button class="p2-tab active" data-tab="edit" onclick="switchP2Tab('edit')">📝 재정리</button>
+    <button class="p2-tab" data-tab="search" onclick="switchP2Tab('search')">🔍 검색</button>
+  </div>
+
+  <div class="p2-main">
+    <div class="p2-col p2-col-edit" id="p2-col-edit">
+      <div id="p2-body">
+        <!-- 동적 생성 -->
+      </div>
+    </div>
+    <aside class="p2-col p2-col-search" id="p2-col-search">
+      <div class="search-box">
+        <div class="search-title">🔍 브리핑 검색</div>
+
+        <div class="search-field">
+          <label>기간</label>
+          <div class="search-dates">
+            <input type="date" id="search-from">
+            <span>~</span>
+            <input type="date" id="search-to">
+          </div>
+        </div>
+
+        <div class="search-field">
+          <label>키워드</label>
+          <input type="text" id="search-keyword" placeholder="예: 갤러리아, 도면 검토">
+        </div>
+
+        <button class="search-btn" onclick="doSearch()">검색</button>
+
+        <div class="search-results" id="search-results">
+          <div class="search-results-empty">
+            🚧 검색 기능은 준비 중입니다.<br>
+            <span style="font-size:11px">다음 세션에서 서버 연동이 추가됩니다.</span>
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <div class="p2-bottom" id="p2-btns" style="display:none">
@@ -659,6 +968,19 @@ body{
 <!-- 토스트 -->
 <div class="toast" id="toast"></div>
 
+<!-- 발송 확인 다이얼로그 -->
+<div class="dlg-back" id="send-dlg">
+  <div class="dlg-card">
+    <div class="dlg-title">수정사항이 있습니다</div>
+    <div class="dlg-desc">AI 재정리 이후 내용이 변경됐어요.<br>어떻게 발송할까요?</div>
+    <div class="dlg-btns">
+      <button class="dlg-btn dlg-btn-primary" onclick="confirmReanalyzeThenSend()">🔄 재정리 후 발송</button>
+      <button class="dlg-btn dlg-btn-secondary" onclick="confirmSendDirect()">📤 그대로 발송</button>
+      <button class="dlg-btn dlg-btn-cancel" onclick="closeSendDlg()">취소</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── 직원 데이터 (Apps Script에서 동적 로드) ──────────────────────
 var STAFF=[];
@@ -670,9 +992,24 @@ var APPS_SCRIPT_TOKEN='thehim2026';
 // ── 상태 ──────────────────────
 var profile=null,files=[],voiceOn=false,mediaRec=null,editMode=false;
 var currentStructured=null;
+var lastAIStructured=null; // AI 분석/재정리 직후 스냅샷 (JSON 문자열). 발송 시 dirty 감지용
 var currentRawText='';
-var yesterdayRaw='';
+var _draftSaveTimer=null;  // main-input 디바운스 타이머
+// 어제(직전 근무일) 본인 보고 전체 — [{raw, time, submitted_at, filename}]
+var yesterdayItems=[];
 var yesterdayDate='';
+var yesterdayLoaded=false;  // false=아직 미조회, true=조회 완료(내용 유무 무관)
+var yesterdayLoadError=false;
+// 오늘 이미 발송된 본인 보고 전체 (작성 중인 건은 currentRawText)
+var todayItems=[];
+var todayLoaded=false;
+var todayLoadError=false;
+// 2페이지 접기/펼치기 상태 — 어제는 기본 펼침, 오늘은 기본 접힘(작성 중만 보이도록)
+var ydExpanded=true;
+var tdExpanded=false;
+// 1페이지 컨텍스트 카드 접기/펼치기 상태 — 어제 기본 펼침, 오늘(발송분) 기본 접힘
+var ctxYdExpanded=true;
+var ctxTdExpanded=false;
 var now=new Date();
 var days=['일','월','화','수','목','금','토'];
 var dateStr=now.getFullYear()+'-'+p2(now.getMonth()+1)+'-'+p2(now.getDate());
@@ -739,35 +1076,227 @@ function initP1(){
   document.getElementById('user-date').textContent=dateLabel+' 일일보고';
   loadContext();
   loadYesterdayRaw();
+  loadTodayRaw();
+  bindDraftAutoSave();
+  maybeShowDraftBanner();
+}
+function bindDraftAutoSave(){
+  var mi=document.getElementById('main-input');
+  if(mi && !mi._draftBound){
+    mi._draftBound=true;
+    mi.addEventListener('input', function(){ scheduleDraftSave('p1'); });
+  }
+  // 2페이지 textarea/input 실시간 동기화 (이벤트 위임, 한 번만 부착)
+  var p2body=document.getElementById('p2-body');
+  if(p2body && !p2body._draftBound){
+    p2body._draftBound=true;
+    p2body.addEventListener('input', function(e){
+      var t=e.target;
+      if(!t)return;
+      if(t.classList && (t.classList.contains('proj-name')||t.classList.contains('proj-field'))){
+        currentStructured=collectStructure();
+        scheduleDraftSave('p2');
+      }
+    });
+  }
 }
 
 function loadYesterdayRaw(){
   if(!profile)return;
+  yesterdayLoaded=false;
+  yesterdayLoadError=false;
+  renderYesterdayRawCard();
   fetch(APPS_SCRIPT_URL+'?action=get_yesterday_raw&name='+encodeURIComponent(profile.name))
     .then(function(r){return r.json()})
     .then(function(data){
       if(data.ok){
-        yesterdayRaw=data.raw||'';
+        yesterdayItems=Array.isArray(data.items)?data.items:[];
         yesterdayDate=data.date||'';
+      }else{
+        yesterdayLoadError=true;
       }
+      yesterdayLoaded=true;
+      renderYesterdayRawCard();
+      refreshP2YesterdayIfVisible();
     })
-    .catch(function(){});
+    .catch(function(){
+      yesterdayLoadError=true;
+      yesterdayLoaded=true;
+      renderYesterdayRawCard();
+      refreshP2YesterdayIfVisible();
+    });
+}
+
+// 오늘 이미 발송된 본인 보고 전체 (p2 진입 시 호출)
+function loadTodayRaw(){
+  if(!profile)return;
+  todayLoaded=false;
+  todayLoadError=false;
+  fetch(APPS_SCRIPT_URL+'?action=get_today_raw&name='+encodeURIComponent(profile.name))
+    .then(function(r){return r.json()})
+    .then(function(data){
+      if(data.ok){
+        todayItems=Array.isArray(data.items)?data.items:[];
+      }else{
+        todayLoadError=true;
+      }
+      todayLoaded=true;
+      renderTodayRawCardP1();
+      refreshP2YesterdayIfVisible();
+    })
+    .catch(function(){
+      todayLoadError=true;
+      todayLoaded=true;
+      renderTodayRawCardP1();
+      refreshP2YesterdayIfVisible();
+    });
+}
+
+function renderYesterdayRawCard(){
+  var card=document.getElementById('ctx-yd-raw');
+  var head=document.getElementById('ctx-yd-raw-head');
+  var body=document.getElementById('ctx-yd-raw-body');
+  if(!head||!body)return;
+  var ydCount=(yesterdayLoaded&&!yesterdayLoadError)?yesterdayItems.length:0;
+  var headTxt='어제 원문'+(yesterdayDate?' ('+fmtDate(yesterdayDate)+')':'');
+  if(ydCount>1)headTxt+=' · '+ydCount+'건';
+  head.textContent=headTxt;
+  body.innerHTML=buildYesterdayBodyHtml();
+  if(card)card.classList.toggle('collapsed', !ctxYdExpanded);
+}
+
+// 1페이지 — 오늘 이미 발송한 원문 카드. 발송분 없으면 카드 자체를 숨김.
+function renderTodayRawCardP1(){
+  var card=document.getElementById('ctx-td-raw');
+  var body=document.getElementById('ctx-td-raw-body');
+  var head=document.getElementById('ctx-td-raw-head');
+  if(!card||!body||!head)return;
+  var count=(todayLoaded&&!todayLoadError)?todayItems.length:0;
+  if(count===0){
+    card.style.display='none';
+    return;
+  }
+  card.style.display='';
+  head.textContent='오늘 이미 작성한 원문 · '+count+'건';
+  body.innerHTML=renderRawItemsHtml(todayItems, '✅');
+  card.classList.toggle('collapsed', !ctxTdExpanded);
+}
+
+function toggleCtxYdRaw(){
+  ctxYdExpanded=!ctxYdExpanded;
+  var card=document.getElementById('ctx-yd-raw');
+  if(card)card.classList.toggle('collapsed', !ctxYdExpanded);
+}
+function toggleCtxTdRaw(){
+  ctxTdExpanded=!ctxTdExpanded;
+  var card=document.getElementById('ctx-td-raw');
+  if(card)card.classList.toggle('collapsed', !ctxTdExpanded);
+}
+
+// 어제 원문 본문 HTML — 로딩/에러/데이터(다건)/빈 상태
+function buildYesterdayBodyHtml(){
+  if(!yesterdayLoaded){
+    return '<div class="ctx-loading-inline">🌿 불러오는 중...</div>';
+  }
+  if(yesterdayLoadError){
+    return '<div class="raw-box error">⚠️ 불러오기 실패.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  }
+  if(yesterdayItems.length>0){
+    return renderRawItemsHtml(yesterdayItems, '📝');
+  }
+  return '<div class="raw-box empty">📭 이전 보고 기록이 없습니다</div>';
+}
+
+// 공용: items 배열을 시간 라벨 + raw-box 반복으로 렌더
+function renderRawItemsHtml(items, icon){
+  var multi=items.length>1;
+  return items.map(function(it, idx){
+    var timeTxt=it.time||'';
+    var head='<div class="raw-item-head">'+icon+' '+(timeTxt?escapeHtml(timeTxt):'')+
+             (multi?' <span class="raw-item-no">#'+(idx+1)+'</span>':'')+'</div>';
+    return head+'<div class="raw-box">'+escapeHtml(it.raw||'')+'</div>';
+  }).join('<div class="raw-item-gap"></div>');
+}
+
+// 오늘 원문 — 확정분(접힘 대상) + 작성 중(항상 표시) 파트로 분리
+function buildTodayBodyParts(){
+  var confirmedCount=todayLoaded&&!todayLoadError?todayItems.length:0;
+  var confirmed='';
+  if(!todayLoaded){
+    confirmed='<div class="ctx-loading-inline">🌿 기존 오늘자 보고 불러오는 중...</div>';
+  } else if(todayLoadError){
+    confirmed='<div class="raw-box error">⚠️ 오늘자 보고 불러오기 실패.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  } else if(confirmedCount>0){
+    confirmed=renderRawItemsHtml(todayItems, '✅');
+  }
+  var drafting='';
+  if(currentRawText){
+    var nextNo=confirmedCount+1;
+    drafting=
+      '<div class="raw-item-head drafting">✏️ 작성 중 <span class="raw-item-no">#'+nextNo+'</span></div>'+
+      '<div class="raw-box drafting">'+escapeHtml(currentRawText)+'</div>';
+  }
+  return {confirmed:confirmed, drafting:drafting, confirmedCount:confirmedCount};
+}
+
+// 어제/오늘 원문 접기/펼치기 — 상태 변수 + 카드 클래스 토글만. 재렌더 없이 편집값 보존.
+function toggleYdCard(){
+  ydExpanded=!ydExpanded;
+  var card=document.getElementById('rep-yd');
+  if(card)card.classList.toggle('collapsed', !ydExpanded);
+}
+function toggleTdCard(){
+  tdExpanded=!tdExpanded;
+  var card=document.getElementById('rep-td');
+  if(card)card.classList.toggle('collapsed', !tdExpanded);
+}
+
+function refreshP2YesterdayIfVisible(){
+  // 2페이지가 현재 보이고, 구조화된 보고가 있으면 재렌더로 어제 원문 갱신
+  var p2=document.getElementById('p2');
+  if(p2 && p2.classList.contains('on') && currentStructured){
+    renderStructuredReport();
+  }
 }
 
 function loadContext(){
   if(!profile)return;
-  document.getElementById('ctx-loading').style.display='block';
+  renderContextLoading();
 
   fetch(APPS_SCRIPT_URL+'?action=get_context&name='+encodeURIComponent(profile.name)+'&grade='+encodeURIComponent(profile.grade))
     .then(function(r){return r.json()})
     .then(function(data){
-      document.getElementById('ctx-loading').style.display='none';
-      if(!data.ok)return;
+      // ok=false여도 "해당 사항 없음"으로 간주 — 빈 상태 렌더
+      if(!data || !data.ok){
+        renderContextCards({today:[],yesterday:[],directive:[]});
+        return;
+      }
       renderContextCards(data);
     })
     .catch(function(){
-      document.getElementById('ctx-loading').style.display='none';
+      // 진짜 네트워크/파싱 오류일 때만 에러 메시지
+      renderContextError();
     });
+}
+
+function setCtxBody(bodyId, html){
+  var body=document.getElementById(bodyId);
+  if(body)body.innerHTML=html;
+}
+function setEmptyRow(bodyId, msg){
+  setCtxBody(bodyId, '<div class="ctx-row ctx-empty">'+msg+'</div>');
+}
+function setLoadingRow(bodyId){
+  setCtxBody(bodyId, '<div class="ctx-loading-inline">🌿 불러오는 중...</div>');
+}
+
+function renderContextLoading(){
+  setLoadingRow('ctx-today-body');
+  setLoadingRow('ctx-directive-body');
+}
+function renderContextError(){
+  setEmptyRow('ctx-today-body', '컨텍스트를 불러오지 못했어요... 잠시 후 새로고침 해보세요.');
+  setEmptyRow('ctx-directive-body', '컨텍스트를 불러오지 못했어요...');
 }
 
 function renderContextCards(data){
@@ -776,12 +1305,12 @@ function renderContextCards(data){
   var directive=data.directive||[];
   var generatedDate=data.generated_date||'';
 
+  // 오늘 할 일 — 항상 표시
+  var tBody=document.getElementById('ctx-today-body');
+  var tHead=document.querySelector('#ctx-today .ctx-head span');
+  if(generatedDate && tHead)tHead.textContent='오늘 할 일 ('+generatedDate+' 브리핑)';
+  tBody.innerHTML='';
   if(today.length>0){
-    var tBody=document.getElementById('ctx-today-body');
-    if(generatedDate){
-      var tHead=document.querySelector('#ctx-today .ctx-head span');
-      if(tHead)tHead.textContent='오늘 할 일 ('+generatedDate+' 브리핑)';
-    }
     today.forEach(function(item){
       var text=typeof item==='string'?item:item.text;
       var isEmphasis=typeof item==='object'&&item.emphasis;
@@ -791,8 +1320,11 @@ function renderContextCards(data){
       d.textContent=(isEmphasis?'⏰ ':'')+text;
       tBody.appendChild(d);
     });
+  }else{
+    tBody.innerHTML='<div class="ctx-row ctx-empty">오늘 예정된 할 일이 없습니다</div>';
   }
 
+  // 어제 보고 요약 — 데이터 있을 때만 노출
   if(yesterday.length>0){
     var yEl=document.getElementById('ctx-yesterday');
     var yBody=document.getElementById('ctx-yesterday-body');
@@ -801,6 +1333,7 @@ function renderContextCards(data){
       var head=yEl.querySelector('.ctx-head span');
       if(head)head.textContent='어제 보고 요약 ('+generatedDate+' 브리핑)';
     }
+    yBody.innerHTML='';
     yesterday.forEach(function(item){
       var d=document.createElement('div');
       var text=typeof item==='string'?item:(item.text||item);
@@ -811,10 +1344,10 @@ function renderContextCards(data){
     });
   }
 
+  // 미완료 지시사항 — 항상 표시
+  var dBody=document.getElementById('ctx-directive-body');
+  dBody.innerHTML='';
   if(directive.length>0){
-    var dEl=document.getElementById('ctx-directive');
-    var dBody=document.getElementById('ctx-directive-body');
-    dEl.style.display='block';
     directive.forEach(function(item){
       var d=document.createElement('div');
       var text=typeof item==='string'?item:('['+item.from+'] '+item.content);
@@ -823,13 +1356,18 @@ function renderContextCards(data){
       d.textContent=text;
       dBody.appendChild(d);
     });
+  }else{
+    dBody.innerHTML='<div class="ctx-row ctx-empty">미완료 지시사항이 없습니다</div>';
   }
 }
 
 function resetProfile(){
   if(!confirm('다른 직원으로 변경할까요?'))return;
   localStorage.removeItem('him_v4');
+  clearDraft();
+  hideDraftBanner();
   profile=null;files=[];
+  currentStructured=null;lastAIStructured=null;currentRawText='';
   document.getElementById('file-chips').innerHTML='';
   document.getElementById('main-input').value='';
   goPage('p0');loadStaff();
@@ -898,7 +1436,9 @@ function doAnalyze(){
   if(!txt){toast('업무 내용을 입력해주세요');return;}
 
   currentRawText=txt;
+  resetP2Tab();
   goPage('p2');
+  loadTodayRaw();
   document.getElementById('p2-name').textContent='분석 중...';
   document.getElementById('p2-btns').style.display='none';
   document.getElementById('p2-body').innerHTML=
@@ -921,7 +1461,9 @@ function doAnalyze(){
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'구조화 실패');
     currentStructured=data.structured;
+    lastAIStructured=JSON.stringify(normalizeStructured(data.structured));
     renderStructuredReport();
+    saveDraft('p2');
   })
   .catch(function(err){
     document.getElementById('p2-body').innerHTML=
@@ -934,6 +1476,116 @@ function doAnalyze(){
   });
 }
 
+function isTestMode(){
+  return /^\s*\[테스트\]/.test(currentRawText||'');
+}
+
+// ── 2페이지 모바일 탭 (편집 / 검색) ──────────────────────
+function switchP2Tab(name){
+  var p2=document.getElementById('p2');
+  if(name==='search'){
+    p2.classList.add('tab-search');
+  }else{
+    p2.classList.remove('tab-search');
+  }
+  document.querySelectorAll('.p2-tab').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-tab')===name);
+  });
+  window.scrollTo(0,0);
+}
+function resetP2Tab(){
+  var p2=document.getElementById('p2');
+  if(!p2)return;
+  p2.classList.remove('tab-search');
+  document.querySelectorAll('.p2-tab').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-tab')==='edit');
+  });
+}
+
+function doSearch(){
+  toast('🔍 검색 기능은 준비 중입니다');
+}
+
+// ── 드래프트 (localStorage) ──────────────────────
+var DRAFT_KEY='him_v4_draft';
+function saveDraft(stage){
+  if(!profile)return;
+  try{
+    var mi=document.getElementById('main-input');
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      email: profile.email,
+      date: dateStr,
+      stage: stage,  // 'p1' | 'p2'
+      raw: mi?mi.value:'',
+      currentRaw: currentRawText,
+      structured: currentStructured,
+      lastAI: lastAIStructured,
+      savedAt: Date.now()
+    }));
+  }catch(e){}
+}
+function scheduleDraftSave(stage){
+  if(_draftSaveTimer)clearTimeout(_draftSaveTimer);
+  _draftSaveTimer=setTimeout(function(){saveDraft(stage)}, 400);
+}
+function loadDraft(){
+  try{
+    var s=localStorage.getItem(DRAFT_KEY);
+    if(!s)return null;
+    var d=JSON.parse(s);
+    if(!d||!profile||d.email!==profile.email)return null;
+    if(d.date!==dateStr){clearDraft();return null;}
+    return d;
+  }catch(e){return null}
+}
+function clearDraft(){
+  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+}
+function describeDraftAge(ts){
+  var diff=Math.floor((Date.now()-ts)/60000);
+  if(diff<1)return '방금 저장됨';
+  if(diff<60)return diff+'분 전 저장됨';
+  var h=Math.floor(diff/60);
+  var m=diff%60;
+  return h+'시간'+(m?' '+m+'분':'')+' 전 저장됨';
+}
+function maybeShowDraftBanner(){
+  var d=loadDraft();
+  var banner=document.getElementById('draft-banner');
+  if(!d){banner.classList.remove('on');return;}
+  var hasRaw=d.raw&&d.raw.trim();
+  var hasStructured=d.structured&&d.stage==='p2';
+  if(!hasRaw&&!hasStructured){clearDraft();banner.classList.remove('on');return;}
+  var label='이어서 작성하시겠어요?';
+  if(d.stage==='p2')label='정리된 보고서가 있어요. 이어서 편집하시겠어요?';
+  banner.querySelector('b').textContent=label;
+  document.getElementById('draft-time').textContent=describeDraftAge(d.savedAt);
+  banner.classList.add('on');
+}
+function restoreDraft(){
+  var d=loadDraft();
+  if(!d){hideDraftBanner();return;}
+  var mi=document.getElementById('main-input');
+  if(mi&&d.raw)mi.value=d.raw;
+  if(d.stage==='p2'&&d.structured){
+    currentRawText=d.currentRaw||'';
+    currentStructured=d.structured;
+    lastAIStructured=d.lastAI||null;
+    goPage('p2');
+    loadTodayRaw();
+    renderStructuredReport();
+  }
+  hideDraftBanner();
+  toast('💾 이어서 작성');
+}
+function discardDraft(){
+  clearDraft();
+  hideDraftBanner();
+}
+function hideDraftBanner(){
+  document.getElementById('draft-banner').classList.remove('on');
+}
+
 function renderStructuredReport(){
   document.getElementById('p2-name').textContent=profile.name+' 보고서';
   document.getElementById('p2-btns').style.display='flex';
@@ -943,6 +1595,10 @@ function renderStructuredReport(){
 
   var html='<div class="report-wrap">';
 
+  if(isTestMode()){
+    html+='<div class="test-badge">🧪 테스트 모드 · 발송 시 실제 메일·Drive 저장·브리핑 반영이 모두 스킵됩니다</div>';
+  }
+
   // 작성자
   html+='<div class="rep-card">'+
     '<div class="rep-head"><span class="rep-label">작성자</span></div>'+
@@ -951,23 +1607,46 @@ function renderStructuredReport(){
     '</div></div>'+
   '</div>';
 
-  // 어제 원문
+  // 어제 원문 — 다건 표시. 항목 있을 때만 접기/펼치기 토글 제공 (기본: 펼침)
   var ydLabel='어제 원문'+(yesterdayDate?' ('+fmtDate(yesterdayDate)+')':'');
-  var ydBody=yesterdayRaw
-    ? '<div class="raw-box">'+escapeHtml(yesterdayRaw)+'</div>'
-    : '<div class="raw-box" style="color:var(--ink3);font-style:italic">(이전 보고 기록 없음)</div>';
-  html+='<div class="rep-card">'+
-    '<div class="rep-head"><span class="rep-label">'+escapeHtml(ydLabel)+'</span></div>'+
-    '<div class="rep-body">'+ydBody+'</div>'+
+  var ydCount=(yesterdayLoaded&&!yesterdayLoadError)?yesterdayItems.length:0;
+  if(ydCount>1)ydLabel+=' · '+ydCount+'건';
+  var ydBody=buildYesterdayBodyHtml();
+  var ydCanCollapse=ydCount>0;
+  var ydCollapsedCls=(ydCanCollapse && !ydExpanded)?' collapsed':'';
+  var ydHeadCls=ydCanCollapse?'rep-head clickable':'rep-head';
+  var ydHeadAttr=ydCanCollapse?' onclick="toggleYdCard()"':'';
+  var ydToggleHtml=ydCanCollapse?'<span class="rep-toggle">▼</span>':'';
+  html+='<div class="rep-card'+ydCollapsedCls+'" id="rep-yd">'+
+    '<div class="'+ydHeadCls+'"'+ydHeadAttr+'>'+
+      '<span class="rep-label">'+escapeHtml(ydLabel)+'</span>'+ydToggleHtml+
+    '</div>'+
+    '<div class="rep-body"><div class="collapsible">'+ydBody+'</div></div>'+
   '</div>';
 
-  // 오늘 원문
-  if(currentRawText){
-    html+='<div class="rep-card">'+
-      '<div class="rep-head"><span class="rep-label">오늘 원문</span></div>'+
-      '<div class="rep-body"><div class="raw-box">'+escapeHtml(currentRawText)+'</div></div>'+
-    '</div>';
+  // 오늘 원문 — 확정분(접힘 대상) + 작성 중(항상 표시). 기본: 접힘
+  var tdParts=buildTodayBodyParts();
+  var tdCanCollapse=tdParts.confirmedCount>0;
+  var tdCollapsedCls=(tdCanCollapse && !tdExpanded)?' collapsed':'';
+  var tdLabelSuffix=tdParts.confirmedCount>0?' ('+tdParts.confirmedCount+'건 발송 완료'+(currentRawText?' + 작성 중':'')+')'
+                    :(currentRawText?' (작성 중)':'');
+  var tdHeadCls=tdCanCollapse?'rep-head clickable':'rep-head';
+  var tdHeadAttr=tdCanCollapse?' onclick="toggleTdCard()"':'';
+  var tdToggleHtml=tdCanCollapse?'<span class="rep-toggle">▼</span>':'';
+  var tdBodyInner='';
+  if(tdParts.confirmed){
+    tdBodyInner+='<div class="collapsible">'+tdParts.confirmed;
+    if(tdParts.drafting)tdBodyInner+='<div class="raw-item-gap"></div>';
+    tdBodyInner+='</div>';
   }
+  tdBodyInner+=tdParts.drafting;
+  if(!tdBodyInner)tdBodyInner='<div class="raw-box empty">📭 오늘의 보고가 없습니다</div>';
+  html+='<div class="rep-card'+tdCollapsedCls+'" id="rep-td">'+
+    '<div class="'+tdHeadCls+'"'+tdHeadAttr+'>'+
+      '<span class="rep-label">오늘 원문'+tdLabelSuffix+'</span>'+tdToggleHtml+
+    '</div>'+
+    '<div class="rep-body">'+tdBodyInner+'</div>'+
+  '</div>';
 
   // 프로젝트별 카드
   s.projects.forEach(function(p,idx){
@@ -1093,6 +1772,7 @@ function addProject(){
   currentStructured=collectStructure();
   currentStructured.projects.push({name:'',meeting:'',issue:'',dir:'',schedule:''});
   renderStructuredReport();
+  saveDraft('p2');
   setTimeout(function(){
     var inputs=document.querySelectorAll('.proj-name');
     var last=inputs[inputs.length-1];
@@ -1104,9 +1784,10 @@ function removeProject(idx){
   currentStructured=collectStructure();
   currentStructured.projects.splice(idx,1);
   renderStructuredReport();
+  saveDraft('p2');
 }
 
-function doReanalyze(){
+function doReanalyze(onSuccess){
   var s=collectStructure();
   var combined='';
   s.projects.forEach(function(p){
@@ -1150,7 +1831,10 @@ function doReanalyze(){
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'재정리 실패');
     currentStructured=data.structured;
+    lastAIStructured=JSON.stringify(normalizeStructured(data.structured));
     renderStructuredReport();
+    saveDraft('p2');
+    if(onSuccess){onSuccess();return;}
     toast('🔄 재정리 완료');
   })
   .catch(function(err){
@@ -1232,8 +1916,39 @@ function doSave(){
 
 function doFinalSend(){
   currentStructured=collectStructure();
+  var curJson=JSON.stringify(normalizeStructured(currentStructured));
+  var dirty=(lastAIStructured!==null) && (curJson!==lastAIStructured);
+  if(dirty){
+    openSendDlg();
+    return;
+  }
+  performSend();
+}
+
+function openSendDlg(){
+  document.getElementById('send-dlg').classList.add('on');
+}
+function closeSendDlg(){
+  document.getElementById('send-dlg').classList.remove('on');
+}
+function confirmSendDirect(){
+  closeSendDlg();
+  performSend();
+}
+function confirmReanalyzeThenSend(){
+  closeSendDlg();
+  doReanalyze(function(){ performSend(); });
+}
+
+function performSend(){
+  currentStructured=collectStructure();
   var structured=flattenToFiveFields(currentStructured);
   var dc=dateStr.replace(/-/g,'');
+
+  if(isTestMode()){
+    showTestComplete(structured);
+    return;
+  }
 
   document.getElementById('p2-body').innerHTML=
     '<div class="done-wrap">'+
@@ -1263,6 +1978,7 @@ function doFinalSend(){
   .then(function(r){return r.json()})
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'발송 실패');
+    clearDraft();
     document.getElementById('p2-body').innerHTML=
       '<div class="done-wrap">'+
         '<div class="done-brush">✅</div>'+
@@ -1282,9 +1998,40 @@ function doFinalSend(){
   });
 }
 
+function showTestComplete(structured){
+  document.getElementById('p2-btns').style.display='none';
+  function row(label,val){
+    return '<div class="test-row"><div class="test-row-label">'+label+'</div>'+
+           '<div class="test-row-val">'+escapeHtml(val||'(비어있음)')+'</div></div>';
+  }
+  document.getElementById('p2-body').innerHTML=
+    '<div class="done-wrap">'+
+      '<div class="done-brush">🧪</div>'+
+      '<div class="done-title">테스트 모드 · 발송 스킵됨</div>'+
+      '<div class="done-desc">서버로 전송하지 않았습니다.<br>실제 메일·Drive 저장·브리핑 큐 추가 모두 건너뛰었습니다.</div>'+
+      '<div class="test-preview">'+
+        row('PJ',       structured.pj)+
+        row('미팅',     structured.meeting)+
+        row('이슈',     structured.issue)+
+        row('지시',     structured.dir)+
+        row('일정',     structured.schedule)+
+      '</div>'+
+      '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
+    '</div>';
+}
+
 function newRep(){
   document.getElementById('main-input').value='';
   files=[];document.getElementById('file-chips').innerHTML='';
+  currentStructured=null;
+  lastAIStructured=null;
+  currentRawText='';
+  ydExpanded=true;
+  tdExpanded=false;
+  ctxYdExpanded=true;
+  ctxTdExpanded=false;
+  clearDraft();
+  hideDraftBanner();
   goPage('p1');
 }
 

@@ -20,6 +20,7 @@
   --brush-green:#8FAF8A;
   --brush-rose:#C4907A;
   --brush-gold:#C4A87A;
+  --brush-violet:#9B8AB5;  /* 힘클로바 강조 — 음성/회의 */
   --wash:#E8E0D0;
   --line:#D4C9B5;
 }
@@ -90,24 +91,90 @@ body{
   font-size:26px;font-weight:500;color:var(--ink);
   margin-bottom:8px;line-height:1.4;
 }
-.p0-sub{font-size:14px;color:var(--ink3);line-height:1.7}
+.p0-sub{font-size:14px;color:var(--ink3);line-height:1.7;word-break:keep-all;overflow-wrap:anywhere}
 
 .p0-label{
   font-size:11px;font-weight:700;color:var(--ink3);
   letter-spacing:2px;text-transform:uppercase;
-  padding:0 24px;margin-bottom:12px;
+  padding:0 24px;margin:0 auto 12px;
+  max-width:400px;
+  text-align:center;
 }
 
-.staff-list{padding:0 20px;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
+/* 부서 탭 (밑줄 스타일) */
+.dept-tabs{
+  display:flex;justify-content:center;gap:2px;
+  max-width:400px;margin:0 auto 14px;
+  padding:0 12px;box-sizing:border-box;
+  border-bottom:1px solid var(--line);
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.dept-tabs::-webkit-scrollbar{display:none}
+.dept-tab{
+  border:none;background:none;
+  padding:10px 10px;
+  font-size:12px;font-family:inherit;
+  color:var(--ink3);cursor:pointer;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  white-space:nowrap;
+  transition:color .15s, border-color .15s;
+  letter-spacing:.3px;
+}
+.dept-tab:hover{color:var(--ink2)}
+.dept-tab.active{
+  color:var(--ink);
+  border-bottom-color:var(--brush-green);
+  font-weight:600;
+}
+
+.staff-list{
+  max-width:400px;margin:0 auto;
+  padding:0 20px;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:8px;
+  max-height:55vh;overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.2) transparent;
+  scrollbar-gutter:stable;
+}
+.staff-list::-webkit-scrollbar{width:6px}
+.staff-list::-webkit-scrollbar-track{background:transparent}
+.staff-list::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.18);
+  border-radius:3px;
+}
+.staff-list::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.28)}
+.staff-list::-webkit-scrollbar-button{display:none;width:0;height:0}
+/* 전역 + 검색 결과 스크롤바 — 배경 투명, 반투명 thumb */
+html,
+.search-answer{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.2) transparent;
+}
+html::-webkit-scrollbar,
+.search-answer::-webkit-scrollbar{width:8px}
+html::-webkit-scrollbar-track,
+.search-answer::-webkit-scrollbar-track{background:transparent}
+html::-webkit-scrollbar-thumb,
+.search-answer::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.2);border-radius:4px;
+}
+html::-webkit-scrollbar-thumb:hover,
+.search-answer::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.28)}
+html::-webkit-scrollbar-button,
+.search-answer::-webkit-scrollbar-button{display:none;width:0;height:0}
+/* 기본: 가로 배치 — [○] [이름 직책 / 부서] 를 한 덩어리로 카드 내 가로 중앙 정렬 */
 .staff-card{
   background:rgba(255,255,255,.7);
   border:1px solid var(--line);
   border-radius:14px;padding:14px 18px;
   cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;gap:14px;
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:14px;
   backdrop-filter:blur(4px);
 }
-.staff-card:hover{background:rgba(255,255,255,.95);border-color:var(--brush-blue);transform:translateX(3px)}
+.staff-card:hover{background:rgba(255,255,255,.95);border-color:var(--brush-blue);transform:translateY(-1px)}
 .staff-card.on{
   background:linear-gradient(135deg,rgba(123,167,188,.15),rgba(143,175,138,.12));
   border-color:var(--brush-green);
@@ -119,12 +186,22 @@ body{
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;font-family:'Noto Serif KR',serif;
 }
+/* 이름 블록 폭을 6글자 기준("유병욱 본부장")으로 고정 → 원 X축 위치가 이름 길이와 무관하게 통일 */
+.staff-info{text-align:left;min-width:110px}
 .staff-info .sname{font-size:15px;font-weight:500;color:var(--ink)}
 .staff-info .sdept{font-size:12px;color:var(--ink3);margin-top:2px}
 
+/* 좁은 화면(≤360px): ○ → 이름 → 부서 세로 중앙 정렬 */
+@media (max-width:360px){
+  .staff-card{flex-direction:column;gap:8px;text-align:center}
+  .staff-info{text-align:center;min-width:0}
+}
+
 .p0-btn{
-  margin:20px 20px 0;
-  width:calc(100% - 40px);height:54px;
+  display:block;
+  margin:20px auto 0;
+  width:calc(100% - 40px);max-width:360px;
+  height:54px;box-sizing:border-box;
   border-radius:27px;border:none;cursor:pointer;
   background:linear-gradient(135deg,var(--brush-blue),var(--brush-green));
   color:#fff;font-size:16px;font-weight:500;
@@ -132,6 +209,74 @@ body{
   font-family:'Noto Sans KR',sans-serif;
 }
 .p0-btn:active{transform:scale(.97);opacity:.9}
+.p0-btn:disabled{
+  opacity:.45;cursor:not-allowed;
+  background:linear-gradient(135deg,#B5C7CD,#C5D2C0);
+}
+.p0-btn:disabled:active{transform:none;opacity:.45}
+
+/* p0 stage-staff: 직원 선택 버튼이 항상 viewport 안에 보이도록 flex 레이아웃.
+   height(min/max 동시 효과)로 컨테이너를 viewport 에 고정 → staff-list 가
+   남은 공간만 차지하며 그 안에서 자체 스크롤. */
+#p0.page{padding-bottom:0; min-height:calc(100vh - 30px); min-height:calc(100dvh - 30px)}
+#p0-stage-staff{
+  display:flex;flex-direction:column;
+  height:calc(100vh - 30px);
+  height:calc(100dvh - 30px);
+}
+/* hero·dept-tabs·버튼은 자연 크기 유지 (flex-shrink 잠금) — 압축 금지 */
+#p0-stage-staff .p0-hero,
+#p0-stage-staff .dept-tabs,
+#p0-stage-staff .p0-btn{flex:0 0 auto}
+/* staff-list 만 남은 공간 흡수 + 내부 스크롤 */
+#p0-stage-staff .staff-list{
+  flex:1 1 auto;min-height:0;
+  max-height:none;          /* 기존 55vh 캡 해제 — 부모 flex 가 높이 결정 */
+  /* overflow-y:auto 는 .staff-list 기본 규칙에서 그대로 상속 → 내부 스크롤 유지 */
+}
+#p0-stage-staff .p0-btn{margin-bottom:20px}
+/* 짧은 viewport(모바일·작은 노트북)에선 hero 압축 */
+@media (max-height:780px){
+  #p0-stage-staff .p0-hero{padding:20px 24px 14px}
+  #p0-stage-staff .p0-brush{font-size:36px;margin-bottom:10px}
+  #p0-stage-staff .p0-title{font-size:22px}
+}
+
+/* OTP 6칸 박스 */
+.otp-boxes-wrap{
+  max-width:400px;margin:0 auto;
+  padding:0 20px;box-sizing:border-box;
+}
+.otp-boxes{
+  display:flex;gap:8px;
+}
+.otp-digit{
+  flex:1;min-width:0;
+  height:52px;
+  text-align:center;
+  font-size:22px;font-weight:600;
+  border:1.5px solid var(--line);
+  border-radius:10px;
+  background:#efefef;
+  color:var(--ink);
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none;appearance:none;
+  padding:0;box-sizing:border-box;
+}
+.otp-digit:focus{
+  outline:none;
+  border-color:var(--ink);
+  background:#fff;
+}
+.otp-digit:disabled{opacity:.5;cursor:not-allowed}
+.otp-feedback{
+  max-width:400px;margin:14px auto 0;
+  padding:0 20px;box-sizing:border-box;
+  text-align:center;
+  font-size:12px;line-height:1.6;
+  color:var(--brush-rose);
+}
+.otp-feedback.lock{color:var(--ink2);font-weight:600}
 
 /* ══════════════════════════
    PAGE 1 — 입력
@@ -141,13 +286,17 @@ body{
   var(--paper);}
 
 /* 사용자 정보 바 */
+/* user-bar + mode-tabs 를 묶는 sticky 헤더 — p1 스크롤 시 상단 고정 */
+.p1-header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(250,248,243,.95);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
 .user-bar{
   display:flex;align-items:center;gap:12px;
   padding:16px 20px;
-  border-bottom:1px solid var(--line);
-  background:rgba(250,248,243,.9);
-  backdrop-filter:blur(8px);
-  position:sticky;top:0;z-index:100;
+  /* sticky·background·border 는 .p1-header 가 담당 */
 }
 .user-dot{
   width:36px;height:36px;border-radius:50%;
@@ -198,6 +347,97 @@ body{
 .sec-title::after{
   content:'';flex:1;height:1px;
   background:linear-gradient(90deg,var(--line),transparent);
+}
+/* ───────── 모드 탭 (일일보고 ↔ 힘클로바) — 독립된 두 카드, gap 으로 명확히 분리 ───────── */
+.mode-tabs{
+  display:flex;
+  margin:8px 20px 12px;   /* sticky 헤더 안 — 위·아래 여백으로 user-bar/콘텐츠 와 호흡 */
+  gap:8px;
+}
+/* base — 탭 정체성은 --tab-color / --tab-tint 변수로 분리.
+   새 탭 추가 시 .mode-tab.tab-XXX 한 줄만 정의하면 hover/active 자동 동작. */
+.mode-tab{
+  --tab-color: var(--ink3);                /* 기본 (정체성 미정 탭의 fallback) */
+  --tab-tint:  rgba(122,143,123,.06);
+  flex:1;
+  padding:10px 14px;
+  background:rgba(255,255,255,.7);
+  border:1px solid var(--line);
+  border-radius:10px;
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:13px;font-weight:500;
+  color:var(--ink3);
+  cursor:pointer;
+  transition:background .15s, color .15s, border-color .15s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  text-align:center;             /* 좁은 화면에서 두 줄로 줄바꿈 시 가운데 정렬 */
+  word-break:keep-all;            /* 한국어 단어 단위 줄바꿈 (예: "업무\n보고") */
+  line-height:1.3;
+}
+
+/* ── 탭 정체성 정의 — 추가 탭 시 이 영역에 한 줄만 추가하면 됨 ── */
+.mode-tab.tab-report  { --tab-color: #5C8557;  --tab-tint: rgba(143,175,138,.14); }   /* 청록(녹색) 계열 */
+.mode-tab.tab-search  { --tab-color: #6B84A1;  --tab-tint: rgba(107,132,161,.18); }   /* 블루-그레이 계열 (임시) */
+.mode-tab.tab-himclova { --tab-color: #7C5BC8;  --tab-tint: rgba(124,91,200,.14); }    /* 보라 계열 */
+
+/* hover (비활성) & active 동일 색상 — font-weight 만 차이로 구분 */
+.mode-tab:not(.on):hover,
+.mode-tab.on{
+  color: var(--tab-color);
+  border-color: var(--tab-color);
+  background: var(--tab-tint);
+}
+.mode-tab.on{ font-weight:600 }
+
+/* 모드 콘텐츠/하단 버튼 가시성 — #p1[data-mode] 기반.
+   기본 숨김 + 활성 모드만 노출. 새 모드 추가 시 mode-content + bottom-fixed 짝 한 쌍씩 추가. */
+.mode-content{display:none}
+#p1 .bottom-fixed{display:none}
+#p1[data-mode="report"]  .mode-content.mode-report,
+#p1[data-mode="report"]  .bottom-fixed.bottom-report   {display:block}
+#p1[data-mode="search"]  .mode-content.mode-search    {display:block}
+#p1[data-mode="himclova"] .mode-content.mode-himclova,
+#p1[data-mode="himclova"] .bottom-fixed.bottom-himclova {display:block}
+/* 검색 모드는 하단 고정 버튼 없음 — 검색 패널 자체에 검색 버튼 포함 (Phase 2 이식 예정) */
+
+/* 힘클로바 모드: user-bar 우측 배치 + 이니셜 원 보라 톤
+   order 로 시각 순서 [info][avatar] 만들고 justify-content:flex-end 로 우측 정렬 */
+#p1[data-mode="himclova"] .user-bar{
+  justify-content:flex-end;
+}
+#p1[data-mode="himclova"] .user-info{
+  flex:0 1 auto;                /* 기존 flex:1 override — 가로로 안 늘어나게 */
+  text-align:right;
+  order:0;                       /* info 가 먼저 (좌측) */
+}
+#p1[data-mode="himclova"] .user-dot{
+  order:1;                       /* avatar 가 뒤 (우측 끝) */
+  background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));  /* 기존 힘클로바 시그니처 — 보라→청 */
+}
+
+/* 검색 모드: user-info 자체가 페이지 가운데 X 좌표에 정렬 (모드 탭 가운데와 일치).
+   Grid 1fr | auto | 1fr 3열 — 양쪽 spacer 동일 폭이라 가운데 열(info)이 페이지 가운데.
+   dot 는 좌측 spacer 끝에 붙어 info 와 12px 간격. */
+#p1[data-mode="search"] .user-bar{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:0;
+  justify-content:initial;       /* flex 룰 무력화 */
+}
+#p1[data-mode="search"] .user-dot{
+  grid-column:1;
+  justify-self:end;
+  margin-right:12px;             /* info 와 간격 — 다른 모드 user-bar gap 과 동일 */
+}
+#p1[data-mode="search"] .user-info{
+  grid-column:2;
+  flex:0 1 auto;
+  text-align:center;
+}
+/* 이니셜 원 — 시도안 #A8C0D8 → #708EA9 (밝은 청회색 → 중청). 사용자 평가 후 확정/롤백. */
+#p1[data-mode="search"] .user-dot{
+  background:linear-gradient(135deg,#A8C0D8,#708EA9);
 }
 
 /* 텍스트 입력 */
@@ -268,24 +508,47 @@ body{
 .bottom-fixed{
   position:fixed;bottom:0;left:0;right:0;
   padding:14px 20px;
-  background:linear-gradient(0deg,var(--paper) 60%,transparent);
+  box-sizing:border-box;       /* 좌우 padding 이 viewport 안에 포함되도록 — 자식 width:100% 가 padding 영역까지 침범 방지 */
+  /* fade 영역을 padding-top(14px) 과 정확히 일치 — paper-solid 시작점 = 버튼 맨 위 */
+  background:linear-gradient(0deg,var(--paper) calc(100% - 14px),transparent);
 }
+/* base — 원본 힘클로바와 동일 (보라→청 그라디언트) */
 .send-btn{
-  width:100%;height:54px;border-radius:27px;border:none;cursor:pointer;
-  background:linear-gradient(135deg,var(--ink),var(--ink2));
-  color:var(--paper);font-size:16px;font-weight:500;
-  letter-spacing:.5px;transition:all .2s;
   display:flex;align-items:center;justify-content:center;gap:8px;
-  font-family:'Noto Sans KR',sans-serif;
+  width:100%;max-width:640px;margin:0 auto;
+  padding:16px 20px;
+  box-sizing:border-box;       /* width:100% + padding 이 부모 content 영역 안에 들어가도록 — 모바일 가로 튀어나감 방지 */
+  border:none;border-radius:14px;
+  background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));
+  color:#fff;font-size:15px;font-weight:600;
+  cursor:pointer;font-family:inherit;
+  transition:transform .1s,opacity .15s;
+  box-shadow:0 4px 14px rgba(155,138,181,.3);
 }
-.send-btn:active{transform:scale(.97);opacity:.9}
+.send-btn:active{transform:scale(.98);opacity:.92}
+.send-btn:disabled{
+  background:var(--paper3);color:var(--ink3);
+  box-shadow:none;cursor:not-allowed;
+}
+/* 일일보고 모드 — base 양식 그대로, 색상만 청록 그라디언트로 */
+.bottom-fixed.bottom-report .send-btn{
+  background:linear-gradient(135deg,var(--brush-green),var(--brush-blue));
+  box-shadow:0 4px 14px rgba(143,175,138,.3);
+}
+/* 힘클로바 — 진행 중 멈추기 빨간 버튼 */
+.send-btn.stopping{
+  background:linear-gradient(135deg,#E07A8C,#C4907A) !important;
+  box-shadow:0 4px 14px rgba(196,144,122,.4) !important;
+}
 
 /* ══════════════════════════
-   PAGE 2 — 보기 + 수정
+   PAGE 2 (마이그레이션됨) — 보기 + 수정
+   ※ 2026-04-29: #p2 페이지 → mode-report 안 sub-page (#report-page-edit) 로 이동.
+   ※ p2-* 클래스 룰은 mode-report 안에서도 그대로 작동.
 ══════════════════════════ */
-#p2{background:
+.report-page-edit{background:
   radial-gradient(ellipse at 20% 80%, rgba(143,175,138,.08) 0%, transparent 50%),
-  var(--paper);}
+  transparent;}
 
 .p2-topbar{
   display:flex;align-items:center;gap:10px;
@@ -356,6 +619,48 @@ body{
   border:none;cursor:pointer;font-size:13px;font-weight:500;
   margin-top:8px;font-family:'Noto Sans KR',sans-serif;
 }
+/* ── 자연어 카드 (Step 2b — 2026-04-29) ── */
+.proj-content{
+  font-size:14px;color:var(--ink);line-height:1.75;
+  white-space:pre-wrap;word-break:keep-all;
+  padding:4px 0;
+}
+.proj-empty{color:var(--ink3);font-style:italic;font-size:13px}
+.proj-add-row{margin-top:10px}
+.proj-add-btn-inline{
+  background:none;border:1px dashed var(--line);
+  border-radius:8px;padding:7px 12px;
+  font-size:12px;font-weight:500;color:var(--ink2);
+  cursor:pointer;transition:all .15s;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.proj-add-btn-inline:hover{border-color:var(--brush-blue);color:var(--brush-blue);background:rgba(123,167,188,.04)}
+.proj-draft-wrap{margin-top:10px}
+.proj-draft{
+  width:100%;border:1.5px solid var(--brush-blue);border-radius:10px;
+  padding:10px 12px;font-size:14px;font-family:'Noto Sans KR',sans-serif;
+  line-height:1.7;background:var(--paper);color:var(--ink);
+  resize:none;box-sizing:border-box;
+}
+.proj-draft:focus{outline:none;border-color:var(--brush-gold)}
+.proj-draft-actions{
+  display:flex;gap:8px;margin-top:8px;
+}
+.proj-reanalyze-btn{
+  flex:1;height:36px;border-radius:8px;
+  background:linear-gradient(135deg,var(--brush-blue),var(--brush-green));
+  color:#fff;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.proj-cancel-btn{
+  height:36px;padding:0 14px;border-radius:8px;
+  background:none;border:1px solid var(--line);
+  color:var(--ink3);cursor:pointer;
+  font-size:12px;font-weight:500;
+  font-family:'Noto Sans KR',sans-serif;
+}
+
 .rep-task{
   padding:8px 0;border-bottom:1px solid var(--paper3);
   font-size:14px;color:var(--ink);line-height:1.7;
@@ -391,7 +696,13 @@ body{
   font-family:'Noto Sans KR',sans-serif;
 }
 
-/* 하단 버튼 2개 */
+/* report-edit-actions — bottom-fixed 안에서 edit sub-page 시 보이는 영역.
+   Step 2d (2026-04-29): 저장 버튼 제거 → "보고 업로드" send-btn 1개. send-btn 자체가 width 처리. */
+.report-edit-actions{
+  width:100%;
+}
+
+/* (구) p2-bottom — #p2 페이지 마이그레이션 후 미사용. 호환 유지. */
 .p2-bottom{
   position:fixed;bottom:0;left:0;right:0;
   padding:12px 20px;
@@ -400,46 +711,13 @@ body{
 }
 
 /* ══════════════════════════
-   2페이지 2열 레이아웃 (반응형)
-   모바일(기본): 세로 단일 컬럼, 검색은 탭으로 제어 (step 7)
-   PC ≥1024px: 편집 2/3 + 검색 1/3 가로 배치
+   2페이지 레이아웃 (단일 편집 컬럼)
+   ※ 검색 패널은 p1 의 mode-search 로 이전됨 (2026-04-28)
 ══════════════════════════ */
 .p2-main{display:block}
 .p2-col{min-width:0}
-.p2-col-search{display:none}  /* 모바일 기본 숨김 — 탭으로 토글 */
 
-/* 모바일 탭 (PC에서 숨김) */
-.p2-tabs{
-  display:flex;gap:6px;
-  padding:10px 16px 4px;
-  position:sticky;top:48px;
-  background:rgba(250,248,243,.95);
-  backdrop-filter:blur(8px);
-  z-index:90;
-}
-.p2-tab{
-  flex:1;padding:9px;
-  background:transparent;
-  border:1.5px solid var(--line);
-  border-radius:18px;
-  font-size:12px;font-weight:600;
-  color:var(--ink3);
-  font-family:'Noto Sans KR',sans-serif;cursor:pointer;
-  -webkit-appearance:none;appearance:none;
-  display:flex;align-items:center;justify-content:center;gap:5px;
-}
-.p2-tab.active{
-  background:var(--ink);
-  color:var(--paper);
-  border-color:var(--ink);
-}
-
-/* 모바일에서 검색 탭 활성화 시: 편집 컬럼·하단 버튼 숨기고 검색 컬럼 표시 */
-#p2.tab-search .p2-col-edit{display:none}
-#p2.tab-search .p2-col-search{display:block}
-#p2.tab-search .p2-bottom{display:none !important}
-
-/* 검색 패널 UI */
+/* 검색 패널 UI (p1 mode-search 안에서 사용) */
 .search-box{
   margin:16px;padding:16px;
   background:rgba(255,255,255,.85);
@@ -447,33 +725,38 @@ body{
   border-radius:14px;
 }
 .search-title{
-  font-size:13px;font-weight:700;color:var(--ink);
+  font-size:13px;font-weight:700;color:#4F6885;
   margin-bottom:14px;letter-spacing:.5px;
 }
 .search-field{margin-bottom:12px}
 .search-field>label{
   display:block;font-size:11px;font-weight:700;
-  color:var(--ink3);margin-bottom:6px;
+  color:#6B84A1;margin-bottom:6px;
   letter-spacing:.5px;
 }
 .search-dates{display:flex;align-items:center;gap:8px}
 .search-dates input{flex:1;min-width:0}
 .search-dates span{color:var(--ink3);font-size:12px}
-.search-field input{
-  width:100%;padding:9px 11px;
+.search-field input,
+.search-field textarea{
+  width:100%;box-sizing:border-box;padding:9px 11px;
   border:1.5px solid var(--line);
   border-radius:10px;
-  font-size:13px;
+  font-size:13px;line-height:1.55;
   font-family:'Noto Sans KR',sans-serif;
   background:var(--paper);color:var(--ink);
   -webkit-appearance:none;appearance:none;
 }
-.search-field input:focus{
-  outline:none;border-color:var(--brush-green);
+.search-field textarea{
+  resize:none;min-height:38px;overflow:hidden;
+}
+.search-field input:focus,
+.search-field textarea:focus{
+  outline:none;border-color:#6B84A1;
 }
 .search-btn{
   width:100%;padding:11px;
-  background:linear-gradient(135deg,var(--ink),var(--ink2));
+  background:linear-gradient(135deg,#4F6885,#6B84A1);
   color:var(--paper);
   border:none;border-radius:20px;
   font-size:13px;font-weight:600;cursor:pointer;
@@ -485,22 +768,235 @@ body{
 .search-results{margin-top:14px;min-height:80px}
 .search-results-empty{
   padding:24px 10px;text-align:center;
-  color:var(--ink3);font-size:12px;line-height:1.7;
-  border:1.5px dashed var(--line);border-radius:10px;
+  color:#6B84A1;font-size:12px;line-height:1.7;
+  border:1.5px dashed rgba(107,132,161,.4);border-radius:10px;
+}
+.search-loading{
+  padding:24px 10px;text-align:center;
+  color:#6B84A1;font-size:12px;line-height:1.7;
+}
+.search-answer{
+  padding:14px 12px;background:var(--paper);
+  border:1px solid var(--line);border-radius:12px;
+  font-size:13px;line-height:1.75;color:var(--ink);
+  white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;
+  max-height:60vh;overflow-y:auto;
+}
+.search-answer strong{
+  font-weight:700;color:var(--ink);
+  background:rgba(107,132,161,.22);
+  padding:0 2px;border-radius:3px;
+}
+.search-answer hr.ans-sep{
+  border:none;border-top:1px dashed var(--line);
+  margin:10px 0;
+}
+.search-answer .ans-quote{
+  margin:6px 0;padding:6px 10px;
+  background:rgba(107,132,161,.06);
+  border-left:3px solid #6B84A1;
+  border-radius:4px;
+  color:var(--ink2);
+}
+.search-meta{
+  margin-top:10px;font-size:11px;color:#6B84A1;
+  text-align:right;line-height:1.6;
+}
+.search-notice{
+  margin-top:10px;padding:10px 12px;
+  background:#fff8e1;border-left:3px solid #f5c842;
+  border-radius:6px;
+  font-size:12px;line-height:1.6;color:#5d4a00;
+}
+/* 다중 기간 */
+.search-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.search-range input[type="date"]{flex:1;min-width:0}
+.search-range span.rng-sep{color:var(--ink3);font-size:12px;padding:0 2px}
+.range-btn{
+  width:30px;height:30px;flex-shrink:0;
+  border:1.5px solid var(--line);border-radius:8px;
+  background:var(--paper);color:var(--ink2);
+  font-size:15px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-family:inherit;line-height:1;padding:0;
+}
+.range-btn:hover{background:rgba(0,0,0,.03)}
+.range-btn:active{transform:scale(.95)}
+.range-btn.add{color:#6B84A1;border-color:#6B84A1}
+.range-btn.rm{color:#c44;border-color:#e0b0b0}
+.range-btn.hidden{visibility:hidden}
+/* 검색 중단 버튼 */
+.search-btn.cancel{
+  background:linear-gradient(135deg,#c44,#962d2d);
+}
+/* ══════════════════════════
+   챗봇 (mode-search) — 자연어 대화 UI
+   탭 베이스색(#6B84A1) 파랑 톤 통일
+══════════════════════════ */
+/* 검색 모드일 때 body 스크롤 차단 — mode-search 가 fixed 라 페이지 휠이 헛돌면서
+   스크롤바만 움직이는 문제 방지. JS(switchMode) 가 클래스 토글. */
+body.search-mode-active{
+  overflow:hidden;
 }
 
+/* mode-search 자체를 viewport 에 가두기 — 페이지 스크롤 0, 챗 헤더·입력 영역 고정,
+   내부 chat-messages 만 스크롤. 다른 모드는 영향 없음 (#p1[data-mode="search"] 한정).
+   top 값은 JS(Chat.adjustTop) 가 .p1-header bottom 을 측정해 동적으로 설정 — 빨간 배너 유무·헤더 높이 변화 모두 자동 대응. */
+#p1[data-mode="search"] .mode-content.mode-search{
+  position:fixed;
+  top:130px;          /* JS fallback — 측정 전·실패 시 기본값 */
+  left:0; right:0; bottom:0;
+  padding:16px 20px;  /* 좌우 20px = 일일보고와 통일 (2026-04-29) */
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.chat-box{
+  margin:0;
+  height:100%;
+  display:flex;flex-direction:column;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+}
+.chat-header{
+  padding:12px 16px;
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid rgba(107,132,161,.18);
+  background:rgba(107,132,161,.04);
+}
+.chat-title{
+  font-size:13px;font-weight:700;color:#4F6885;
+  letter-spacing:.5px;
+}
+.chat-new-btn{
+  font-size:11px;font-weight:600;color:#6B84A1;
+  background:transparent;border:1.5px solid #6B84A1;
+  padding:5px 12px;border-radius:14px;cursor:pointer;
+  font-family:inherit;
+  -webkit-appearance:none;appearance:none;
+}
+.chat-new-btn:hover{background:rgba(107,132,161,.08)}
+.chat-new-btn:active{transform:scale(.97);opacity:.92}
+.chat-messages{
+  flex:1;min-height:0;
+  overflow-y:auto;
+  padding:14px;
+  display:flex;flex-direction:column;gap:10px;
+}
+/* 빈 상태/안내 */
+.chat-empty{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  color:#6B84A1;font-size:13px;text-align:center;
+  padding:20px;line-height:1.7;word-break:keep-all;
+}
+.chat-empty.error{color:#c44}
+/* 풍선 — 한쪽 하단 모서리만 거의 직각으로 두고 다른 모서리는 더 둥글게 → 꼬리 효과 강조 */
+.chat-msg{
+  max-width:85%;
+  padding:10px 14px;
+  border-radius:20px;
+  font-size:13px;line-height:1.7;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+.chat-msg.user{
+  align-self:flex-end;
+  background:linear-gradient(135deg,#4F6885,#6B84A1);
+  color:#fff;
+  border-bottom-right-radius:2px;     /* 우측 하단이 꼬리 — 거의 직각 */
+}
+.chat-msg.assistant{
+  align-self:flex-start;
+  background:rgba(107,132,161,.08);
+  color:var(--ink);
+  border:1px solid rgba(107,132,161,.18);
+  border-bottom-left-radius:2px;      /* 좌측 하단이 꼬리 */
+}
+.chat-msg.assistant strong{
+  font-weight:700;color:var(--ink);
+  background:rgba(107,132,161,.22);
+  padding:0 2px;border-radius:3px;
+}
+.chat-msg.assistant hr{
+  border:none;border-top:1px dashed rgba(107,132,161,.4);
+  margin:8px 0;
+}
+.chat-msg.assistant blockquote{
+  margin:6px 0;padding:5px 10px;
+  background:rgba(107,132,161,.06);
+  border-left:3px solid #6B84A1;
+  border-radius:4px;
+  color:var(--ink2);
+}
+.chat-msg.loading{
+  align-self:flex-start;
+  color:#6B84A1;font-style:italic;
+  background:transparent;border:none;
+  padding:6px 10px;
+}
+/* 입력 영역 */
+.chat-input-wrap{
+  padding:10px 12px;
+  display:flex;gap:8px;align-items:flex-end;
+  border-top:1px solid rgba(107,132,161,.18);
+  background:rgba(255,255,255,.7);
+}
+.chat-input-wrap textarea{
+  flex:1;min-width:0;
+  min-height:38px;max-height:140px;
+  padding:9px 12px;
+  border:1.5px solid var(--line);border-radius:10px;
+  font-family:'Noto Sans KR',sans-serif;font-size:13px;
+  background:var(--paper);color:var(--ink);
+  resize:none;line-height:1.55;overflow:hidden;
+  -webkit-appearance:none;appearance:none;
+  box-sizing:border-box;
+}
+.chat-input-wrap textarea:focus{
+  outline:none;border-color:#6B84A1;
+}
+.chat-send-btn{
+  flex-shrink:0;
+  padding:9px 16px;
+  /* 이니셜 원과 동일 시도안 — #A8C0D8 → #708EA9 */
+  background:linear-gradient(135deg,#A8C0D8,#708EA9);
+  color:#fff;border:none;border-radius:10px;
+  font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;
+  -webkit-appearance:none;appearance:none;
+  box-shadow:0 4px 14px rgba(112,142,169,.3);
+}
+.chat-send-btn:active{transform:scale(.98);opacity:.92}
+.chat-send-btn:disabled{
+  background:var(--paper3);color:var(--ink3);cursor:not-allowed;
+}
+/* 검색 중 — 멈추기 모드 (붉은 톤) */
+.chat-send-btn.cancel{
+  background:linear-gradient(135deg,#d96666,#a83d3d);
+  box-shadow:0 4px 14px rgba(168,61,61,.3);
+}
+.chat-hint{
+  text-align:center;font-size:11px;color:var(--ink3);
+  padding:6px 14px 12px;
+  background:rgba(255,255,255,.7);
+  border-top:none;
+}
+
+/* OTP 입력 (p0에서 재사용) */
+.otp-input{
+  width:100%;padding:12px 14px;
+  border:1.5px solid var(--line);border-radius:12px;
+  font-size:15px;font-family:'Noto Sans KR',sans-serif;
+  background:var(--paper);color:var(--ink);
+  -webkit-appearance:none;appearance:none;
+  box-sizing:border-box;
+}
+.otp-input:focus{outline:none;border-color:var(--ink)}
+#otp-code{letter-spacing:0.35em;text-align:center;font-size:20px;font-weight:700}
+
 @media (min-width:1024px){
-  .p2-tabs{display:none}  /* PC에서 탭 숨김 — 둘 다 보임 */
   .p2-main{
-    display:flex;align-items:flex-start;gap:24px;
     padding:0 20px;  /* 양 옆 20px 여백 고정, 폭은 창 너비에 따라 확장 */
-  }
-  .p2-col-edit{flex:2}
-  .p2-col-search{
-    display:block;flex:1;
-    position:sticky;top:72px;
-    max-height:calc(100vh - 92px);
-    overflow-y:auto;
   }
 }
 .btn-sv{
@@ -531,6 +1027,11 @@ body{
   color:var(--ink2);font-size:15px;font-weight:500;cursor:pointer;
   font-family:'Noto Sans KR',sans-serif;
 }
+.done-new.go-himclova{
+  margin-top:10px;
+  border-color:#7C5BC8;color:#7C5BC8;
+}
+.done-new.go-himclova:hover{background:rgba(124,91,200,.08)}
 
 /* 토스트 */
 .toast{
@@ -626,7 +1127,7 @@ body{
   border:1.5px solid #f2d477;
   padding:10px 14px;border-radius:12px;
   font-size:12px;font-weight:600;line-height:1.5;
-  margin:0 0 14px;text-align:center;
+  margin:0 0 16px;text-align:center;
 }
 .test-preview{
   background:#f7f5ee;border-radius:12px;
@@ -653,7 +1154,7 @@ body{
   font-family:'Noto Sans KR',sans-serif;
   background:rgba(255,255,255,.85);
   color:var(--ink);
-  resize:vertical;
+  resize:none;
   line-height:1.7;
   min-height:48px;
   -webkit-appearance:none;
@@ -754,7 +1255,7 @@ body{
   padding:10px 12px;
   font-size:14px;font-family:'Noto Sans KR',sans-serif;
   background:rgba(255,255,255,.85);color:var(--ink);
-  resize:vertical;line-height:1.6;min-height:36px;
+  resize:none;line-height:1.6;min-height:36px;
   -webkit-appearance:none;
 }
 .proj-field:focus{
@@ -772,6 +1273,382 @@ body{
   font-family:'Noto Sans KR',sans-serif;
 }
 .proj-add-btn:hover{background:rgba(123,167,188,.18)}
+
+/* ═══════════════════════════════════════════════════════════
+   힘클로바 모드 — 녹취록 업로드 폼 (mode-himclova 스코프)
+   힘클로드 일일보고 흐름과 클래스 충돌 방지: 모든 규칙을 .mode-himclova 하위로
+═══════════════════════════════════════════════════════════ */
+.mode-himclova .info-box{
+  margin:16px 20px 16px;
+  padding:12px 14px;
+  background:rgba(124,91,200,.08);
+  border-left:3px solid #7C5BC8;
+  border-radius:0 10px 10px 0;
+  font-size:12px;color:var(--ink2);
+  line-height:1.6;word-break:keep-all;
+}
+.mode-himclova .info-box b{color:var(--ink)}
+
+.mode-himclova .meeting-form{
+  padding:0 20px;
+  display:flex;flex-direction:column;gap:16px;
+  max-width:640px;margin:0 auto;
+}
+.mode-himclova .form-row{display:flex;flex-direction:column;gap:6px}
+.mode-himclova .form-label{
+  font-size:12px;font-weight:600;color:var(--ink2);
+  letter-spacing:.3px;
+}
+.mode-himclova .form-label .req{color:var(--brush-rose);margin-left:2px}
+.mode-himclova .form-input{
+  width:100%;
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  font-size:15px;font-family:'Noto Sans KR',sans-serif;
+  background:rgba(255,255,255,.85);color:var(--ink);
+  -webkit-appearance:none;
+  transition:border-color .15s,box-shadow .15s;
+  resize:none;box-sizing:border-box;
+}
+.mode-himclova .form-input:focus{
+  outline:none;
+  border-color:#7C5BC8;
+  box-shadow:0 0 0 3px rgba(124,91,200,.12);
+  background:rgba(255,255,255,.98);
+}
+.mode-himclova .form-hint{
+  font-size:11px;color:var(--ink3);margin-top:2px;
+  word-break:keep-all;
+}
+
+.mode-himclova .level-select{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+}
+.mode-himclova .lv-btn{
+  padding:10px 8px;
+  border:1.5px solid var(--line);
+  border-radius:10px;
+  background:rgba(255,255,255,.7);
+  font-family:inherit;font-size:12px;font-weight:500;
+  color:var(--ink2);cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+.mode-himclova .lv-btn:hover{border-color:#7C5BC8}
+.mode-himclova .lv-btn.on{
+  border-color:#7C5BC8;
+  background:rgba(124,91,200,.14);
+  color:#7C5BC8;
+  font-weight:700;
+}
+@media(max-width:420px){
+  .mode-himclova .level-select{grid-template-columns:repeat(2,1fr)}
+}
+
+.mode-himclova .upload-zone{
+  border:2px dashed var(--line);
+  border-radius:14px;
+  padding:28px 20px;
+  background:rgba(255,255,255,.55);
+  text-align:center;
+  cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+/* 음성파일 선택됨 — zone 색상·테두리 강조, 추가 클릭 비활성 */
+.mode-himclova .upload-zone.has-file{
+  background:rgba(143,175,138,.10);
+  border-color:var(--brush-green);
+  border-style:solid;
+  cursor:default;
+}
+.mode-himclova .upload-zone.has-file .upload-icon,
+.mode-himclova .upload-zone.has-file .upload-title,
+.mode-himclova .upload-zone.has-file .upload-hint{display:none}
+.mode-himclova .upload-zone.has-file .file-chips{margin:0}
+
+.mode-himclova .upload-zone:hover,
+.mode-himclova .upload-zone.dragover{
+  border-color:#7C5BC8;
+  background:rgba(124,91,200,.08);
+}
+.mode-himclova .upload-icon{font-size:36px;margin-bottom:10px;opacity:.75}
+.mode-himclova .upload-title{font-size:14px;font-weight:600;color:var(--ink2)}
+.mode-himclova .upload-hint{font-size:11px;color:var(--ink3);margin-top:4px;line-height:1.5}
+
+.mode-himclova .file-chips{
+  display:flex;flex-direction:column;gap:6px;
+  margin-top:14px;
+}
+.mode-himclova .file-chip{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;
+  background:rgba(255,255,255,.95);
+  border:1px solid var(--line);
+  border-radius:10px;
+  font-size:13px;color:var(--ink);
+  text-align:left;
+  min-width:0;max-width:100%;box-sizing:border-box;   /* 모바일 좁은 화면에서 콘텐츠 폭이 박스 밖으로 튀지 않게 */
+}
+.mode-himclova .file-chip-icon{font-size:18px;flex-shrink:0}
+.mode-himclova .file-chip-info{flex:1 1 0;min-width:0;width:0}   /* width:0 + flex:1 — flex item ellipsis 표준 패턴 (iOS Safari 대응) */
+.mode-himclova .file-chip-name{
+  font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;
+}
+.mode-himclova .file-chip-meta{font-size:11px;color:var(--ink3);margin-top:2px}
+.mode-himclova .file-chip-del{
+  width:24px;height:24px;flex-shrink:0;
+  border:none;background:transparent;
+  color:var(--ink3);cursor:pointer;
+  font-size:16px;border-radius:50%;
+  transition:background .15s;
+}
+.mode-himclova .file-chip-del:hover{background:rgba(196,144,122,.18);color:var(--brush-rose)}
+
+/* ── 진행 상태 박스 (강화된 디자인) ── */
+.mode-himclova .progress-box{
+  max-width:600px;width:calc(100% - 40px);
+  margin:12px auto 0;
+  background:#fff;
+  border:1.5px solid #7C5BC8;border-radius:16px;
+  box-sizing:border-box;overflow:hidden;
+  box-shadow:0 4px 18px rgba(124,91,200,.12);
+}
+.mode-himclova .progress-box.done{
+  border-color:var(--brush-green);
+  box-shadow:0 4px 18px rgba(143,175,138,.15);
+}
+.mode-himclova .progress-header{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;
+  background:linear-gradient(135deg,rgba(124,91,200,.08),rgba(155,138,181,.06));
+  border-bottom:1px solid rgba(124,91,200,.15);
+}
+.mode-himclova .progress-box.done .progress-header{
+  background:linear-gradient(135deg,rgba(143,175,138,.10),rgba(143,175,138,.04));
+  border-bottom-color:rgba(143,175,138,.2);
+}
+.mode-himclova .progress-spinner{
+  width:22px;height:22px;flex-shrink:0;
+  border:2.5px solid rgba(124,91,200,.2);
+  border-top-color:#7C5BC8;
+  border-radius:50%;
+  animation:hcSpin .8s linear infinite;
+}
+.mode-himclova .progress-box.done .progress-spinner{
+  border:2.5px solid var(--brush-green);
+  border-top-color:var(--brush-green);
+  animation:none;
+  position:relative;
+}
+.mode-himclova .progress-box.done .progress-spinner::after{
+  content:'✓';position:absolute;
+  inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--brush-green);font-size:14px;font-weight:700;
+}
+@keyframes hcSpin{to{transform:rotate(360deg)}}
+
+.mode-himclova .progress-title-wrap{flex:1;min-width:0}
+.mode-himclova .progress-title{
+  font-size:14px;font-weight:600;color:#7C5BC8;
+  letter-spacing:.2px;
+}
+.mode-himclova .progress-box.done .progress-title{color:var(--brush-green)}
+.mode-himclova .progress-sub{
+  font-size:11px;color:var(--ink3);margin-top:2px;
+}
+.mode-himclova .progress-elapsed{
+  flex-shrink:0;
+  padding:4px 10px;
+  background:rgba(124,91,200,.10);
+  color:#7C5BC8;
+  border-radius:10px;
+  font-size:11px;font-weight:600;
+  font-variant-numeric:tabular-nums;
+}
+.mode-himclova .progress-box.done .progress-elapsed{
+  background:rgba(143,175,138,.15);color:var(--brush-green);
+}
+
+.mode-himclova .progress-steps{padding:10px 14px}
+.mode-himclova .progress-step{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 4px;font-size:13px;
+  color:var(--ink3);
+  transition:color .2s;
+  position:relative;
+}
+.mode-himclova .progress-step + .progress-step{
+  border-top:1px dashed rgba(0,0,0,.06);
+}
+.mode-himclova .progress-step .ps-icon{
+  width:22px;height:22px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  background:rgba(0,0,0,.05);
+  font-size:11px;font-weight:700;
+}
+.mode-himclova .progress-step .ps-label{flex:1}
+
+/* 단계별 상태 */
+.mode-himclova .progress-step.done{color:var(--brush-green)}
+.mode-himclova .progress-step.done .ps-icon{
+  background:var(--brush-green);color:#fff;
+}
+.mode-himclova .progress-step.done .ps-icon::before{content:'✓'}
+
+.mode-himclova .progress-step.active{color:#7C5BC8;font-weight:600}
+.mode-himclova .progress-step.active .ps-icon{
+  background:#7C5BC8;color:#fff;
+  animation:hcPulse 1.4s ease-in-out infinite;
+}
+.mode-himclova .progress-step.active .ps-icon::before{content:'●'}
+@keyframes hcPulse{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(124,91,200,.4)}
+  50%{transform:scale(1.05);box-shadow:0 0 0 6px rgba(124,91,200,0)}
+}
+
+.mode-himclova .progress-step.pending .ps-icon::before{content:'○'}
+.mode-himclova .progress-step.pending .ps-icon{color:var(--ink3)}
+
+.mode-himclova .progress-step.error{color:var(--brush-rose)}
+.mode-himclova .progress-step.error .ps-icon{
+  background:var(--brush-rose);color:#fff;
+}
+.mode-himclova .progress-step.error .ps-icon::before{content:'✕'}
+
+/* sub-page — JS 가 display 인라인으로 토글 */
+
+.mode-himclova .result-area{
+  max-width:600px;width:calc(100% - 40px);
+  margin:12px auto 0;padding:18px;
+  background:rgba(255,255,255,.92);
+  border:1px solid var(--line);border-radius:14px;
+  box-sizing:border-box;
+}
+.mode-himclova .result-section{margin-bottom:14px}
+.mode-himclova .result-label{
+  font-size:12px;font-weight:700;color:var(--ink);
+  margin-bottom:8px;letter-spacing:.3px;
+  display:flex;align-items:center;gap:6px;
+}
+.mode-himclova .transcript-box{
+  background:var(--paper);border:1px solid var(--line);
+  border-radius:10px;padding:14px;
+  max-height:400px;overflow-y:auto;
+  font-size:13px;line-height:1.85;color:var(--ink);
+  white-space:pre-wrap;word-break:keep-all;
+}
+.mode-himclova .transcript-box:empty::before{
+  content:'(빈 결과)';color:var(--ink3);font-style:italic;
+}
+.mode-himclova .result-info-row{
+  display:flex;justify-content:space-between;
+  padding:5px 0;font-size:12px;
+  border-bottom:1px dashed var(--line);
+}
+.mode-himclova .result-info-row:last-child{border-bottom:none}
+.mode-himclova .result-info-key{color:var(--ink3)}
+.mode-himclova .result-info-val{color:var(--ink);font-weight:600}
+
+/* 요약 (안건/결정/액션) */
+.mode-himclova .summary-block{margin-bottom:12px}
+.mode-himclova .summary-block:last-child{margin-bottom:0}
+.mode-himclova .summary-h{
+  font-size:12px;font-weight:600;color:var(--ink2);
+  margin-bottom:6px;letter-spacing:.2px;
+}
+.mode-himclova .summary-list{
+  list-style:none;padding:0;margin:0;
+  font-size:13px;color:var(--ink);line-height:1.6;
+}
+.mode-himclova .summary-list li{
+  padding:4px 0 4px 14px;position:relative;
+}
+.mode-himclova .summary-list li::before{
+  content:'•';position:absolute;left:2px;color:var(--brush-violet);
+}
+.mode-himclova .summary-list li b{font-weight:600;color:var(--ink)}
+.mode-himclova .action-due{color:var(--ink3);font-size:11px;margin-left:4px}
+.mode-himclova .summary-empty{color:var(--ink3);font-size:12px;font-style:italic}
+
+/* KB 적용 chip */
+.mode-himclova .kb-chip{
+  display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;
+  background:rgba(124,91,200,.1);color:#7C5BC8;
+  border-radius:10px;font-size:11px;font-weight:600;
+}
+
+/* 추천 등급 배지 */
+.mode-himclova .level-badge{
+  display:inline-block;padding:4px 10px;border-radius:8px;
+  font-size:12px;font-weight:600;letter-spacing:.3px;margin-right:6px;
+}
+.mode-himclova .level-badge.lv-L1{background:rgba(196,144,122,.15);color:var(--brush-rose)}
+.mode-himclova .level-badge.lv-L2{background:rgba(143,175,138,.15);color:var(--brush-green)}
+.mode-himclova .level-badge.lv-L3{background:rgba(124,91,200,.12);color:#7C5BC8}
+.mode-himclova .level-note{font-size:11px;color:var(--ink3)}
+.mode-himclova .level-rationale{
+  margin-top:8px;padding:8px 10px;
+  background:rgba(0,0,0,.025);border-radius:8px;
+  font-size:12px;color:var(--ink2);line-height:1.5;
+}
+
+/* 후처리 적용 태그 (제목 옆) */
+.mode-himclova .postproc-tag{
+  display:inline-block;padding:1px 7px;margin-left:6px;
+  background:rgba(124,91,200,.12);color:#7C5BC8;
+  border-radius:8px;font-size:10px;font-weight:600;letter-spacing:.3px;
+  vertical-align:middle;
+}
+.mode-himclova .result-actions{display:flex;gap:8px;margin-top:10px}
+.mode-himclova .btn-secondary{
+  padding:11px 16px;border-radius:10px;
+  border:1.5px solid var(--line);background:#fff;
+  color:var(--ink);font-size:13px;font-weight:600;
+  cursor:pointer;flex:1;
+  font-family:inherit;
+}
+.mode-himclova .btn-secondary:hover{background:var(--paper)}
+.mode-himclova .btn-secondary.go-report{
+  border-color:var(--brush-green);color:var(--brush-green);
+}
+.mode-himclova .btn-secondary.go-report:hover{background:rgba(143,175,138,.08)}
+
+/* 힘클로바 모드 하단 버튼: base .send-btn(violet+blue) 그대로 사용 — override 불필요 */
+
+/* 진행 박스 — CLOVA 텍스트 변환 단계 옆 장시간 경고 배지 (10MB+ 또는 60초 경과 시 표시) */
+.progress-step .ps-warn{
+  margin-left:10px;font-size:11px;
+  color:#C77D2E;background:rgba(232,167,84,.14);
+  padding:2px 9px;border-radius:10px;
+  font-weight:600;letter-spacing:-.2px;
+  animation:psWarnFadeIn .25s ease;
+}
+@keyframes psWarnFadeIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+
+/* ── 저장 완료 화면 (saved 모드) ────────────────── */
+/* 일일보고 발송 완료 화면(.done-wrap)과 동일 패턴. saved 모드의 메인 = 내 기기 저장 (보라 그라데이션) */
+.done-new.go-himclova-doc{
+  background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));
+  color:#fff;border:none;
+  box-shadow:0 4px 14px rgba(155,138,181,.3);
+}
+.done-new.go-himclova-doc:hover{opacity:.92}
+.done-new.go-himclova-doc:active{transform:scale(.98);opacity:.92}
+/* done-wrap 안 두 버튼 사이 간격 (.done-new 가 두번 연속 나올 때) */
+.done-wrap .done-new + .done-new{margin-top:10px}
+
+/* 저장 완료 화면(hc-saved-screen) 안 버튼은 폭 절반 — 가운데 정렬 */
+#hc-saved-screen .done-new{
+  width:50%;
+  min-width:220px;
+  max-width:280px;
+  display:block;
+  margin-left:auto;margin-right:auto;
+}
 </style>
 </head>
 <body>
@@ -780,29 +1657,92 @@ body{
      PAGE 0 — 직원 선택
 ══════════════════════════ -->
 <div class="page on" id="p0">
-  <div class="p0-hero">
-    <div class="p0-brush">🖌️</div>
-    <div class="p0-title">더힘이앤씨<br>일일보고</div>
-    <div class="p0-sub" style="margin-top:8px">처음 한 번만 선택하면<br>다음부터 자동으로 시작됩니다</div>
+
+  <!-- Stage 1: 직원 선택 -->
+  <div id="p0-stage-staff">
+    <div class="p0-hero">
+      <div class="p0-brush">📜</div>
+      <div class="p0-title">더힘이앤씨<br>일일보고</div>
+      <div class="p0-sub" style="margin-top:8px">본인을 선택하면<br>이메일로 인증코드를 보내드립니다</div>
+    </div>
+    <div class="dept-tabs" id="dept-tabs">
+      <button class="dept-tab active" type="button" data-dept="all"       onclick="selectDept(this,'all')">전체</button>
+      <button class="dept-tab"        type="button" data-dept="대표단"     onclick="selectDept(this,'대표단')">대표단</button>
+      <button class="dept-tab"        type="button" data-dept="기획본부"   onclick="selectDept(this,'기획본부')">기획본부</button>
+      <button class="dept-tab"        type="button" data-dept="도시계획본부" onclick="selectDept(this,'도시계획본부')">도시계획본부</button>
+      <button class="dept-tab"        type="button" data-dept="설계본부"   onclick="selectDept(this,'설계본부')">설계본부</button>
+    </div>
+    <div class="staff-list" id="staff-list"></div>
+    <button class="p0-btn" id="p0-btn-next-staff" disabled onclick="completeSetupToOtp()">직원 선택</button>
   </div>
 
-  <div class="p0-label">본인 선택</div>
-  <div class="staff-list" id="staff-list"></div>
-  <button class="p0-btn" onclick="completeSetup()">시작하기</button>
+  <!-- Stage 2: 이메일 확인 + OTP 요청 -->
+  <div id="p0-stage-email" style="display:none">
+    <div class="p0-hero">
+      <div class="p0-brush">📧</div>
+      <div class="p0-title">이메일 인증</div>
+      <div class="p0-sub" style="margin-top:8px">선택한 계정으로<br>6자리 인증코드를 보내드립니다</div>
+    </div>
+    <div class="p0-label">인증받을 계정</div>
+    <div style="max-width:400px;margin:0 auto;padding:0 20px;box-sizing:border-box">
+      <div class="staff-card on" id="p0-picked-card" style="cursor:default"></div>
+    </div>
+    <button class="p0-btn" onclick="p0RequestOtp()">인증코드 받기</button>
+    <button class="p0-btn" style="background:transparent;color:var(--ink3);border:1.5px solid var(--line);margin-top:10px" onclick="p0BackToStaff()">직원 재선택</button>
+  </div>
+
+  <!-- Stage 3: 코드 입력 (6칸 박스, 전부 입력 시 자동 검증) -->
+  <div id="p0-stage-code" style="display:none">
+    <div class="p0-hero">
+      <div class="p0-brush">🔐</div>
+      <div class="p0-title">인증코드 입력</div>
+      <div class="p0-sub" style="margin-top:8px"><span id="p0-code-email-echo"></span>로<br>6자리 코드가 발송되었습니다 (5분 유효)</div>
+    </div>
+    <div class="otp-boxes-wrap">
+      <div class="otp-boxes" id="p0-digits">
+        <input class="otp-digit" id="p0-digit-0" maxlength="1" inputmode="numeric" autocomplete="one-time-code" oninput="p0HandleDigitInput(event,0)" onkeydown="p0HandleDigitKeydown(event,0)" onpaste="p0HandlePaste(event,0)">
+        <input class="otp-digit" id="p0-digit-1" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,1)" onkeydown="p0HandleDigitKeydown(event,1)" onpaste="p0HandlePaste(event,1)">
+        <input class="otp-digit" id="p0-digit-2" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,2)" onkeydown="p0HandleDigitKeydown(event,2)" onpaste="p0HandlePaste(event,2)">
+        <input class="otp-digit" id="p0-digit-3" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,3)" onkeydown="p0HandleDigitKeydown(event,3)" onpaste="p0HandlePaste(event,3)">
+        <input class="otp-digit" id="p0-digit-4" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,4)" onkeydown="p0HandleDigitKeydown(event,4)" onpaste="p0HandlePaste(event,4)">
+        <input class="otp-digit" id="p0-digit-5" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,5)" onkeydown="p0HandleDigitKeydown(event,5)" onpaste="p0HandlePaste(event,5)">
+      </div>
+    </div>
+    <div id="p0-otp-feedback" class="otp-feedback" style="display:none"></div>
+    <button class="p0-btn" onclick="p0ResendOtp()">인증코드 재발송</button>
+    <button class="p0-btn" style="background:transparent;color:var(--ink3);border:1.5px solid var(--line);margin-top:10px" onclick="p0BackToStaff()">직원 재선택</button>
+  </div>
+
 </div>
 
 <!-- ══════════════════════════
      PAGE 1 — 입력
 ══════════════════════════ -->
-<div class="page" id="p1">
+<div class="page" id="p1" data-mode="report">
 
-  <div class="user-bar">
-    <div class="user-dot" id="user-dot" onclick="resetProfile()">?</div>
-    <div class="user-info">
-      <div class="user-name" id="user-name">-</div>
-      <div class="user-date" id="user-date">-</div>
+  <!-- 상단 sticky 헤더: user-bar + 모드 탭 (스크롤 시 함께 고정) -->
+  <div class="p1-header">
+    <div class="user-bar">
+      <div class="user-dot" id="user-dot" onclick="resetProfile()">?</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">-</div>
+        <div class="user-date" id="user-date">-</div>
+      </div>
+    </div>
+
+    <!-- 모드 탭 (일일보고 / 힘클로드 / 힘클로바) -->
+    <div class="mode-tabs">
+      <button class="mode-tab tab-report on" data-mode="report"  onclick="onTabClick('report')">📝 업무 보고</button>
+      <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 업무 인사이트</button>
+      <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ AI 회의록</button>
     </div>
   </div>
+
+  <!-- ── 일일보고 모드 ── -->
+  <div class="mode-content mode-report">
+
+  <!-- ◆ INPUT sub-page (작성·분석) ◆ -->
+  <div class="report-page report-page-input" id="report-page-input">
 
   <!-- 이어서 작성 배너 -->
   <div class="draft-banner" id="draft-banner">
@@ -860,7 +1800,7 @@ body{
   <div class="sec-title" style="margin-top:6px">오늘 업무</div>
 
   <!-- 오늘 이미 작성한 원문 (발송분 있을 때만 표시, 기본 접힘) -->
-  <div class="ctx-card collapsed" id="ctx-td-raw" style="display:none;margin-top:4px">
+  <div class="ctx-card collapsed" id="ctx-td-raw" style="display:none;margin:4px 20px 8px">
     <div class="ctx-head clickable" onclick="toggleCtxTdRaw()">
       ✅ <span id="ctx-td-raw-head">오늘 이미 작성한 원문</span>
       <span class="rep-toggle">▼</span>
@@ -870,12 +1810,8 @@ body{
 
   <div class="input-wrap">
     <textarea class="main-textarea" id="main-input" rows="8"
-      placeholder="형식 없이 말하듯 쓰세요.
-
-더케이 주간회의 다녀옴. 이용수요예측 반영 논의.
-갤러리아 도면 검토 완료.
-이지스 최광석 매니저한테 공문 보내야 함.
-수송 심의 — 강중구 본부장 내일 직접 참석."></textarea>
+      oninput="autosizeTa(this)"
+      placeholder="형식 없이 말하듯 편하게 써주시면 됩니다."></textarea>
     <div class="input-hint">💡 프로젝트명, 만난 사람, 요청사항 등 생각나는 대로 — 힘클로드가 정리합니다</div>
   </div>
 
@@ -898,71 +1834,213 @@ body{
       style="display:none" onchange="handleFiles(this)">
   </div>
 
-  <div class="bottom-fixed">
-    <button class="send-btn" onclick="doAnalyze()">
-      <span>🤖</span><span>힘클로드에게 보내기</span>
-    </button>
-  </div>
-</div>
+  </div><!-- /.report-page-input -->
 
-<!-- ══════════════════════════
-     PAGE 2 — 보기 + 수정
-══════════════════════════ -->
-<div class="page" id="p2">
+  <!-- ◆ EDIT sub-page (편집·발송 — 기존 #p2 콘텐츠 이동) ◆ -->
+  <div class="report-page report-page-edit" id="report-page-edit" style="display:none">
 
-  <div class="p2-topbar">
-    <button class="back-btn" onclick="goPage('p1')">←</button>
-    <div class="p2-name" id="p2-name">보고서 확인</div>
-  </div>
-
-  <!-- 모바일 전용 탭 (PC에서는 숨김) -->
-  <div class="p2-tabs" id="p2-tabs">
-    <button class="p2-tab active" data-tab="edit" onclick="switchP2Tab('edit')">📝 재정리</button>
-    <button class="p2-tab" data-tab="search" onclick="switchP2Tab('search')">🔍 검색</button>
-  </div>
-
-  <div class="p2-main">
-    <div class="p2-col p2-col-edit" id="p2-col-edit">
-      <div id="p2-body">
-        <!-- 동적 생성 -->
+    <div class="p2-main">
+      <div class="p2-col p2-col-edit" id="p2-col-edit">
+        <div id="p2-body">
+          <!-- 동적 생성 -->
+        </div>
       </div>
     </div>
-    <aside class="p2-col p2-col-search" id="p2-col-search">
-      <div class="search-box">
-        <div class="search-title">🔍 브리핑 검색</div>
 
-        <div class="search-field">
-          <label>기간</label>
-          <div class="search-dates">
-            <input type="date" id="search-from">
-            <span>~</span>
-            <input type="date" id="search-to">
+  </div><!-- /.report-page-edit -->
+
+  </div><!-- /.mode-report -->
+
+  <!-- ── 힘클로드 모드 (브리핑 자연어 챗봇) ── -->
+  <div class="mode-content mode-search">
+    <div class="chat-box">
+      <div class="chat-header">
+        <span class="chat-title">💬 힘클로드 챗</span>
+        <button class="chat-new-btn" onclick="Chat.newConv()" title="현재 대화를 비우고 새로 시작">+ 새 대화</button>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <!-- 풍선 동적 추가 -->
+      </div>
+      <div class="chat-input-wrap">
+        <textarea id="chat-input" rows="1"
+          placeholder="브리핑에 대해 자유롭게 물어보세요. 예) 지난주 내 일정"
+          onkeydown="Chat.onKeyDown(event)"
+          oninput="autosizeTa(this)"></textarea>
+        <button class="chat-send-btn" id="chat-send-btn" onclick="Chat.sendFromInput()">보내기</button>
+      </div>
+      <div class="chat-hint">대화기록은 일주일간 보관됩니다 · 다른 기기에서는 이어지지 않아요</div>
+    </div>
+  </div>
+
+  <!-- ── 힘클로바 모드 ── -->
+  <div class="mode-content mode-himclova">
+
+    <!-- ◆ INPUT sub-page (입력 폼) ◆ -->
+    <div class="hc-page hc-page-input" id="hc-page-input">
+
+      <!-- 안내 박스 -->
+      <div class="info-box">
+        <b>🎙️ 녹취록은 일일보고와 별개로 관리됩니다.</b><br>
+        업로드된 음성파일은 CLOVA로 자동 텍스트화, 힘클로드 분석으로 구조화되고,
+        등급이 판정되어 검색·브리핑에서 활용됩니다. 회의·통화 등 음성 기반 자료 전반에
+        사용 가능합니다. 동일한 내용을 중복되게 업로드하는 것은 삼가주세요.
+      </div>
+
+      <div class="meeting-form">
+
+        <div class="form-row">
+          <label class="form-label" for="m-title">녹취 제목<span class="req">*</span></label>
+          <input id="m-title" class="form-input" placeholder="예) 4/24 본부 주간회의" maxlength="80">
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="m-date">녹취 일자<span class="req">*</span></label>
+          <input id="m-date" type="date" class="form-input">
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="m-project">프로젝트</label>
+          <input id="m-project" class="form-input" placeholder="예) 더케이호텔 사업부 · 돌곶이역 가시설" maxlength="60">
+          <div class="form-hint">관련 프로젝트명 (선택 입력 · 고유명사 교정과 맞춤 사전 매칭에 사용)</div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">등급</label>
+          <div class="level-select">
+            <button type="button" class="lv-btn on" data-lv="auto" onclick="HimClova.selectLevel(this,'auto')">🤖 자동</button>
+            <button type="button" class="lv-btn"    data-lv="L1"   onclick="HimClova.selectLevel(this,'L1')">L1 기밀</button>
+            <button type="button" class="lv-btn"    data-lv="L2"   onclick="HimClova.selectLevel(this,'L2')">L2 제한</button>
+            <button type="button" class="lv-btn"    data-lv="L3"   onclick="HimClova.selectLevel(this,'L3')">L3 일반</button>
           </div>
+          <div class="form-hint">🤖 자동: 힘클로바가 내용을 읽고 등급을 추천합니다 (업로드 후 확인 가능)</div>
         </div>
 
-        <div class="search-field">
-          <label>키워드</label>
-          <input type="text" id="search-keyword" placeholder="예: 갤러리아, 도면 검토">
+        <div class="form-row">
+          <label class="form-label">음성 파일<span class="req">*</span></label>
+          <div class="upload-zone" id="hc-upload-zone" onclick="HimClova.openFilePicker()">
+            <div class="upload-icon">🎵</div>
+            <div class="upload-title">음성 또는 텍스트 파일 선택·드래그</div>
+            <div class="upload-hint">음성 (mp3 · m4a · wav · webm · mp4) — 변환 + 후처리<br>텍스트 (txt · md · doc · docx) — 후처리만 진행</div>
+            <div class="file-chips" id="hc-file-chips"></div>
+          </div>
+          <input type="file" id="audio-inp" accept="audio/*,video/mp4,.txt,.md,.markdown,.doc,.docx"
+            style="display:none" onchange="HimClova.handleAudioFile(this)">
         </div>
 
-        <button class="search-btn" onclick="doSearch()">검색</button>
+        <div class="form-row">
+          <label class="form-label" for="m-memo">메모</label>
+          <textarea id="m-memo" class="form-input" rows="3"
+            placeholder="참석자·주요 내용·특이사항 등 강조할 내용"
+            oninput="autosizeTa(this)"></textarea>
+          <div class="form-hint">분석 시 참고 컨텍스트로 사용됩니다 (선택 입력)</div>
+        </div>
 
-        <div class="search-results" id="search-results">
-          <div class="search-results-empty">
-            🚧 검색 기능은 준비 중입니다.<br>
-            <span style="font-size:11px">다음 세션에서 서버 연동이 추가됩니다.</span>
+      </div>
+
+    </div>
+
+    <!-- ◆ RESULT sub-page (진행 상태 + 결과) ◆ -->
+    <div class="hc-page hc-page-result" id="hc-page-result" style="display:none">
+
+      <!-- 강화된 진행 상태 박스 -->
+      <div class="progress-box" id="progress-box">
+        <div class="progress-header">
+          <div class="progress-spinner" id="progress-spinner"></div>
+          <div class="progress-title-wrap">
+            <div class="progress-title" id="progress-title">텍스트화 진행 중...</div>
+            <div class="progress-sub" id="progress-sub">파일 업로드부터 시작합니다</div>
+          </div>
+          <div class="progress-elapsed" id="progress-elapsed">0초</div>
+        </div>
+        <div class="progress-steps">
+          <div class="progress-step" id="step-upload" data-step="upload">
+            <span class="ps-icon"></span>
+            <span class="ps-label">음성 업로드</span>
+          </div>
+          <div class="progress-step" id="step-transcribe" data-step="transcribe">
+            <span class="ps-icon"></span>
+            <span class="ps-label">CLOVA 텍스트 변환</span>
+            <span class="ps-warn" id="ps-warn-transcribe" style="display:none">⏱ 용량이 커서 10분 이상 걸릴 수 있어요</span>
+          </div>
+          <div class="progress-step" id="step-analyze" data-step="analyze">
+            <span class="ps-icon"></span>
+            <span class="ps-label">힘클로드 분석·교정</span>
+            <span class="ps-warn" id="ps-warn-analyze" style="display:none">⏱ 용량이 커서 3분 이상 걸릴 수 있어요</span>
+          </div>
+          <div class="progress-step" id="step-save" data-step="save">
+            <span class="ps-icon"></span>
+            <span class="ps-label">완료</span>
           </div>
         </div>
       </div>
-    </aside>
+
+      <!-- 결과 영역 (변환 완료 후 노출) -->
+      <div class="result-area" id="result-area" style="display:none">
+        <div class="result-section">
+          <div class="result-label">📝 변환된 텍스트 <span class="postproc-tag" id="rs-postproc-tag" style="display:none">힘클로드 교정</span></div>
+          <div class="transcript-box" id="transcript-box"></div>
+        </div>
+        <div class="result-section" id="rs-summary" style="display:none">
+          <div class="result-label">💡 회의 요약</div>
+          <div id="result-summary"></div>
+        </div>
+        <div class="result-section" id="rs-kb" style="display:none">
+          <div class="result-label">🏷️ 적용된 사전 단어</div>
+          <div id="result-kb"></div>
+        </div>
+        <div class="result-section" id="rs-level" style="display:none">
+          <div class="result-label">🔒 추천 등급</div>
+          <div id="result-level"></div>
+        </div>
+        <div class="result-section">
+          <div class="result-label">📊 처리 정보</div>
+          <div id="result-info"></div>
+        </div>
+
+        <!-- 보조 액션 — 새 녹취록 변환 (메인 버튼은 하단 저장) -->
+        <div class="result-actions">
+          <button class="btn-secondary" onclick="HimClova.reprocess()">↻ 후처리 재진행</button>
+        </div>
+      </div>
+
+      <!-- 저장 완료 화면 (saved 모드 — 일일보고 발송 완료와 동일 패턴.
+           progress-box + result-area 둘 다 hide 후 이 화면만 표시) -->
+      <div id="hc-saved-screen" style="display:none">
+        <div class="done-wrap">
+          <div class="done-brush">✅</div>
+          <div class="done-title">저장이 완료되었습니다!</div>
+          <div class="done-desc">녹취록이 데이터베이스에 저장되었습니다.<br>내 기기에 사본을 저장하려면 아래 버튼을 눌러주세요.</div>
+          <button class="done-new go-himclova-doc" onclick="HimClova.downloadAsDoc()">💾 내 기기에 저장하기</button>
+          <button class="done-new" onclick="HimClova.goHome()">🏠 첫 화면으로 돌아가기</button>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 
-  <div class="p2-bottom" id="p2-btns" style="display:none">
-    <button class="btn-sv" onclick="doSave()">💾 저장</button>
-    <button class="btn-mid" onclick="doReanalyze()">🔄 AI 재정리</button>
-    <button class="btn-sd" onclick="doFinalSend()">📤 발송</button>
+  <div class="bottom-fixed bottom-report">
+    <!-- INPUT sub-page 시 표시 -->
+    <button class="send-btn" id="report-send-btn" onclick="doAnalyze()">
+      <span>🤖</span><span>AI로 정리</span>
+    </button>
+    <!-- EDIT sub-page 시 표시 — 저장 버튼 제거 (Step 2d, 2026-04-29). 재정리는 카드 안 + 버튼 펼친 후 사용. -->
+    <div class="report-edit-actions" id="report-edit-actions" style="display:none">
+      <button class="send-btn" onclick="doFinalSend()">
+        <span>📤</span><span>일일보고 발송</span>
+      </button>
+    </div>
   </div>
 
+  <div class="bottom-fixed bottom-himclova">
+    <button class="send-btn" id="hc-send-btn" onclick="HimClova.toggleSubmit()">
+      <span id="hc-send-icon">▶</span><span id="hc-send-label">텍스트화 진행</span>
+    </button>
+    <button class="send-btn" id="hc-save-btn" onclick="HimClova.saveToDrive()" style="display:none">
+      <span id="hc-save-icon">📤</span><span id="hc-save-label">저장하기</span>
+    </button>
+    <!-- saved 모드 시 bottom 영역은 비어있음 — 버튼은 hc-saved-screen 안에 있음 -->
+  </div>
 </div>
 
 <!-- 토스트 -->
@@ -972,7 +2050,7 @@ body{
 <div class="dlg-back" id="send-dlg">
   <div class="dlg-card">
     <div class="dlg-title">수정사항이 있습니다</div>
-    <div class="dlg-desc">AI 재정리 이후 내용이 변경됐어요.<br>어떻게 발송할까요?</div>
+    <div class="dlg-desc">힘클로드 재정리 이후 내용이 변경됐어요.<br>어떻게 발송할까요?</div>
     <div class="dlg-btns">
       <button class="dlg-btn dlg-btn-primary" onclick="confirmReanalyzeThenSend()">🔄 재정리 후 발송</button>
       <button class="dlg-btn dlg-btn-secondary" onclick="confirmSendDirect()">📤 그대로 발송</button>
@@ -981,13 +2059,34 @@ body{
   </div>
 </div>
 
+
 <script>
 // ── 직원 데이터 (Apps Script에서 동적 로드) ──────────────────────
 var STAFF=[];
 
 // ── 설정 ──────────────────────
-var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbxQlRLQaNd8RV7dfDi1H_A2VQIXZuIPtUNtjbUk8E8HVXVLHXqjoQGipVAHsm2J4aOD/exec';
+var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzo3jMxo0oZvpj-J4FqlaigtEIKHzKvYfS1DWhonMjYNZ_a7-9oeoOogHeKEe7kWaHL/exec';
 var APPS_SCRIPT_TOKEN='thehim2026';
+
+// 힘클로바 STT 서버 URL — localhost/127.0.0.1 호스트만 로컬 서버, 그 외 (file:// 포함) Cloud Run.
+// 로컬 개발 시 강제로 localhost:8080 쓰고 싶으면 콘솔에서:
+//   localStorage.setItem('him_v4_himclova_url','http://localhost:8080')
+var HIMCLOVA_URL = (function(){
+  var override = (function(){ try { return localStorage.getItem('him_v4_himclova_url'); } catch(e){ return null; } })();
+  if (override) return override.replace(/\/$/, '');
+  if (/^(localhost|127\.0\.0\.1)/.test(location.hostname)) {
+    return 'http://localhost:8080';
+  }
+  return 'https://himclova-78944797082.asia-northeast3.run.app';
+})();
+var UPLOAD_TIMEOUT_MS = 25 * 60 * 1000;  // 25분 (1시간 회의 처리 여유)
+
+// ★ 재인증 강제할 때만 이 값을 올리세요. 버그 수정·UI 개선 배포에는 그대로 두세요.
+//   마지막 bump: 2026-04-24 (초기 도입)
+var AUTH_RESET_GEN = 1;
+var SESSION_KEY    ='him_v4_session';
+var AUTH_GEN_KEY   ='him_v4_authGen';
+var MODE_KEY       ='him_v4_active_mode';   // 활성 모드 (report|himclova) — 재인증 시에도 보존
 
 // ── 상태 ──────────────────────
 var profile=null,files=[],voiceOn=false,mediaRec=null,editMode=false;
@@ -999,11 +2098,11 @@ var _draftSaveTimer=null;  // main-input 디바운스 타이머
 var yesterdayItems=[];
 var yesterdayDate='';
 var yesterdayLoaded=false;  // false=아직 미조회, true=조회 완료(내용 유무 무관)
-var yesterdayLoadError=false;
+var yesterdayLoadError=null;  // null | 'retrying' | 'network' | 'timeout' | 'server'
 // 오늘 이미 발송된 본인 보고 전체 (작성 중인 건은 currentRawText)
 var todayItems=[];
 var todayLoaded=false;
-var todayLoadError=false;
+var todayLoadError=null;
 // 2페이지 접기/펼치기 상태 — 어제는 기본 펼침, 오늘은 기본 접힘(작성 중만 보이도록)
 var ydExpanded=true;
 var tdExpanded=false;
@@ -1019,7 +2118,21 @@ function p2(n){return String(n).padStart(2,'0')}
 // ── 초기화 ──────────────────────
 (function(){ loadStaff(); })();
 
+// 버전 bump 감지 → profile + session 클리어 (draft 는 그대로 유지)
+function enforceAuthGen(){
+  var saved;
+  try{ saved=localStorage.getItem(AUTH_GEN_KEY); }catch(e){ saved=null; }
+  if(String(saved)!==String(AUTH_RESET_GEN)){
+    try{
+      localStorage.removeItem('him_v4');
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.setItem(AUTH_GEN_KEY, String(AUTH_RESET_GEN));
+    }catch(e){}
+  }
+}
+
 function loadStaff(){
+  enforceAuthGen();
   var list=document.getElementById('staff-list');
   list.innerHTML='<div style="text-align:center;padding:30px;color:var(--ink3);font-size:13px;">🌿 직원 목록 불러오는 중...</div>';
   fetch(APPS_SCRIPT_URL+'?action=get_staff')
@@ -1028,14 +2141,26 @@ function loadStaff(){
       if(!data.ok)throw new Error(data.error||'오류');
       STAFF=data.staff;
       buildStaffList();
-      var s=localStorage.getItem('him_v4');
-      if(s){
-        try{
-          var saved=JSON.parse(s);
-          var found=STAFF.find(function(st){return st.email===saved.email});
-          if(found){profile=found;initP1();goPage('p1')}
-        }catch(e){}
+      // 복구 분기:
+      //   profile + session 둘 다 → 바로 p1
+      //   profile 있고 session 없음 → p0 email 단계 pre-select
+      //   둘 다 없음 → p0 staff 단계 (기본)
+      var saved=null;
+      try{ var s=localStorage.getItem('him_v4'); if(s) saved=JSON.parse(s); }catch(e){}
+      if(saved){
+        var found=STAFF.find(function(st){return st.email===saved.email});
+        if(found){
+          profile=found;
+          if(getSession()){
+            if (!initP1()) goPage('p1');
+            return;
+          }
+          // 세션만 없음 → email 단계로
+          p0ShowStage('email');
+          return;
+        }
       }
+      p0ShowStage('staff');
     })
     .catch(function(){
       list.innerHTML=
@@ -1046,12 +2171,23 @@ function loadStaff(){
     });
 }
 
+var currentDept='all';
+function selectDept(btn, dept){
+  currentDept=dept;
+  document.querySelectorAll('.dept-tab').forEach(function(t){t.classList.remove('active')});
+  if(btn) btn.classList.add('active');
+  buildStaffList();
+}
+
 function buildStaffList(){
   var ul=document.getElementById('staff-list');
+  if(!ul)return;
   ul.innerHTML='';
   STAFF.forEach(function(s){
+    if(currentDept!=='all' && s.dept!==currentDept) return;
     var d=document.createElement('div');
     d.className='staff-card';
+    if(profile && profile.email===s.email) d.classList.add('on');
     d.innerHTML=
       '<div class="staff-initial">'+s.name.charAt(0)+'</div>'+
       '<div class="staff-info"><div class="sname">'+s.name+' '+s.role+'</div>'+
@@ -1059,26 +2195,343 @@ function buildStaffList(){
     d.onclick=function(){
       document.querySelectorAll('.staff-card').forEach(function(c){c.classList.remove('on')});
       d.classList.add('on');profile=s;
+      updateStaffNextBtn();
     };
     ul.appendChild(d);
   });
+  updateStaffNextBtn();
 }
 
-function completeSetup(){
-  if(!profile){toast('본인을 선택해주세요');return}
-  localStorage.setItem('him_v4',JSON.stringify(profile));
-  initP1();goPage('p1');
+function updateStaffNextBtn(){
+  var btn=document.getElementById('p0-btn-next-staff');
+  if(btn) btn.disabled = !profile;
+}
+
+// ── p0 3단계 전환 ──────────────────────
+var p0OtpAttempts = 0;
+
+function p0ShowStage(name){
+  var staff=document.getElementById('p0-stage-staff');
+  var email=document.getElementById('p0-stage-email');
+  var code =document.getElementById('p0-stage-code');
+  if(!staff||!email||!code)return;
+  staff.style.display=(name==='staff')?'':'none';
+  email.style.display=(name==='email')?'':'none';
+  code .style.display=(name==='code') ?'':'none';
+  if(name==='email') renderPickedStaffCard();
+  if(name==='code'){
+    p0OtpAttempts=0;
+    p0ResetCodeBoxes();
+  }
+  window.scrollTo(0,0);
+}
+
+// 6개 박스 전체 클리어 + 활성화 + feedback 제거 + 첫 칸 포커스
+function p0ResetCodeBoxes(){
+  for(var i=0;i<6;i++){
+    var el=document.getElementById('p0-digit-'+i);
+    if(el){ el.value=''; el.disabled=false; }
+  }
+  p0HideOtpFeedback();
+  setTimeout(function(){
+    var first=document.getElementById('p0-digit-0');
+    if(first) first.focus();
+  },40);
+}
+
+function p0LockCodeBoxes(){
+  for(var i=0;i<6;i++){
+    var el=document.getElementById('p0-digit-'+i);
+    if(el) el.disabled=true;
+  }
+}
+
+function p0GetEnteredCode(){
+  var code='';
+  for(var i=0;i<6;i++){
+    var el=document.getElementById('p0-digit-'+i);
+    code += el ? (el.value||'').replace(/\D/g,'') : '';
+  }
+  return code;
+}
+
+function p0SetOtpFeedback(msg, kind){
+  var fb=document.getElementById('p0-otp-feedback');
+  if(!fb) return;
+  fb.textContent=msg;
+  fb.className='otp-feedback'+(kind==='lock'?' lock':'');
+  fb.style.display='';
+}
+function p0HideOtpFeedback(){
+  var fb=document.getElementById('p0-otp-feedback');
+  if(!fb) return;
+  fb.style.display='none';
+  fb.textContent='';
+}
+
+// 숫자 입력 — 자동 포커스 이동 + 6자리 완성 시 자동 검증
+// (붙여넣기는 p0HandlePaste 에서 처리. maxlength="1" 때문에 oninput 로는 1자만 들어옴.)
+function p0HandleDigitInput(ev, idx){
+  var el=ev.target;
+  var v=(el.value||'').replace(/\D/g,'');
+  el.value=v;
+  if(v && idx<5){
+    var next=document.getElementById('p0-digit-'+(idx+1));
+    if(next) next.focus();
+  }
+  p0HideOtpFeedback();
+  if(p0GetEnteredCode().length===6){
+    p0AutoVerifyOtp();
+  }
+}
+
+// 붙여넣기 — 클립보드 데이터를 직접 읽어 여러 칸에 분산 (maxlength 우회)
+function p0HandlePaste(ev, idx){
+  ev.preventDefault();
+  var cb=ev.clipboardData||window.clipboardData;
+  if(!cb)return;
+  var txt=cb.getData('text')||'';
+  var digits=txt.replace(/\D/g,'').substring(0, 6-idx).split('');
+  if(digits.length===0)return;
+  for(var i=0;i<digits.length;i++){
+    var box=document.getElementById('p0-digit-'+(idx+i));
+    if(box) box.value=digits[i];
+  }
+  var focusIdx=Math.min(idx+digits.length, 5);
+  var focusEl=document.getElementById('p0-digit-'+focusIdx);
+  if(focusEl) focusEl.focus();
+  p0HideOtpFeedback();
+  if(p0GetEnteredCode().length===6){
+    p0AutoVerifyOtp();
+  }
+}
+
+// 빈 칸에서 Backspace → 이전 칸으로 포커스 + 이전 칸 값 제거
+function p0HandleDigitKeydown(ev, idx){
+  if(ev.key==='Backspace' && !ev.target.value && idx>0){
+    var prev=document.getElementById('p0-digit-'+(idx-1));
+    if(prev){
+      prev.focus();
+      prev.value='';
+      ev.preventDefault();
+    }
+  }
+}
+
+// 6자리 자동 검증 — 성공 시 p1 진입 / 실패 시 attempt++ / 5회 초과 시 잠금
+function p0AutoVerifyOtp(){
+  if(!profile||!profile.email){p0ShowStage('staff');return;}
+  var code=p0GetEnteredCode();
+  if(code.length!==6) return;
+  // 중복 호출 방지
+  p0LockCodeBoxes();
+  fetch(APPS_SCRIPT_URL+'?action=otp_verify&email='+encodeURIComponent(profile.email)+'&code='+encodeURIComponent(code))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.ok){
+        try{
+          localStorage.setItem('him_v4',JSON.stringify(profile));
+          localStorage.setItem(SESSION_KEY, d.session);
+          localStorage.setItem(AUTH_GEN_KEY, String(AUTH_RESET_GEN));
+        }catch(e){}
+        toast('✅ 인증 완료');
+        if (!initP1()) goPage('p1');
+        return;
+      }
+      p0OtpAttempts++;
+      if(p0OtpAttempts>=5){
+        p0SetOtpFeedback('5회 입력에 실패했습니다. 재발송 버튼으로 인증코드를 다시 보내주세요','lock');
+        p0LockCodeBoxes();
+      } else {
+        p0SetOtpFeedback('인증코드가 틀렸습니다. 다시 확인해주세요');
+        // 박스 클리어 + 재활성화 + 첫 칸 포커스
+        for(var i=0;i<6;i++){
+          var el=document.getElementById('p0-digit-'+i);
+          if(el){ el.value=''; el.disabled=false; }
+        }
+        setTimeout(function(){
+          var first=document.getElementById('p0-digit-0');
+          if(first) first.focus();
+        },40);
+      }
+    })
+    .catch(function(){
+      // 네트워크 오류 — 재시도 가능하도록 박스만 재활성화 (값 유지)
+      for(var i=0;i<6;i++){
+        var el=document.getElementById('p0-digit-'+i);
+        if(el) el.disabled=false;
+      }
+      toast('⚠️ 네트워크 오류');
+    });
+}
+
+// OTP 재발송 — attempts 리셋 + 박스 재활성화
+function p0ResendOtp(){
+  if(!profile||!profile.email){p0ShowStage('staff');return;}
+  toast('📧 인증코드 재발송 중...');
+  fetch(APPS_SCRIPT_URL+'?action=otp_request&email='+encodeURIComponent(profile.email))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(!d.ok){toast('⚠️ '+(d.error||'오류'));return;}
+      p0OtpAttempts=0;
+      p0ResetCodeBoxes();
+      toast('✅ 새 인증코드가 발송되었습니다');
+    })
+    .catch(function(){toast('⚠️ 네트워크 오류');});
+}
+
+function renderPickedStaffCard(){
+  if(!profile)return;
+  var card=document.getElementById('p0-picked-card');
+  if(!card)return;
+  card.innerHTML=
+    '<div class="staff-initial">'+escapeHtml(profile.name.charAt(0))+'</div>'+
+    '<div class="staff-info">'+
+      '<div class="sname">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role||'')+'</div>'+
+      '<div class="sdept">'+escapeHtml(profile.email||'')+'</div>'+
+    '</div>';
+}
+
+function completeSetupToOtp(){
+  if(!profile){toast('본인을 선택해주세요');return;}
+  p0ShowStage('email');
+}
+
+function p0BackToStaff(){
+  profile=null;
+  document.querySelectorAll('.staff-card').forEach(function(c){c.classList.remove('on')});
+  p0ShowStage('staff');
+  updateStaffNextBtn();
+}
+
+function p0RequestOtp(){
+  if(!profile||!profile.email){toast('이메일 정보가 없습니다'); p0ShowStage('staff'); return;}
+  toast('📧 인증코드 발송 중...');
+  fetch(APPS_SCRIPT_URL+'?action=otp_request&email='+encodeURIComponent(profile.email))
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(!d.ok){toast('⚠️ '+(d.error||'오류')); return;}
+      var echo=document.getElementById('p0-code-email-echo');
+      if(echo) echo.textContent=profile.email;
+      p0ShowStage('code');
+    })
+    .catch(function(){toast('⚠️ 네트워크 오류');});
+}
+
+// 세션이 서버 측에서 무효화된 경우 — profile 은 유지, 세션만 날리고 email 단계로
+function forceReauth(reason){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+  if(reason) toast(reason);
+  // p1 상태 잔존 요소 정리
+  hideDraftBanner();
+  goPage('p0');
+  // profile 존재하면 email 단계, 없으면 staff 단계
+  if(profile) p0ShowStage('email'); else p0ShowStage('staff');
+}
+
+// ── 모드 전환 (일일보고 ↔ 힘클로바) ──────────────
+var activeMode='report'; // 'report' | 'himclova'
+
+var VALID_MODES = ['report','search','himclova'];
+
+// 모드 탭 클릭 핸들러 — 사용자 클릭 트리거에만 사용 (시스템 호출은 switchMode 직접).
+// 현재 활성 탭 재클릭 시 confirm → 예면 모드별 reset + input sub-page 복귀.
+function onTabClick(name){
+  if (activeMode === name){
+    var ok = confirm('작성 중이던 내용을 초기화하시겠습니까?');
+    if (!ok) return;
+    // 일일보고: draft 는 보존하면서 화면만 p1 으로 복귀 + "이어서 작성" 배너 표시
+    if (name === 'report')          resetReportToP1();
+    else if (name === 'search'   && typeof Chat   !== 'undefined')    Chat.newConv();
+    else if (name === 'himclova' && typeof HimClova !== 'undefined')  HimClova.newRecording();
+    return;
+  }
+  switchMode(name);
+}
+
+// 일일보고 — 메모리만 비우고 draft 는 보존. p1 복귀 + 이어서 작성 배너 표시.
+function resetReportToP1(){
+  var mi = document.getElementById('main-input');
+  if (mi) mi.value = '';
+  files = [];
+  var fc = document.getElementById('file-chips');
+  if (fc) fc.innerHTML = '';
+  currentStructured = null;
+  lastAIStructured  = null;
+  currentRawText    = '';
+  ydExpanded     = true;
+  tdExpanded     = false;
+  ctxYdExpanded  = true;
+  ctxTdExpanded  = false;
+  // draft 는 보존하되 manualP1 flag 추가 — F5 자동 복원이 이걸 보고 p2 로 안 보냄.
+  // 사용자가 배너 "이어서" 클릭하면 그때 flag 무시하고 p2 복원됨.
+  try {
+    var s = localStorage.getItem(DRAFT_KEY);
+    if (s){
+      var d = JSON.parse(s);
+      d.manualP1 = true;
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    }
+  } catch(e){}
+  goPage('p1');
+  maybeShowDraftBanner();
+}
+
+function switchMode(name){
+  if(VALID_MODES.indexOf(name) === -1) name='report';
+  activeMode=name;
+  try{ localStorage.setItem(MODE_KEY, name); }catch(e){}
+  var p1=document.getElementById('p1');
+  if(p1) p1.setAttribute('data-mode', name);
+  var tabs=document.querySelectorAll('.mode-tabs .mode-tab');
+  for(var i=0;i<tabs.length;i++){
+    if(tabs[i].getAttribute('data-mode')===name) tabs[i].classList.add('on');
+    else tabs[i].classList.remove('on');
+  }
+  updateUserDateLabel();
+  // 힘클로바 모드 첫 진입 시 폼 초기화 (lazy + idempotent)
+  if(name==='himclova' && typeof HimClova !== 'undefined') HimClova.init();
+  // 검색 모드 첫 진입 시 챗 로드 (lazy + idempotent)
+  if(name==='search'  && typeof Chat     !== 'undefined') Chat.init();
+  // 검색 모드일 때만 body 스크롤 차단 — mode-search 가 fixed 라 페이지 휠 이벤트가 헛동작
+  document.body.classList.toggle('search-mode-active', name === 'search');
+}
+
+function updateUserDateLabel(){
+  var el=document.getElementById('user-date');
+  if(!el) return;
+  var prefix;
+  if(activeMode==='himclova')      prefix='AI 회의록 · ';
+  else if(activeMode==='search')  prefix='업무 인사이트 · ';
+  else                            prefix='업무 보고 · ';
+  el.textContent=prefix+dateLabel;
 }
 
 function initP1(){
   document.getElementById('user-dot').textContent=profile.name.charAt(0);
   document.getElementById('user-name').textContent=profile.name+' '+profile.role+' · '+profile.dept;
-  document.getElementById('user-date').textContent=dateLabel+' 일일보고';
+  // 저장된 활성 모드 복구 (없으면 'report'). switchMode 가 user-date 라벨도 함께 갱신.
+  var savedMode='report';
+  try{ var sm=localStorage.getItem(MODE_KEY); if(VALID_MODES.indexOf(sm)!==-1) savedMode=sm; }catch(e){}
+  switchMode(savedMode);
   loadContext();
   loadYesterdayRaw();
   loadTodayRaw();
   bindDraftAutoSave();
   maybeShowDraftBanner();
+  autosizeTa(document.getElementById('main-input'));
+
+  // F5 직후 draft 의 stage 가 'p2' 이면 자동으로 p2 복원 (편집 페이지 유지)
+  // — 단 manualP1 flag (사용자가 탭 재클릭으로 p1 으로 갔다는 표식) 가 있으면 자동 복원 안 함
+  // 반환값: true = p2 로 자동 복원됨 (호출자는 goPage('p1') 호출 X), false = 일반 흐름
+  try {
+    var d = loadDraft();
+    if (d && d.stage === 'p2' && d.structured && savedMode === 'report' && !d.manualP1){
+      restoreDraft(true);  // silent — 자동 복원이라 toast 생략
+      return true;
+    }
+  } catch(e){}
+  return false;
 }
 function bindDraftAutoSave(){
   var mi=document.getElementById('main-input');
@@ -1093,7 +2546,9 @@ function bindDraftAutoSave(){
     p2body.addEventListener('input', function(e){
       var t=e.target;
       if(!t)return;
-      if(t.classList && (t.classList.contains('proj-name')||t.classList.contains('proj-field'))){
+      if(t.tagName==='TEXTAREA') autosizeTa(t);
+      // 프로젝트 이름 변경 시 draft 갱신. 자연어 박스(read-only)·draft textarea 는 저장 X (재정리 시점에만 사용)
+      if(t.classList && t.classList.contains('proj-name')){
         currentStructured=collectStructure();
         scheduleDraftSave('p2');
       }
@@ -1104,26 +2559,50 @@ function bindDraftAutoSave(){
 function loadYesterdayRaw(){
   if(!profile)return;
   yesterdayLoaded=false;
-  yesterdayLoadError=false;
+  yesterdayLoadError=null;
   renderYesterdayRawCard();
-  fetch(APPS_SCRIPT_URL+'?action=get_yesterday_raw&name='+encodeURIComponent(profile.name))
+  doLoadYesterdayRaw(1); // 재시도 1회 허용
+}
+
+function doLoadYesterdayRaw(retriesLeft){
+  var controller=('AbortController' in window)?new AbortController():null;
+  var timedOut=false;
+  var timer=setTimeout(function(){
+    timedOut=true;
+    if(controller)controller.abort();
+  },10000);
+
+  var fetchOpts=controller?{signal:controller.signal}:{};
+  fetch(APPS_SCRIPT_URL+'?action=get_yesterday_raw&name='+encodeURIComponent(profile.name),fetchOpts)
     .then(function(r){return r.json()})
     .then(function(data){
+      clearTimeout(timer);
       if(data.ok){
         yesterdayItems=Array.isArray(data.items)?data.items:[];
         yesterdayDate=data.date||'';
+        yesterdayLoadError=null;
       }else{
-        yesterdayLoadError=true;
+        yesterdayLoadError='server';
       }
       yesterdayLoaded=true;
       renderYesterdayRawCard();
       refreshP2YesterdayIfVisible();
     })
     .catch(function(){
-      yesterdayLoadError=true;
-      yesterdayLoaded=true;
-      renderYesterdayRawCard();
-      refreshP2YesterdayIfVisible();
+      clearTimeout(timer);
+      var errType=timedOut?'timeout':'network';
+      if(retriesLeft>0){
+        // 1차 실패 → 조용히 1회 재시도
+        yesterdayLoadError='retrying';
+        renderYesterdayRawCard();
+        refreshP2YesterdayIfVisible();
+        setTimeout(function(){ doLoadYesterdayRaw(retriesLeft-1); },500);
+      }else{
+        yesterdayLoadError=errType;
+        yesterdayLoaded=true;
+        renderYesterdayRawCard();
+        refreshP2YesterdayIfVisible();
+      }
     });
 }
 
@@ -1131,25 +2610,107 @@ function loadYesterdayRaw(){
 function loadTodayRaw(){
   if(!profile)return;
   todayLoaded=false;
-  todayLoadError=false;
-  fetch(APPS_SCRIPT_URL+'?action=get_today_raw&name='+encodeURIComponent(profile.name))
+  todayLoadError=null;
+  doLoadTodayRaw(1);
+}
+function doLoadTodayRaw(retriesLeft){
+  var controller=('AbortController' in window)?new AbortController():null;
+  var timedOut=false;
+  var timer=setTimeout(function(){
+    timedOut=true;
+    if(controller)controller.abort();
+  },10000);
+
+  var fetchOpts=controller?{signal:controller.signal}:{};
+  fetch(APPS_SCRIPT_URL+'?action=get_today_raw&name='+encodeURIComponent(profile.name),fetchOpts)
     .then(function(r){return r.json()})
     .then(function(data){
+      clearTimeout(timer);
       if(data.ok){
         todayItems=Array.isArray(data.items)?data.items:[];
+        todayLoadError=null;
       }else{
-        todayLoadError=true;
+        todayLoadError='server';
       }
       todayLoaded=true;
       renderTodayRawCardP1();
       refreshP2YesterdayIfVisible();
     })
     .catch(function(){
-      todayLoadError=true;
-      todayLoaded=true;
-      renderTodayRawCardP1();
-      refreshP2YesterdayIfVisible();
+      clearTimeout(timer);
+      var errType=timedOut?'timeout':'network';
+      if(retriesLeft>0){
+        todayLoadError='retrying';
+        refreshP2YesterdayIfVisible();
+        setTimeout(function(){ doLoadTodayRaw(retriesLeft-1); },500);
+      }else{
+        todayLoadError=errType;
+        todayLoaded=true;
+        refreshP2YesterdayIfVisible();
+      }
     });
+}
+
+// 5상태 공용 렌더: 로딩 / 타임아웃 / 네트워크 오류 / 서버 오류 / 데이터(1건 이상) / 빈 상태
+function buildYesterdayBodyHtml(){
+  if(!yesterdayLoaded){
+    if(yesterdayLoadError==='retrying'){
+      return '<div class="ctx-loading-inline">🔄 재시도 중...</div>';
+    }
+    return '<div class="ctx-loading-inline">🌿 불러오는 중...</div>';
+  }
+  if(yesterdayLoadError==='timeout'){
+    return '<div class="raw-box error">⏱️ 응답 지연 (10초 초과) — 서버가 느릴 수 있어요.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  }
+  if(yesterdayLoadError==='network'){
+    return '<div class="raw-box error">⚠️ 불러오기 실패 — 네트워크 오류.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  }
+  if(yesterdayLoadError==='server'){
+    return '<div class="raw-box error">⚠️ 서버 응답 오류.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  }
+  if(yesterdayItems.length>0){
+    return renderRawItemsHtml(yesterdayItems, '📝');
+  }
+  return '<div class="raw-box empty">📭 이전 보고 기록이 없습니다</div>';
+}
+
+// 공용: items 배열을 시간 라벨 + raw-box 반복으로 렌더
+function renderRawItemsHtml(items, icon){
+  var multi=items.length>1;
+  return items.map(function(it, idx){
+    var timeTxt=it.time||'';
+    var head='<div class="raw-item-head">'+icon+' '+(timeTxt?escapeHtml(timeTxt):'')+
+             (multi?' <span class="raw-item-no">#'+(idx+1)+'</span>':'')+'</div>';
+    return head+'<div class="raw-box">'+escapeHtml(it.raw||'')+'</div>';
+  }).join('<div class="raw-item-gap"></div>');
+}
+
+// 오늘 원문 — 확정분(접기/펼치기 대상)과 작성 중(항상 표시) 파트로 분리해 반환
+function buildTodayBodyParts(){
+  var confirmedCount=todayLoaded&&!todayLoadError?todayItems.length:0;
+  var confirmed='';
+
+  if(!todayLoaded){
+    confirmed='<div class="ctx-loading-inline">🌿 기존 오늘자 보고 불러오는 중...</div>';
+  } else if(todayLoadError==='timeout'){
+    confirmed='<div class="raw-box error">⏱️ 오늘자 보고 응답 지연.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  } else if(todayLoadError==='network'){
+    confirmed='<div class="raw-box error">⚠️ 오늘자 보고 불러오기 실패 — 네트워크 오류.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  } else if(todayLoadError==='server'){
+    confirmed='<div class="raw-box error">⚠️ 오늘자 보고 서버 오류.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
+  } else if(confirmedCount>0){
+    confirmed=renderRawItemsHtml(todayItems, '✅');
+  }
+
+  var drafting='';
+  if(currentRawText){
+    var nextNo=confirmedCount+1;
+    drafting=
+      '<div class="raw-item-head drafting">✏️ 작성 중 <span class="raw-item-no">#'+nextNo+'</span></div>'+
+      '<div class="raw-box drafting">'+escapeHtml(currentRawText)+'</div>';
+  }
+
+  return {confirmed:confirmed, drafting:drafting, confirmedCount:confirmedCount};
 }
 
 function renderYesterdayRawCard(){
@@ -1193,53 +2754,7 @@ function toggleCtxTdRaw(){
   if(card)card.classList.toggle('collapsed', !ctxTdExpanded);
 }
 
-// 어제 원문 본문 HTML — 로딩/에러/데이터(다건)/빈 상태
-function buildYesterdayBodyHtml(){
-  if(!yesterdayLoaded){
-    return '<div class="ctx-loading-inline">🌿 불러오는 중...</div>';
-  }
-  if(yesterdayLoadError){
-    return '<div class="raw-box error">⚠️ 불러오기 실패.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
-  }
-  if(yesterdayItems.length>0){
-    return renderRawItemsHtml(yesterdayItems, '📝');
-  }
-  return '<div class="raw-box empty">📭 이전 보고 기록이 없습니다</div>';
-}
-
-// 공용: items 배열을 시간 라벨 + raw-box 반복으로 렌더
-function renderRawItemsHtml(items, icon){
-  var multi=items.length>1;
-  return items.map(function(it, idx){
-    var timeTxt=it.time||'';
-    var head='<div class="raw-item-head">'+icon+' '+(timeTxt?escapeHtml(timeTxt):'')+
-             (multi?' <span class="raw-item-no">#'+(idx+1)+'</span>':'')+'</div>';
-    return head+'<div class="raw-box">'+escapeHtml(it.raw||'')+'</div>';
-  }).join('<div class="raw-item-gap"></div>');
-}
-
-// 오늘 원문 — 확정분(접힘 대상) + 작성 중(항상 표시) 파트로 분리
-function buildTodayBodyParts(){
-  var confirmedCount=todayLoaded&&!todayLoadError?todayItems.length:0;
-  var confirmed='';
-  if(!todayLoaded){
-    confirmed='<div class="ctx-loading-inline">🌿 기존 오늘자 보고 불러오는 중...</div>';
-  } else if(todayLoadError){
-    confirmed='<div class="raw-box error">⚠️ 오늘자 보고 불러오기 실패.<br>새로고침해 보시고, 그래도 해결되지 않으면 관리자에게 문의해 주세요.</div>';
-  } else if(confirmedCount>0){
-    confirmed=renderRawItemsHtml(todayItems, '✅');
-  }
-  var drafting='';
-  if(currentRawText){
-    var nextNo=confirmedCount+1;
-    drafting=
-      '<div class="raw-item-head drafting">✏️ 작성 중 <span class="raw-item-no">#'+nextNo+'</span></div>'+
-      '<div class="raw-box drafting">'+escapeHtml(currentRawText)+'</div>';
-  }
-  return {confirmed:confirmed, drafting:drafting, confirmedCount:confirmedCount};
-}
-
-// 어제/오늘 원문 접기/펼치기 — 상태 변수 + 카드 클래스 토글만. 재렌더 없이 편집값 보존.
+// 어제 원문 접기/펼치기 — 상태 변수 + 카드 클래스 토글만. 재렌더 없이 textarea 편집값 보존.
 function toggleYdCard(){
   ydExpanded=!ydExpanded;
   var card=document.getElementById('rep-yd');
@@ -1252,9 +2767,9 @@ function toggleTdCard(){
 }
 
 function refreshP2YesterdayIfVisible(){
-  // 2페이지가 현재 보이고, 구조화된 보고가 있으면 재렌더로 어제 원문 갱신
-  var p2=document.getElementById('p2');
-  if(p2 && p2.classList.contains('on') && currentStructured){
+  // edit sub-page 가 현재 보이고, 구조화된 보고가 있으면 재렌더로 어제 원문 갱신
+  var edit=document.getElementById('report-page-edit');
+  if(edit && edit.style.display !== 'none' && currentStructured){
     renderStructuredReport();
   }
 }
@@ -1362,8 +2877,11 @@ function renderContextCards(data){
 }
 
 function resetProfile(){
-  if(!confirm('다른 직원으로 변경할까요?'))return;
-  localStorage.removeItem('him_v4');
+  if(!confirm('다른 직원으로 변경할까요? 재인증이 필요합니다.'))return;
+  try{
+    localStorage.removeItem('him_v4');
+    localStorage.removeItem(SESSION_KEY);
+  }catch(e){}
   clearDraft();
   hideDraftBanner();
   profile=null;files=[];
@@ -1436,11 +2954,11 @@ function doAnalyze(){
   if(!txt){toast('업무 내용을 입력해주세요');return;}
 
   currentRawText=txt;
-  resetP2Tab();
   goPage('p2');
   loadTodayRaw();
-  document.getElementById('p2-name').textContent='분석 중...';
-  document.getElementById('p2-btns').style.display='none';
+  // (p2-name 제거됨 — 2026-04-29)
+
+  document.getElementById('report-edit-actions').style.display='none';
   document.getElementById('p2-body').innerHTML=
     '<div class="loading-wrap">'+
       '<div class="loading-brush">🖌️</div>'+
@@ -1480,30 +2998,324 @@ function isTestMode(){
   return /^\s*\[테스트\]/.test(currentRawText||'');
 }
 
-// ── 2페이지 모바일 탭 (편집 / 검색) ──────────────────────
-function switchP2Tab(name){
-  var p2=document.getElementById('p2');
-  if(name==='search'){
-    p2.classList.add('tab-search');
-  }else{
-    p2.classList.remove('tab-search');
-  }
-  document.querySelectorAll('.p2-tab').forEach(function(btn){
-    btn.classList.toggle('active', btn.getAttribute('data-tab')===name);
-  });
-  window.scrollTo(0,0);
+// ── 브리핑 조회 (세션 + Haiku 분석 + Sonnet 검색) ───
+// 흐름: doSearch() → 분석 → 검색 → 결과 (중간 확인 없음, 한 번에 완료)
+// 결과가 불만족스러우면 사용자가 검색창에서 다시 입력하면 됨.
+
+var MAX_RANGES = 5;
+var SEARCH_HARD_TIMEOUT_MS = 60000; // Sonnet 단계 하드 타임아웃 (60s)
+var searchStage = 'idle';   // 'idle' | 'analyzing' | 'searching'
+var searchAbortCtrl = null; // 검색 단계 중단용
+var searchTimeoutTimer = null;
+var searchTimedOut = false;
+var searchOriginal  = '';   // 사용자 원본 입력 (Sonnet 호출 시 같이 보냄)
+var DATE_RANGE_MIN = null;  // 브리핑 데이터 최초 날짜 (서버에서 받음)
+var DATE_RANGE_MAX = null;  // 브리핑 데이터 최신 날짜
+
+function getSession(){
+  try{ return localStorage.getItem(SESSION_KEY) || ''; }catch(e){ return ''; }
 }
-function resetP2Tab(){
-  var p2=document.getElementById('p2');
-  if(!p2)return;
-  p2.classList.remove('tab-search');
-  document.querySelectorAll('.p2-tab').forEach(function(btn){
-    btn.classList.toggle('active', btn.getAttribute('data-tab')==='edit');
+
+// ── 다중 기간 UI ────────────────────────────────
+function initSearchRanges(){
+  var container = document.getElementById('search-ranges');
+  if(!container) return;
+  if(container.children.length > 0) return; // 이미 초기화됨
+  container.appendChild(makeRangeRow(true));
+  fetchDateRange(); // 브리핑 데이터 날짜 범위 비동기 가져오기
+}
+
+function makeRangeRow(isFirst){
+  var row = document.createElement('div');
+  row.className = 'search-range';
+  row.innerHTML =
+    '<input type="date" class="range-from">'
+    + '<span class="rng-sep">~</span>'
+    + '<input type="date" class="range-to">'
+    + '<button class="range-btn add" onclick="addRange()" title="기간 추가">+</button>'
+    + '<button class="range-btn rm hidden" onclick="removeRange(this)" title="이 기간 제거">×</button>';
+  applyDateRangeToRow(row);
+  return row;
+}
+
+// 서버에서 브리핑 날짜 범위 받아 date picker min/max 에 적용
+function fetchDateRange(){
+  var sess = getSession();
+  if(!sess) return;
+  fetch(APPS_SCRIPT_URL + '?action=get_range&session=' + encodeURIComponent(sess))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok) return;
+      DATE_RANGE_MIN = d.earliest || null;
+      DATE_RANGE_MAX = d.latest   || null;
+      applyDateRangeToAll();
+    })
+    .catch(function(){});
+}
+
+function applyDateRangeToRow(row){
+  if(!DATE_RANGE_MIN || !DATE_RANGE_MAX) return;
+  var f = row.querySelector('.range-from');
+  var t = row.querySelector('.range-to');
+  if(f){ f.min = DATE_RANGE_MIN; f.max = DATE_RANGE_MAX; }
+  if(t){ t.min = DATE_RANGE_MIN; t.max = DATE_RANGE_MAX; }
+}
+
+function applyDateRangeToAll(){
+  var rows = document.querySelectorAll('#search-ranges .search-range');
+  rows.forEach(applyDateRangeToRow);
+}
+
+function addRange(){
+  var container = document.getElementById('search-ranges');
+  var rows = container.querySelectorAll('.search-range');
+  if(rows.length >= MAX_RANGES){
+    toast('기간은 최대 ' + MAX_RANGES + '개까지');
+    return;
+  }
+  container.appendChild(makeRangeRow(false));
+  updateRangeButtons();
+}
+
+function removeRange(btn){
+  var row = btn.closest('.search-range');
+  if(!row) return;
+  row.parentNode.removeChild(row);
+  updateRangeButtons();
+}
+
+function updateRangeButtons(){
+  var rows = document.querySelectorAll('#search-ranges .search-range');
+  rows.forEach(function(row, idx){
+    var addBtn = row.querySelector('.range-btn.add');
+    var rmBtn  = row.querySelector('.range-btn.rm');
+    // + 는 마지막 행에만 + 개수 제한 미달일 때만
+    if(idx === rows.length - 1 && rows.length < MAX_RANGES){
+      addBtn.classList.remove('hidden');
+    } else {
+      addBtn.classList.add('hidden');
+    }
+    // × 는 2번째 이상 행부터
+    if(idx === 0){
+      rmBtn.classList.add('hidden');
+    } else {
+      rmBtn.classList.remove('hidden');
+    }
   });
 }
 
+function collectRanges(){
+  var rows = document.querySelectorAll('#search-ranges .search-range');
+  var ranges = [];
+  for(var i = 0; i < rows.length; i++){
+    var f = rows[i].querySelector('.range-from').value;
+    var t = rows[i].querySelector('.range-to').value;
+    if(!f || !t) continue;
+    if(f > t) return {error: (i+1) + '번째 기간: 시작일이 종료일보다 뒤입니다'};
+    ranges.push({from: f, to: t});
+  }
+  if(ranges.length === 0) return {error: '기간을 선택해 주세요'};
+  return {list: ranges};
+}
+
+function rangesToQuery(rangesList){
+  return rangesList.map(function(r){ return r.from + '~' + r.to; }).join(',');
+}
+
+// 검색 textarea — Enter 검색, Shift+Enter 줄바꿈
+function searchKwKeydown(e){
+  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){
+    e.preventDefault();
+    doSearch();
+  }
+}
+
+// 공용 textarea autosize — 내용 길이에 따라 박스 높이 조정
+// main-textarea / rep-textarea / proj-field / 검색창 모두 사용
+function autosizeTa(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+// 검색창 전용 — 하위호환 alias
+function autosizeSearchKw(el){ autosizeTa(el); }
+
+// ── 검색 파이프라인 — 원클릭, 분석→검색 연쇄 ─────
 function doSearch(){
-  toast('🔍 검색 기능은 준비 중입니다');
+  if(searchStage === 'analyzing' || searchStage === 'searching'){
+    cancelActiveSearch();
+    return;
+  }
+
+  var sess = getSession();
+  if(!sess){ forceReauth('재인증이 필요합니다'); return; }
+
+  var rObj = collectRanges();
+  if(rObj.error){ toast(rObj.error); return; }
+  var raw = (document.getElementById('search-keyword').value || '').trim();
+  if(!raw){ toast('검색 내용을 입력해 주세요'); return; }
+
+  searchOriginal = raw;
+  setSearchStage('analyzing');
+
+  var res = document.getElementById('search-results');
+  res.innerHTML = '<div class="search-loading">🧠 검색어 분석 중...</div>';
+
+  // Stage A: Haiku 로 검색어 추출 (사용자에게는 보이지 않음)
+  var analyzeUrl = APPS_SCRIPT_URL
+    + '?action=analyze_query'
+    + '&session=' + encodeURIComponent(sess)
+    + '&raw='     + encodeURIComponent(raw);
+
+  fetch(analyzeUrl)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.ok === false && d.error === 'session_invalid'){
+        forceReauth('🔐 인증이 만료되었습니다');
+        return;
+      }
+      if(!d.ok){
+        setSearchStage('idle');
+        res.innerHTML = '<div class="search-results-empty">⚠️ 검색어 분석 실패<br><span style="font-size:11px">' + escapeHtml(d.error || '') + '</span></div>';
+        return;
+      }
+      var keywords = d.keywords && d.keywords.length ? d.keywords : [raw];
+      runFinalSearch(sess, rObj.list, keywords);
+    })
+    .catch(function(e){
+      setSearchStage('idle');
+      res.innerHTML = '<div class="search-results-empty">⚠️ 네트워크 오류 (분석 단계)<br><span style="font-size:11px">' + escapeHtml(e.message || '') + '</span></div>';
+    });
+}
+
+// Stage B: Sonnet 검색 — 추출된 키워드로 실제 조회·답변 생성
+function runFinalSearch(sess, rangesList, keywords){
+  setSearchStage('searching');
+  searchTimedOut = false;
+
+  var res = document.getElementById('search-results');
+  res.innerHTML = '<div class="search-loading">🔍 힘클로드 검색 중... (최대 1분)<br><span style="font-size:11px;color:var(--ink3)">오래 걸리면 위 🛑 검색 중단 버튼</span></div>';
+
+  searchAbortCtrl = ('AbortController' in window) ? new AbortController() : null;
+  var fetchOpts = searchAbortCtrl ? {signal: searchAbortCtrl.signal} : {};
+
+  // 하드 타임아웃 — 60초 초과 시 자동 abort
+  clearSearchTimeout();
+  if(searchAbortCtrl){
+    searchTimeoutTimer = setTimeout(function(){
+      searchTimedOut = true;
+      try{ searchAbortCtrl.abort(); }catch(e){}
+    }, SEARCH_HARD_TIMEOUT_MS);
+  }
+
+  var url = APPS_SCRIPT_URL
+    + '?action=query'
+    + '&session='   + encodeURIComponent(sess)
+    + '&ranges='    + encodeURIComponent(rangesToQuery(rangesList))
+    + '&keywords='  + encodeURIComponent(keywords.join(','))
+    + '&original='  + encodeURIComponent(searchOriginal);
+
+  fetch(url, fetchOpts)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      clearSearchTimeout();
+      setSearchStage('idle');
+      if(!d.ok){
+        if(d.error === 'session_invalid'){
+          forceReauth('🔐 인증이 만료되었습니다');
+          return;
+        }
+        res.innerHTML = '<div class="search-results-empty">⚠️ ' + escapeHtml(d.error || '오류가 발생했습니다') + '</div>';
+        return;
+      }
+      renderSearchAnswer(d);
+    })
+    .catch(function(e){
+      clearSearchTimeout();
+      setSearchStage('idle');
+      if(e && e.name === 'AbortError'){
+        if(searchTimedOut){
+          res.innerHTML = '<div class="search-results-empty">⏱️ 검색이 60초를 초과했습니다<br>'
+            + '<span style="font-size:11px">기간을 좁히거나 키워드를 구체화해서 다시 시도해 주세요</span></div>';
+        } else {
+          res.innerHTML = '<div class="search-results-empty">🛑 검색이 중단되었습니다</div>';
+        }
+        return;
+      }
+      res.innerHTML = '<div class="search-results-empty">⚠️ 네트워크 오류<br>'
+        + '<span style="font-size:11px">' + escapeHtml(e.message || '') + '</span></div>';
+    });
+}
+
+function clearSearchTimeout(){
+  if(searchTimeoutTimer){
+    clearTimeout(searchTimeoutTimer);
+    searchTimeoutTimer = null;
+  }
+}
+
+function cancelActiveSearch(){
+  clearSearchTimeout();
+  if(searchAbortCtrl){
+    try{ searchAbortCtrl.abort(); }catch(e){}
+  }
+  // analyzing 단계는 abort 없이 stage 리셋만 (Haiku 는 빨라서 그냥 무시)
+  setSearchStage('idle');
+  var res = document.getElementById('search-results');
+  if(res && ((res.innerHTML||'').indexOf('검색 중') !== -1 || (res.innerHTML||'').indexOf('분석 중') !== -1)){
+    res.innerHTML = '<div class="search-results-empty">🛑 검색이 중단되었습니다</div>';
+  }
+}
+
+// ── 버튼 상태 갱신 ────────────────────────────
+function setSearchStage(next){
+  searchStage = next;
+  var btn = document.getElementById('search-btn-main');
+  if(!btn) return;
+  if(next === 'analyzing'){
+    btn.innerHTML = '🛑 중단 (분석 중...)';
+    btn.classList.add('cancel');
+    btn.disabled = false;
+  } else if(next === 'searching'){
+    btn.innerHTML = '🛑 검색 중단';
+    btn.classList.add('cancel');
+    btn.disabled = false;
+  } else { // idle
+    btn.innerHTML = '🔍 검색';
+    btn.classList.remove('cancel');
+    btn.disabled = false;
+  }
+}
+
+// ── 결과 렌더 ────────────────────────────────
+function renderSearchAnswer(d){
+  var res = document.getElementById('search-results');
+  var meta = '해당 기간 브리핑 총 ' + (d.scanned||0) + '건 중 매칭 ' + (d.matched||0) + '건';
+  if(d.dates && d.dates.length){
+    var first = d.dates[0], last = d.dates[d.dates.length-1];
+    meta += '<br>' + first + (first === last ? '' : ' ~ ' + last);
+  }
+  var noticeHtml = d.notice
+    ? '<div class="search-notice">💡 ' + escapeHtml(d.notice) + '</div>'
+    : '';
+  res.innerHTML =
+    '<div class="search-answer">' + renderAnswerHtml(d.answer || '') + '</div>'
+    + noticeHtml
+    + '<div class="search-meta">' + meta + '</div>';
+}
+
+// 작은 마크다운 렌더러 — **bold**, --- 구분선, > 인용
+// (HTML escape 먼저 → 마크다운 변환 순서 중요)
+function renderAnswerHtml(text){
+  if(!text) return '';
+  var html = escapeHtml(text);
+  // **bold** — non-greedy, 별표·줄바꿈 사이 금지
+  html = html.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  // 단독 줄에 --- 또는 ---- (3개 이상)
+  html = html.replace(/^---+\s*$/gm, '<hr class="ans-sep">');
+  // > 인용 (escape 후 &gt; 가 됨)
+  html = html.replace(/^&gt;\s?(.*)$/gm, '<div class="ans-quote">$1</div>');
+  return html;
 }
 
 // ── 드래프트 (localStorage) ──────────────────────
@@ -1562,11 +3374,16 @@ function maybeShowDraftBanner(){
   document.getElementById('draft-time').textContent=describeDraftAge(d.savedAt);
   banner.classList.add('on');
 }
-function restoreDraft(){
+function restoreDraft(silent){
   var d=loadDraft();
   if(!d){hideDraftBanner();return;}
+  // 사용자가 배너 "이어서" 클릭 시 manualP1 flag 자동 reset (의지 변경)
+  if (d.manualP1){
+    delete d.manualP1;
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); } catch(e){}
+  }
   var mi=document.getElementById('main-input');
-  if(mi&&d.raw)mi.value=d.raw;
+  if(mi&&d.raw){mi.value=d.raw; autosizeTa(mi);}
   if(d.stage==='p2'&&d.structured){
     currentRawText=d.currentRaw||'';
     currentStructured=d.structured;
@@ -1576,7 +3393,7 @@ function restoreDraft(){
     renderStructuredReport();
   }
   hideDraftBanner();
-  toast('💾 이어서 작성');
+  if (!silent) toast('💾 이어서 작성');
 }
 function discardDraft(){
   clearDraft();
@@ -1587,8 +3404,9 @@ function hideDraftBanner(){
 }
 
 function renderStructuredReport(){
-  document.getElementById('p2-name').textContent=profile.name+' 보고서';
-  document.getElementById('p2-btns').style.display='flex';
+  // (p2-name 제거됨 — sticky bar 의 user-bar 가 작성자 표시)
+
+  document.getElementById('report-edit-actions').style.display='flex';
 
   var s=normalizeStructured(currentStructured);
   currentStructured=s;
@@ -1599,13 +3417,7 @@ function renderStructuredReport(){
     html+='<div class="test-badge">🧪 테스트 모드 · 발송 시 실제 메일·Drive 저장·브리핑 반영이 모두 스킵됩니다</div>';
   }
 
-  // 작성자
-  html+='<div class="rep-card">'+
-    '<div class="rep-head"><span class="rep-label">작성자</span></div>'+
-    '<div class="rep-body"><div class="rep-text">'+
-      escapeHtml(profile.name)+' '+escapeHtml(profile.role)+' · '+escapeHtml(profile.dept)+'<br>'+escapeHtml(dateLabel)+
-    '</div></div>'+
-  '</div>';
+  // (작성자 카드 제거됨 — sticky bar 의 user-bar 가 작성자·부서·날짜 표시. 2026-04-29)
 
   // 어제 원문 — 다건 표시. 항목 있을 때만 접기/펼치기 토글 제공 (기본: 펼침)
   var ydLabel='어제 원문'+(yesterdayDate?' ('+fmtDate(yesterdayDate)+')':'');
@@ -1654,41 +3466,65 @@ function renderStructuredReport(){
   });
 
   // 공통 카드 (항상 표시)
-  html+='<div class="rep-card common-card">'+
-    '<div class="rep-head"><span class="rep-label">공통 (프로젝트 무관·근태 등)</span></div>'+
-    '<div class="rep-body">'+renderFieldRows(s.common,'common')+'</div>'+
-  '</div>';
+  html+=renderCommonCard(s.common);
 
   // 프로젝트 추가 버튼
   html+='<button class="proj-add-btn" onclick="addProject()">+ 프로젝트 추가</button>';
 
   html+='</div>';
   document.getElementById('p2-body').innerHTML=html;
+  // 초기 autosize — 복구/재렌더 시에도 proj-field 들이 내용에 맞춰 확장되도록
+  document.querySelectorAll('#p2-body textarea').forEach(autosizeTa);
 }
 
 function renderProjectCard(p,idx){
+  // content 우선 — 없으면 4필드 join 으로 fallback (옛 백엔드 호환)
+  var displayContent = p.content || buildContentFallback(p);
+  var contentHtml = displayContent
+    ? '<div class="proj-content">'+escapeHtml(displayContent)+'</div>'
+    : '<div class="proj-content"><span class="proj-empty">(작성된 내용 없음 — 아래 + 버튼으로 추가)</span></div>';
   return '<div class="rep-card proj-card" data-proj-idx="'+idx+'">'+
     '<div class="rep-head proj-head">'+
       '<input class="proj-name" data-proj-idx="'+idx+'" value="'+escapeHtml(p.name||'')+'" placeholder="프로젝트명">'+
       '<button class="proj-del" onclick="removeProject('+idx+')" title="이 프로젝트 제거">×</button>'+
     '</div>'+
-    '<div class="rep-body">'+renderFieldRows(p,idx)+'</div>'+
+    '<div class="rep-body">'+
+      contentHtml+
+      '<div class="proj-add-row">'+
+        '<button class="proj-add-btn-inline" onclick="toggleProjAdd('+idx+')">+ 내용 추가/수정</button>'+
+        '<div class="proj-draft-wrap" id="proj-draft-wrap-'+idx+'" style="display:none">'+
+          '<textarea class="proj-draft" data-proj-idx="'+idx+'" rows="3" placeholder="자유롭게 입력해주세요" oninput="autosizeTa(this)"></textarea>'+
+          '<div class="proj-draft-actions">'+
+            '<button class="proj-reanalyze-btn" onclick="doReanalyze()">🔄 수정사항 재정리</button>'+
+            '<button class="proj-cancel-btn" onclick="cancelProjAdd('+idx+')">취소</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
   '</div>';
 }
 
-function renderFieldRows(src,idx){
-  var rows=[
-    {key:'meeting',  label:'미팅'},
-    {key:'issue',    label:'이슈 및 문제'},
-    {key:'dir',      label:'지시사항'},
-    {key:'schedule', label:'일정'}
-  ];
-  return rows.map(function(r){
-    return '<div class="field-row">'+
-      '<label>'+r.label+'</label>'+
-      '<textarea class="proj-field" data-proj-idx="'+idx+'" data-key="'+r.key+'" rows="2" placeholder="해당 없으면 비워두세요">'+escapeHtml(src[r.key]||'')+'</textarea>'+
-    '</div>';
-  }).join('');
+function renderCommonCard(c){
+  var displayContent = c.content || buildContentFallback(c);
+  var contentHtml = displayContent
+    ? '<div class="proj-content">'+escapeHtml(displayContent)+'</div>'
+    : '<div class="proj-content"><span class="proj-empty">(공통 사항 없음)</span></div>';
+  return '<div class="rep-card common-card">'+
+    '<div class="rep-head"><span class="rep-label">공통 (프로젝트 무관·근태 등)</span></div>'+
+    '<div class="rep-body">'+
+      contentHtml+
+      '<div class="proj-add-row">'+
+        '<button class="proj-add-btn-inline" onclick="toggleCommonAdd()">+ 내용 추가/수정</button>'+
+        '<div class="proj-draft-wrap" id="common-draft-wrap" style="display:none">'+
+          '<textarea class="proj-draft common-draft" id="common-draft" rows="3" placeholder="자유롭게 입력해주세요" oninput="autosizeTa(this)"></textarea>'+
+          '<div class="proj-draft-actions">'+
+            '<button class="proj-reanalyze-btn" onclick="doReanalyze()">🔄 수정사항 재정리</button>'+
+            '<button class="proj-cancel-btn" onclick="cancelCommonAdd()">취소</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
 }
 
 function normalizeStructured(s){
@@ -1700,6 +3536,7 @@ function normalizeStructured(s){
       p=p||{};
       return {
         name:    typeof p.name    ==='string'?p.name:'',
+        content: typeof p.content ==='string'?p.content:'',
         meeting: typeof p.meeting ==='string'?p.meeting:'',
         issue:   typeof p.issue   ==='string'?p.issue:'',
         dir:     typeof p.dir     ==='string'?p.dir:'',
@@ -1707,6 +3544,7 @@ function normalizeStructured(s){
       };
     }),
     common:{
+      content: typeof common.content ==='string'?common.content:'',
       meeting: typeof common.meeting ==='string'?common.meeting:'',
       issue:   typeof common.issue   ==='string'?common.issue:'',
       dir:     typeof common.dir     ==='string'?common.dir:'',
@@ -1715,24 +3553,36 @@ function normalizeStructured(s){
   };
 }
 
+// content 필드 비었을 때 4필드 자연어 join (fallback) — 옛 백엔드 호환
+function buildContentFallback(p){
+  var parts=[];
+  if(p.meeting)  parts.push('· 미팅: '+p.meeting);
+  if(p.issue)    parts.push('· 이슈: '+p.issue);
+  if(p.dir)      parts.push('· 지시: '+p.dir);
+  if(p.schedule) parts.push('· 일정: '+p.schedule);
+  return parts.join('\n');
+}
+
+// DOM 의 변경 가능 필드 (.proj-name) 만 읽고, 나머지 (content/meeting/issue/dir/schedule)
+// 는 메모리의 currentStructured 에서 보존. 자연어 박스는 read-only — Claude 결과만.
 function collectStructure(){
+  var prevS = normalizeStructured(currentStructured);
+  var prevP = prevS.projects;
   var projects=[];
   document.querySelectorAll('.proj-card').forEach(function(card){
-    var nameEl=card.querySelector('.proj-name');
-    var proj={name:nameEl?nameEl.value.trim():'',meeting:'',issue:'',dir:'',schedule:''};
-    card.querySelectorAll('.proj-field').forEach(function(ta){
-      proj[ta.getAttribute('data-key')]=ta.value.trim();
+    var idx = parseInt(card.getAttribute('data-proj-idx'));
+    var nameEl = card.querySelector('.proj-name');
+    var prev = prevP[idx] || {name:'',content:'',meeting:'',issue:'',dir:'',schedule:''};
+    projects.push({
+      name:    nameEl ? nameEl.value.trim() : (prev.name||''),
+      content: prev.content||'',
+      meeting: prev.meeting||'',
+      issue:   prev.issue||'',
+      dir:     prev.dir||'',
+      schedule:prev.schedule||''
     });
-    projects.push(proj);
   });
-  var common={meeting:'',issue:'',dir:'',schedule:''};
-  var cCard=document.querySelector('.common-card');
-  if(cCard){
-    cCard.querySelectorAll('.proj-field').forEach(function(ta){
-      common[ta.getAttribute('data-key')]=ta.value.trim();
-    });
-  }
-  return {projects:projects,common:common};
+  return {projects:projects, common:prevS.common};
 }
 
 function flattenToFiveFields(s){
@@ -1770,14 +3620,58 @@ function fmtDate(yyyymmdd){
 
 function addProject(){
   currentStructured=collectStructure();
-  currentStructured.projects.push({name:'',meeting:'',issue:'',dir:'',schedule:''});
+  currentStructured.projects.push({name:'',content:'',meeting:'',issue:'',dir:'',schedule:''});
   renderStructuredReport();
   saveDraft('p2');
+  // 새 카드의 textarea 자동 펼침 + 이름 input focus
   setTimeout(function(){
-    var inputs=document.querySelectorAll('.proj-name');
-    var last=inputs[inputs.length-1];
-    if(last){last.focus();last.scrollIntoView({behavior:'smooth',block:'center'});}
+    var newIdx = currentStructured.projects.length - 1;
+    toggleProjAdd(newIdx);
+    var nameEl = document.querySelector('.proj-card[data-proj-idx="'+newIdx+'"] .proj-name');
+    if(nameEl){nameEl.focus();nameEl.scrollIntoView({behavior:'smooth',block:'center'});}
   },100);
+}
+
+// + 내용 추가/수정 토글 — 프로젝트 카드의 textarea 펼치기
+function toggleProjAdd(idx){
+  var wrap = document.getElementById('proj-draft-wrap-'+idx);
+  if(!wrap) return;
+  var isOpen = wrap.style.display !== 'none';
+  if(isOpen){
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = '';
+    var ta = wrap.querySelector('.proj-draft');
+    if(ta){ ta.focus(); autosizeTa(ta); }
+  }
+}
+function cancelProjAdd(idx){
+  var wrap = document.getElementById('proj-draft-wrap-'+idx);
+  if(!wrap) return;
+  var ta = wrap.querySelector('.proj-draft');
+  if(ta) ta.value = '';
+  wrap.style.display = 'none';
+}
+
+// 공통 카드의 + 내용 추가
+function toggleCommonAdd(){
+  var wrap = document.getElementById('common-draft-wrap');
+  if(!wrap) return;
+  var isOpen = wrap.style.display !== 'none';
+  if(isOpen){
+    wrap.style.display = 'none';
+  } else {
+    wrap.style.display = '';
+    var ta = document.getElementById('common-draft');
+    if(ta){ ta.focus(); autosizeTa(ta); }
+  }
+}
+function cancelCommonAdd(){
+  var wrap = document.getElementById('common-draft-wrap');
+  if(!wrap) return;
+  var ta = document.getElementById('common-draft');
+  if(ta) ta.value = '';
+  wrap.style.display = 'none';
 }
 
 function removeProject(idx){
@@ -1788,24 +3682,30 @@ function removeProject(idx){
 }
 
 function doReanalyze(onSuccess){
-  var s=collectStructure();
-  var combined='';
-  s.projects.forEach(function(p){
-    if(!p.name&&!p.meeting&&!p.issue&&!p.dir&&!p.schedule)return;
-    combined+='['+(p.name||'(이름없음)')+']\n';
-    if(p.meeting)  combined+='미팅: '+p.meeting+'\n';
-    if(p.issue)    combined+='이슈: '+p.issue+'\n';
-    if(p.dir)      combined+='지시: '+p.dir+'\n';
-    if(p.schedule) combined+='일정: '+p.schedule+'\n';
-    combined+='\n';
+  var s = collectStructure();
+  var combined = '';
+
+  // 각 프로젝트: 이름 + 기존 content (또는 4필드 fallback) + 사용자가 + 버튼으로 추가한 draft
+  s.projects.forEach(function(p, idx){
+    var draftEl = document.querySelector('.proj-card[data-proj-idx="'+idx+'"] .proj-draft');
+    var draft = draftEl ? draftEl.value.trim() : '';
+    var existing = p.content || buildContentFallback(p);
+    if (!p.name && !existing && !draft) return;
+    combined += '['+(p.name||'(이름없음)')+']\n';
+    if (existing) combined += existing + '\n';
+    if (draft)    combined += draft + '\n';
+    combined += '\n';
   });
-  var c=s.common;
-  if(c.meeting||c.issue||c.dir||c.schedule){
-    combined+='[공통]\n';
-    if(c.meeting)  combined+='미팅: '+c.meeting+'\n';
-    if(c.issue)    combined+='이슈: '+c.issue+'\n';
-    if(c.dir)      combined+='지시: '+c.dir+'\n';
-    if(c.schedule) combined+='일정: '+c.schedule+'\n';
+
+  // 공통: 기존 content + draft
+  var c = s.common;
+  var commonDraftEl = document.getElementById('common-draft');
+  var commonDraft = commonDraftEl ? commonDraftEl.value.trim() : '';
+  var commonExisting = c.content || buildContentFallback(c);
+  if (commonExisting || commonDraft){
+    combined += '[공통]\n';
+    if (commonExisting) combined += commonExisting + '\n';
+    if (commonDraft)    combined += commonDraft + '\n';
   }
 
   if(!combined.trim()){toast('수정된 내용이 없습니다');return;}
@@ -1816,7 +3716,7 @@ function doReanalyze(onSuccess){
       '<div class="loading-text">AI가 다시 정리하고 있습니다</div>'+
       '<div class="loading-sub">수정한 내용을 반영하는 중...</div>'+
     '</div>';
-  document.getElementById('p2-btns').style.display='none';
+  document.getElementById('report-edit-actions').style.display='none';
 
   fetch(APPS_SCRIPT_URL,{
     method:'POST',
@@ -1902,6 +3802,7 @@ function editCard(id){
   btn.className='rep-save';btn.style.display='block';
   btn.textContent='저장';btn.onclick=function(){editCard(id)};
   body.appendChild(newTa);body.appendChild(btn);
+  autosizeTa(newTa);
   newTa.focus();
 }
 
@@ -1955,7 +3856,7 @@ function performSend(){
       '<div class="done-brush">📤</div>'+
       '<div class="done-title">발송 중...</div>'+
     '</div>';
-  document.getElementById('p2-btns').style.display='none';
+  document.getElementById('report-edit-actions').style.display='none';
 
   fetch(APPS_SCRIPT_URL,{
     method:'POST',
@@ -1968,7 +3869,7 @@ function performSend(){
       dept:profile.dept,
       grade:profile.grade,
       date:dateStr,
-      to:'luri7305@gmail.com',
+      to:'thehim180724@gmail.com',
       cc:'taesilkim2@gmail.com',
       subject:'[일일보고] '+profile.name+'_'+dc,
       raw:currentRawText,
@@ -1983,8 +3884,9 @@ function performSend(){
       '<div class="done-wrap">'+
         '<div class="done-brush">✅</div>'+
         '<div class="done-title">발송 완료</div>'+
-        '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>luri7305@gmail.com으로 전송됐습니다.</div>'+
+        '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>thehim180724@gmail.com으로 전송됐습니다.</div>'+
         '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
+        '<button class="done-new go-himclova" onclick="goToHimClovaFromReport()">🎙️ 힘클로바로 가기</button>'+
       '</div>';
   })
   .catch(function(err){
@@ -1994,12 +3896,12 @@ function performSend(){
         '<div class="done-title">오류 발생</div>'+
         '<div class="done-desc">'+err+'<br>다시 시도해주세요.</div>'+
       '</div>';
-    document.getElementById('p2-btns').style.display='flex';
+    document.getElementById('report-edit-actions').style.display='flex';
   });
 }
 
 function showTestComplete(structured){
-  document.getElementById('p2-btns').style.display='none';
+  document.getElementById('report-edit-actions').style.display='none';
   function row(label,val){
     return '<div class="test-row"><div class="test-row-label">'+label+'</div>'+
            '<div class="test-row-val">'+escapeHtml(val||'(비어있음)')+'</div></div>';
@@ -2017,6 +3919,7 @@ function showTestComplete(structured){
         row('일정',     structured.schedule)+
       '</div>'+
       '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
+      '<button class="done-new go-himclova" onclick="goToHimClovaFromReport()">🎙️ 힘클로바로 가기</button>'+
     '</div>';
 }
 
@@ -2035,17 +3938,1341 @@ function newRep(){
   goPage('p1');
 }
 
+// 발송 완료 화면에서 힘클로바 모드로 직행 — 보고 상태 리셋 후 모드 전환
+function goToHimClovaFromReport(){
+  newRep();
+  switchMode('himclova');
+}
+
 // ── 유틸 ──────────────────────
+// goPage: 페이지 전환. 'p2' 는 호환성 wrapper — 일일보고 모드의 edit sub-page 로 라우팅.
+//   ('#p2' 페이지 자체는 mode-report sub-page 로 마이그레이션됨, 2026-04-29)
 function goPage(id){
+  if (id === 'p2'){
+    // 일일보고 편집 페이지 — #p1 활성 + mode-report + edit sub-page
+    document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on')});
+    document.getElementById('p1').classList.add('on');
+    if (typeof switchMode === 'function') switchMode('report');
+    Report.showPage('edit');
+    window.scrollTo(0,0);
+    return;
+  }
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on')});
   document.getElementById(id).classList.add('on');
+  // p1 으로 가는 경우 일일보고 sub-page 도 input 으로 복귀
+  if (id === 'p1' && typeof Report !== 'undefined') Report.showPage('input');
   window.scrollTo(0,0);
 }
+
+// ── Report 네임스페이스 — 일일보고 sub-page 전환 ──
+var Report = {
+  showPage: function(name){
+    var input = document.getElementById('report-page-input');
+    var edit  = document.getElementById('report-page-edit');
+    var sendBtn = document.getElementById('report-send-btn');
+    var editActs = document.getElementById('report-edit-actions');
+    if (!input || !edit) return;
+    if (name === 'edit'){
+      input.style.display = 'none';
+      edit.style.display  = '';
+      if (sendBtn)  sendBtn.style.display  = 'none';
+      if (editActs) editActs.style.display = '';
+    } else {
+      input.style.display = '';
+      edit.style.display  = 'none';
+      if (sendBtn)  sendBtn.style.display  = '';
+      if (editActs) editActs.style.display = 'none';
+    }
+  }
+};
+
 function toast(m){
   var t=document.getElementById('toast');
   t.textContent=m;t.classList.add('on');
   setTimeout(function(){t.classList.remove('on')},2500);
 }
+
+// ═══════════════════════════════════════════════════════════
+// 챗봇 (mode-search) — 자연어 대화. tool-use 는 서버측 ChatAPI.js 가 담당.
+// 인증·세션은 공유. convId 는 클라 발급, localStorage 보관.
+// "+ 새 대화" → convId 갈아끼움. 기존 대화는 서버 시트에 7일 만료까지 잔존.
+// ═══════════════════════════════════════════════════════════
+var CHAT_CONV_KEY = 'him_v4_chat_conv_id';
+
+var Chat = (function(){
+  var loaded       = false;
+  var sending      = false;
+  var convId       = '';
+  var abortCtrl    = null;
+  var noticeTimer  = null;   // 길어질 때 안내 문구 표시
+  var timeoutTimer = null;   // 하드 타임아웃 — 자동 abort
+  var CHAT_NOTICE_MS  = 20000;   // 20초 후 안내 문구
+  var CHAT_TIMEOUT_MS = 75000;   // 75초 후 자동 중단
+
+  function genConvId(){
+    return 'cv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  }
+  function getOrCreateConvId(){
+    var id = '';
+    try { id = localStorage.getItem(CHAT_CONV_KEY) || ''; } catch(e){}
+    if (!id) {
+      id = genConvId();
+      try { localStorage.setItem(CHAT_CONV_KEY, id); } catch(e){}
+    }
+    convId = id;
+    return id;
+  }
+
+  function init(){
+    if (!loaded) {
+      loaded = true;
+      getOrCreateConvId();
+      load();
+      // resize 대응 — idempotent (한 번만 바인딩)
+      window.addEventListener('resize',          adjustTop);
+      window.addEventListener('orientationchange', adjustTop);
+    }
+    // 모드 진입할 때마다 한 번 측정 (sticky 헤더 높이 변경 대응)
+    adjustTop();
+  }
+
+  // .p1-header 의 bottom 좌표를 측정해 mode-search 의 top 으로 설정.
+  // 빨간 배너 유무·헤더 콘텐츠 변화·뷰포트 리사이즈 모두 자동 대응.
+  // 새로고침 직후엔 sticky 위치가 첫 frame 에서 안정화 안 돼 측정 부정확 → rAF 2회 + 100ms 폴백 으로 다중 측정.
+  function adjustTop(){
+    var run = function(){
+      var hd = document.querySelector('.p1-header');
+      var sm = document.querySelector('.mode-content.mode-search');
+      if (!hd || !sm) return;
+      var bottom = hd.getBoundingClientRect().bottom;
+      sm.style.top = Math.max(0, Math.round(bottom)) + 'px';
+    };
+    // 즉시 1회
+    run();
+    // 다음 paint 직전 + 그 다음 frame (sticky layout 안정화 후)
+    requestAnimationFrame(function(){
+      requestAnimationFrame(run);
+    });
+    // 폰트·이미지 로드 등 layout 변동 대비
+    setTimeout(run, 100);
+  }
+
+  function load(){
+    var sess = getSession();
+    if (!sess) { forceReauth('로그인이 필요합니다'); return; }
+
+    showInfo('대화 불러오는 중...');
+    var url = APPS_SCRIPT_URL
+      + '?action=chat_load'
+      + '&session=' + encodeURIComponent(sess)
+      + '&convId='  + encodeURIComponent(convId);
+    fetch(url)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d && d.error === 'session_invalid') { forceReauth(d.message || '재인증이 필요합니다'); return; }
+        if (!d || !d.ok) { showInfo('⚠️ ' + ((d && d.error) || '대화 불러오기 실패'), true); return; }
+        if (!d.turns || d.turns.length === 0) { showWelcome(); return; }
+        renderTurns(d.turns);
+      })
+      .catch(function(e){
+        showInfo('⚠️ 네트워크 오류 — ' + e.message, true);
+      });
+  }
+
+  function renderTurns(turns){
+    var el = document.getElementById('chat-messages');
+    if (!el) return;
+    el.innerHTML = '';
+    turns.forEach(function(t){ appendMsg(t.role, t.content, false); });
+    scrollBottom();
+  }
+
+  function appendMsg(role, content, scroll){
+    var el = document.getElementById('chat-messages');
+    if (!el) return null;
+    var msg = document.createElement('div');
+    msg.className = 'chat-msg ' + (role === 'user' ? 'user' : 'assistant');
+    msg.innerHTML = renderMessageHtml(content);
+    el.appendChild(msg);
+    if (scroll !== false) scrollBottom();
+    return msg;
+  }
+
+  // 가벼운 마크다운 — search-answer 패턴 차용 (**bold**, ---, > 인용)
+  function renderMessageHtml(text){
+    var s = escapeHtml(String(text || ''));
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/^---+$/gm, '<hr>');
+    s = s.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
+    s = s.replace(/\n/g, '<br>');
+    return s;
+  }
+
+  function showInfo(msg, isError){
+    var el = document.getElementById('chat-messages');
+    if (!el) return;
+    el.innerHTML = '<div class="chat-empty' + (isError ? ' error' : '') + '">'
+      + escapeHtml(msg).replace(/\n/g, '<br>') + '</div>';
+  }
+  function showWelcome(){
+    showInfo('힘클로드에게 자유롭게 물어보세요.\n\n예) "4월 셋째 주에 회의가 있었던 날", "지난주 내 일정", "더케이호텔 최근 진행상황"');
+  }
+
+  function clearEmptyPlaceholder(){
+    var el = document.querySelector('#chat-messages .chat-empty');
+    if (el) el.remove();
+  }
+
+  function scrollBottom(){
+    var el = document.getElementById('chat-messages');
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  // 답변 풍선이 추가됐을 때, 직전 사용자 풍선 위에 16px 여유를 두고 스크롤.
+  // getBoundingClientRect 기반 — offsetTop 은 offsetParent 의존이라 turn 누적 시 부정확.
+  // viewport 좌표 + container.scrollTop 으로 정확한 상대 위치 계산.
+  function scrollAnswerToTop(msgEl){
+    var container = document.getElementById('chat-messages');
+    if (!msgEl || !container) return;
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        var target = msgEl.previousElementSibling || msgEl;
+        var tRect = target.getBoundingClientRect();
+        var cRect = container.getBoundingClientRect();
+        var relTop = tRect.top - cRect.top + container.scrollTop;
+        var top = Math.max(0, relTop - 10);   // 풍선 간 gap(10px) 과 통일
+        try {
+          container.scrollTo({top: top, behavior: 'smooth'});
+        } catch(e) {
+          container.scrollTop = top;
+        }
+      });
+    });
+  }
+
+  function sendFromInput(){
+    // 검색 중에 같은 버튼 누르면 → 멈춤
+    if (sending) { cancelSend(); return; }
+    var ta = document.getElementById('chat-input');
+    if (!ta) return;
+    var msg = (ta.value || '').trim();
+    if (!msg) return;
+    ta.value = '';
+    autosizeTa(ta);
+    send(msg);
+  }
+
+  // 보내기 ↔ 멈추기 버튼 모드 토글
+  function setSendBtnMode(mode){
+    var btn = document.getElementById('chat-send-btn');
+    if (!btn) return;
+    if (mode === 'cancel') {
+      btn.textContent = '멈추기';
+      btn.classList.add('cancel');
+      btn.disabled = false;
+    } else {
+      btn.textContent = '보내기';
+      btn.classList.remove('cancel');
+      btn.disabled = false;
+    }
+  }
+
+  function cancelSend(){
+    if (!sending || !abortCtrl) return;
+    try { abortCtrl.abort(); } catch(e) {}
+  }
+
+  function clearTimers(){
+    if (noticeTimer)  { clearTimeout(noticeTimer);  noticeTimer  = null; }
+    if (timeoutTimer) { clearTimeout(timeoutTimer); timeoutTimer = null; }
+  }
+
+  function send(message){
+    if (sending) return;
+    sending = true;
+    var sess = getSession();
+    if (!sess) { forceReauth('로그인이 필요합니다'); sending = false; return; }
+
+    clearEmptyPlaceholder();
+    appendMsg('user', message, true);
+
+    var loadingEl = document.createElement('div');
+    loadingEl.className = 'chat-msg loading';
+    loadingEl.textContent = '🤔 힘클로드가 검토 중...';
+    document.getElementById('chat-messages').appendChild(loadingEl);
+    scrollBottom();
+
+    setSendBtnMode('cancel');
+
+    abortCtrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var fetchOpts = abortCtrl ? {signal: abortCtrl.signal} : {};
+
+    // 길어질 때 안내 문구 (loadingEl 텍스트 교체)
+    noticeTimer = setTimeout(function(){
+      if (loadingEl && loadingEl.parentNode) {
+        loadingEl.textContent = '⏳ 검색량이 많아 시간이 걸려요... 더 기다리시거나 멈추고 범위를 좁혀주세요';
+      }
+    }, CHAT_NOTICE_MS);
+
+    // 하드 타임아웃 — 자동 abort
+    timeoutTimer = setTimeout(function(){
+      if (sending && abortCtrl) {
+        try { abortCtrl.abort(); } catch(e) {}
+      }
+    }, CHAT_TIMEOUT_MS);
+
+    var url = APPS_SCRIPT_URL
+      + '?action=chat_send'
+      + '&session=' + encodeURIComponent(sess)
+      + '&convId='  + encodeURIComponent(convId)
+      + '&message=' + encodeURIComponent(message);
+
+    fetch(url, fetchOpts)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (loadingEl.parentNode) loadingEl.remove();
+        if (d && d.error === 'session_invalid') { forceReauth(d.message || '재인증이 필요합니다'); return; }
+        var msgEl;
+        if (!d || !d.ok) {
+          msgEl = appendMsg('assistant', '⚠️ ' + ((d && d.error) || '응답 오류'), false);
+        } else {
+          msgEl = appendMsg('assistant', d.reply || '(빈 응답)', false);
+        }
+        scrollAnswerToTop(msgEl);
+      })
+      .catch(function(e){
+        if (loadingEl.parentNode) loadingEl.remove();
+        var msgEl;
+        if (e && e.name === 'AbortError') {
+          // 사용자가 멈췄거나 하드 타임아웃
+          msgEl = appendMsg('assistant', '🛑 검색을 중단했어요. 범위를 좁혀서 다시 물어봐 주세요.', false);
+        } else {
+          msgEl = appendMsg('assistant', '⚠️ 네트워크 오류가 발생했어요. 잠시 후 다시 시도해주세요.', false);
+        }
+        scrollAnswerToTop(msgEl);
+      })
+      .then(function(){
+        clearTimers();
+        sending   = false;
+        abortCtrl = null;
+        setSendBtnMode('send');
+      });
+  }
+
+  function newConv(){
+    if (sending) { toast('답변을 받은 뒤에 새로 시작해 주세요'); return; }
+    var newId = genConvId();
+    try { localStorage.setItem(CHAT_CONV_KEY, newId); } catch(e){}
+    convId = newId;
+    showWelcome();
+    var ta = document.getElementById('chat-input');
+    if (ta) { ta.value = ''; autosizeTa(ta); ta.focus(); }
+  }
+
+  function onKeyDown(e){
+    // Enter 보내기, Shift+Enter 줄바꿈, IME 조합 중엔 무시
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      sendFromInput();
+    }
+  }
+
+  return {
+    init: init, load: load, newConv: newConv,
+    sendFromInput: sendFromInput, send: send, onKeyDown: onKeyDown
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════
+// 힘클로바 (녹취록) — 별도 네임스페이스. 일일보고 흐름과 완전 격리.
+// 인증·세션·STAFF 등 공유 자원은 외부 함수/변수 그대로 재사용.
+// ═══════════════════════════════════════════════════════════
+var HimClova = {
+  audioFile: null,
+  selectedLevel: 'auto',
+  _initialized: false,
+  _draftSaveTimer: null,
+  DRAFT_KEY:  'him_v4_himclova_draft',
+  RESULT_KEY: 'him_v4_himclova_result',
+
+  init: function(){
+    // 첫 호출에만: draft 복구 → 자동저장 핸들러 바인딩.
+    // 이후 호출은 모드 재진입에 해당 (사용자 입력 보존을 위해 복구 안 함).
+    if (!HimClova._initialized){
+      HimClova.restoreDraft();      // draft 가 있으면 빈 필드만 채움
+      HimClova.bindDraftAutoSave(); // input/change → scheduleDraftSave
+    }
+    // 일자 기본값 — restoreDraft 가 채웠으면 그대로, 비어있으면 오늘
+    var dInp = document.getElementById('m-date');
+    if (dInp && !dInp.value) dInp.value = dateStr;
+    // 등급 버튼 상태 — 현재 selectedLevel(restoreDraft 가 변경했을 수도) 기준 동기화
+    document.querySelectorAll('.mode-himclova .lv-btn').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-lv') === HimClova.selectedLevel);
+    });
+    // 드롭존 바인딩 (idempotent — _bound 플래그로 중복 방지)
+    HimClova.bindDropZone();
+    // sub-page 초기화는 첫 진입 시에만 — 이후 모드 재진입 시엔 마지막 sub-page (input/result) 보존
+    // F5 후 캐시된 결과가 있으면 result page 로 자동 복원, 없으면 input page 기본.
+    if (!HimClova._initialized){
+      if (!HimClova.restoreResult()){
+        HimClova.showPage('input');
+        HimClova._setSendBtnMode('idle');
+      }
+    }
+    HimClova._initialized = true;
+  },
+
+  selectLevel: function(btn, lv){
+    HimClova.selectedLevel = lv;
+    document.querySelectorAll('.mode-himclova .lv-btn').forEach(function(b){ b.classList.remove('on'); });
+    if (btn) btn.classList.add('on');
+    HimClova.scheduleDraftSave();
+  },
+
+  // 음성 파일 1회 1개 — 이미 칩 있으면 picker 안 열림. 제거(×) 후 다시 선택.
+  openFilePicker: function(){
+    if (HimClova.audioFile){
+      toast('💡 이미 파일이 선택돼있어요. 변경하려면 × 로 먼저 제거해주세요');
+      return;
+    }
+    document.getElementById('audio-inp').click();
+  },
+
+  // 파일 타입 분류 — 'audio' (변환+후처리) | 'text' (후처리만) | null (지원 안함)
+  _classifyFile: function(f){
+    var name = (f && f.name || '').toLowerCase();
+    var type = (f && f.type || '');
+    if (/^audio\//.test(type) || /\.(mp3|m4a|wav|webm|mp4|ogg)$/.test(name)) return 'audio';
+    if (/^text\//.test(type)
+        || type === 'application/msword'
+        || type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        || /\.(txt|md|markdown|doc|docx)$/.test(name)) return 'text';
+    return null;
+  },
+
+  handleAudioFile: function(inp){
+    var f = inp.files && inp.files[0];
+    if (!f) { return; }
+    var mode = HimClova._classifyFile(f);
+    if (!mode){
+      toast('⚠️ 지원하지 않는 형식. 음성(mp3/m4a/wav/webm/mp4) 또는 텍스트(txt/md/doc/docx)');
+      inp.value = '';
+      return;
+    }
+    HimClova.audioFile = f;
+    HimClova._fileMode = mode;
+    HimClova.renderFileChip();
+    inp.value = '';  // 같은 파일 재선택 가능
+  },
+
+  renderFileChip: function(){
+    var chips = document.getElementById('hc-file-chips');
+    var zone  = document.getElementById('hc-upload-zone');
+    if (!chips || !zone) return;
+    chips.innerHTML = '';
+    if (!HimClova.audioFile){
+      zone.classList.remove('has-file');
+      return;
+    }
+    var sizeMB = (HimClova.audioFile.size/1024/1024).toFixed(1);
+    var ext = (HimClova.audioFile.name.split('.').pop()||'').toLowerCase();
+    var isText = (HimClova._fileMode === 'text');
+    var icon;
+    if (isText)             icon = '📄';
+    else if (ext === 'mp4') icon = '🎬';
+    else if (ext === 'webm') icon = '🎙️';
+    else                    icon = '🎵';
+    var modeLabel = isText ? '텍스트 (후처리만)' : '선택됨';
+    var chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.innerHTML =
+      '<div class="file-chip-icon">'+icon+'</div>'+
+      '<div class="file-chip-info">'+
+        '<div class="file-chip-name">✅ '+escapeHtml(HimClova.audioFile.name)+'</div>'+
+        '<div class="file-chip-meta">'+sizeMB+' MB · '+escapeHtml(ext.toUpperCase())+' · '+modeLabel+'</div>'+
+      '</div>'+
+      '<button class="file-chip-del" onclick="HimClova.removeAudioFile(event)" title="제거">×</button>';
+    chips.appendChild(chip);
+    zone.classList.add('has-file');
+  },
+
+  removeAudioFile: function(ev){
+    if (ev) ev.stopPropagation();
+    HimClova.audioFile = null;
+    HimClova._fileMode = null;
+    HimClova.renderFileChip();
+  },
+
+  bindDropZone: function(){
+    var zone = document.getElementById('hc-upload-zone');
+    if (!zone || zone._bound) return;
+    zone._bound = true;
+    ['dragenter','dragover'].forEach(function(evt){
+      zone.addEventListener(evt, function(e){
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.add('dragover');
+      });
+    });
+    ['dragleave','drop'].forEach(function(evt){
+      zone.addEventListener(evt, function(e){
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.remove('dragover');
+      });
+    });
+    zone.addEventListener('drop', function(e){
+      if (HimClova.audioFile){
+        toast('💡 이미 파일이 선택돼있어요. 변경하려면 × 로 먼저 제거해주세요');
+        return;
+      }
+      var dt = e.dataTransfer;
+      if (!dt || !dt.files || !dt.files[0]) return;
+      var f = dt.files[0];
+      var mode = HimClova._classifyFile(f);
+      if (!mode){
+        toast('⚠️ 음성(mp3/m4a/wav/webm/mp4) 또는 텍스트(txt/md/doc/docx) 파일만 업로드 가능');
+        return;
+      }
+      HimClova.audioFile = f;
+      HimClova._fileMode = mode;
+      HimClova.renderFileChip();
+    });
+  },
+
+  // 진행 중이면 중지, 아니면 시작
+  toggleSubmit: function(){
+    if (HimClova._inFlight){
+      HimClova.cancelSubmit();
+    } else {
+      HimClova.doUpload();
+    }
+  },
+
+  cancelSubmit: function(){
+    if (HimClova._abortCtrl){
+      HimClova._abortCtrl.abort();
+    }
+  },
+
+  // 모드: 'idle'|'stopping'|'done'|'saving'|'saved'
+  _setSendBtnMode: function(mode){
+    var sendBtn     = document.getElementById('hc-send-btn');
+    var saveBtn     = document.getElementById('hc-save-btn');
+    var icon        = document.getElementById('hc-send-icon');
+    var label       = document.getElementById('hc-send-label');
+    var saveIcon    = document.getElementById('hc-save-icon');
+    var saveLabel   = document.getElementById('hc-save-label');
+    var progressBox = document.getElementById('progress-box');
+    var resultArea  = document.getElementById('result-area');
+    var savedScreen = document.getElementById('hc-saved-screen');
+    if (!sendBtn || !saveBtn) return;
+
+    // 모든 버튼 hide + state 초기화
+    sendBtn.style.display = 'none';
+    saveBtn.style.display = 'none';
+    saveBtn.disabled = false;
+    sendBtn.classList.remove('stopping');
+
+    // saved 외 모드 → saved-screen hide + progress-box 정상 흐름 복귀
+    // (result-area 는 showResult / newRecording 가 직접 관리하므로 여기서 건드리지 않음)
+    if (mode !== 'saved'){
+      if (savedScreen) savedScreen.style.display = 'none';
+      if (progressBox) progressBox.style.display = '';
+    }
+
+    if (mode === 'stopping'){
+      // 진행 중 — 빨간 중지 버튼
+      sendBtn.style.display = '';
+      sendBtn.classList.add('stopping');
+      if (icon)  icon.textContent  = '⏹';
+      if (label) label.textContent = '진행 중지';
+    } else if (mode === 'saving'){
+      // 저장 진행 중 — 비활성 + ⏳
+      saveBtn.style.display = '';
+      saveBtn.disabled = true;
+      if (saveIcon)  saveIcon.textContent  = '⏳';
+      if (saveLabel) saveLabel.textContent = '저장 중...';
+    } else if (mode === 'done'){
+      // 변환 완료 — 메인 = 저장하기 (Drive 영구 보관)
+      saveBtn.style.display = '';
+      if (saveIcon)  saveIcon.textContent  = '📤';
+      if (saveLabel) saveLabel.textContent = '저장하기';
+    } else if (mode === 'saved'){
+      // 저장 완료 — 진행 박스·결과 영역 모두 hide. 화면 = saved-screen 단독 (bottom 비어있음).
+      if (progressBox) progressBox.style.display = 'none';
+      if (resultArea)  resultArea.style.display  = 'none';
+      if (savedScreen) savedScreen.style.display = '';
+    } else {
+      // idle (input page) — 텍스트화 진행
+      sendBtn.style.display = '';
+      if (icon)  icon.textContent  = '▶';
+      if (label) label.textContent = '텍스트화 진행';
+    }
+  },
+
+  // Drive 영구 저장 (Step F) — localStorage 의 result 를 GAS 로 POST.
+  // 응답에 docContent (HTML→.doc) 포함 → _lastSavedDoc 보관, '내 기기 저장' 버튼이 다운로드 트리거.
+  saveToDrive: function(){
+    var p = HimClova.loadResult();
+    if (!p || !p.data){
+      toast('⚠️ 저장할 결과가 없습니다');
+      return;
+    }
+    if (!getSession()){ forceReauth('세션이 만료되었습니다'); return; }
+
+    HimClova._setSendBtnMode('saving');
+
+    fetch(APPS_SCRIPT_URL, {
+      method:  'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body:    JSON.stringify({
+        token:   APPS_SCRIPT_TOKEN,
+        action:  'meeting_save',
+        session: getSession(),
+        payload: {
+          data:       p.data,
+          meta:       p.meta,
+          level:      p.levelAtComplete,
+          elapsedSec: p.elapsedSec
+        }
+      })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if (!res || !res.ok) throw new Error((res && (res.message || res.error)) || '저장 실패');
+      HimClova._lastSavedDoc = {
+        content:  res.docContent  || '',
+        filename: res.docFilename || 'meeting.doc'
+      };
+      HimClova.clearResult();   // localStorage 폐기 — 재저장 방지 + F5 시 input page
+      HimClova._setSendBtnMode('saved');
+      toast('✅ 저장되었습니다');
+    })
+    .catch(function(err){
+      console.error('[힘클로바] save error:', err);
+      toast('⚠️ ' + (err && err.message || '저장 실패'));
+      HimClova._setSendBtnMode('done');  // 다시 시도 가능
+    });
+  },
+
+  // .doc 다운로드 — 저장 응답에서 받은 HTML 을 Blob 으로 (UTF-8 BOM 포함, Word·한글 자동 인식)
+  downloadAsDoc: function(){
+    if (!HimClova._lastSavedDoc || !HimClova._lastSavedDoc.content){
+      toast('⚠️ 다운로드할 내용이 없습니다');
+      return;
+    }
+    var BOM  = '﻿';
+    var blob = new Blob([BOM + HimClova._lastSavedDoc.content], { type: 'application/msword' });
+    var url  = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href     = url;
+    a.download = HimClova._lastSavedDoc.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  },
+
+  // 첫 화면으로 — saved 흔적 정리 후 newRecording (input page 복귀)
+  goHome: function(){
+    HimClova._lastSavedDoc = null;
+    HimClova.newRecording();
+  },
+
+  // sub-page 전환 (input ↔ result)
+  showPage: function(pageName){
+    var input  = document.getElementById('hc-page-input');
+    var result = document.getElementById('hc-page-result');
+    if (!input || !result) return;
+    if (pageName === 'result'){
+      input.style.display  = 'none';
+      result.style.display = '';
+    } else {
+      input.style.display  = '';
+      result.style.display = 'none';
+    }
+    window.scrollTo({top:0, behavior:'auto'});
+  },
+
+  // 새 녹취록 변환 — 폼 리셋 후 input page 로 복귀
+  newRecording: function(){
+    HimClova.clearResult();
+    HimClova._lastSavedDoc = null;
+    HimClova._hideWarn();
+    HimClova.audioFile = null;
+    HimClova._fileMode = null;
+    HimClova.renderFileChip();
+    document.getElementById('m-title').value   = '';
+    document.getElementById('m-project').value = '';
+    document.getElementById('m-memo').value    = '';
+    HimClova.selectedLevel = 'auto';
+    document.querySelectorAll('.mode-himclova .lv-btn').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-lv') === 'auto');
+    });
+    // 결과 영역 + 저장 완료 화면 모두 정리, progress-box 정상 흐름 복귀
+    document.getElementById('result-area').style.display = 'none';
+    var pb = document.getElementById('progress-box');
+    if (pb){ pb.classList.remove('done'); pb.style.display = ''; }
+    var ss = document.getElementById('hc-saved-screen');
+    if (ss) ss.style.display = 'none';
+    // 페이지 복귀
+    HimClova.showPage('input');
+    HimClova._setSendBtnMode('idle');
+  },
+
+  doUpload: function(){
+    var title = (document.getElementById('m-title').value||'').trim();
+    var date    = (document.getElementById('m-date').value    ||'').trim();
+    var project = (document.getElementById('m-project').value ||'').trim();
+    var memo    = (document.getElementById('m-memo').value    ||'').trim();
+
+    if (!title)          { toast('⚠️ 녹취 제목을 입력해주세요'); return; }
+    if (!date)           { toast('⚠️ 녹취 일자를 선택해주세요'); return; }
+    if (!HimClova.audioFile) { toast('⚠️ 파일을 선택해주세요'); return; }
+    if (!getSession())   { forceReauth('세션이 만료되었습니다'); return; }
+    if (!HIMCLOVA_URL){
+      toast('⚠️ 힘클로바 서버 URL 미설정 — 콘솔에서 localStorage.setItem("him_v4_himclova_url","http://localhost:8080") 로 임시 설정');
+      return;
+    }
+
+    // 텍스트 파일이면 후처리만 진행 (음성 변환 단계 건너뜀)
+    if (HimClova._fileMode === 'text'){
+      return HimClova.doTextPostprocess(title, date, project, memo);
+    }
+
+    var engine = 'clova'; // CLOVA 단독 정책 (2026-04-28). Whisper·GCP STT 폐기.
+
+    // step-transcribe 라벨 reset (이전이 텍스트 모드였을 가능성)
+    var lbl = document.querySelector('#step-transcribe .ps-label');
+    if (lbl) lbl.textContent = 'CLOVA 텍스트 변환';
+
+    // 진행 시작 시점에 이전 결과 폐기 — 곧 새 결과로 덮어씀. 실패해도 이전 결과 복원 의도 없음.
+    HimClova.clearResult();
+
+    var fd = new FormData();
+    fd.append('audio', HimClova.audioFile);
+    fd.append('engine', engine);
+    fd.append('title', title);
+    fd.append('meeting_date', date);
+    fd.append('project', project);
+    fd.append('memo', memo);
+    fd.append('level_hint', HimClova.selectedLevel);
+
+    // result sub-page 로 전환 + 진행 박스 활성
+    HimClova.showPage('result');
+    document.getElementById('result-area').style.display = 'none';
+    var pb = document.getElementById('progress-box');
+    if (pb) pb.classList.remove('done');
+    HimClova.showStatus('upload');
+    HimClova._inFlight = true;
+    HimClova._setSendBtnMode('stopping');
+
+    // 장시간 경고 배지 — 임계값 이상 파일이면 즉시 transcribe 옆 표시
+    // (60초 경과·240초 analyze 자동 전환은 ticker 가 담당)
+    HimClova._hideWarn();
+    HimClova._switchedToAnalyze = false;
+    if (HimClova.audioFile && HimClova.audioFile.size >= HimClova.WARN_SIZE_BYTES){
+      HimClova._showWarn('transcribe');
+    }
+
+    var ctrl = new AbortController();
+    HimClova._abortCtrl = ctrl;
+    var timeoutId = setTimeout(function(){ ctrl.abort(); }, UPLOAD_TIMEOUT_MS);
+    var t0 = Date.now();
+    HimClova._startElapsedTicker(t0);
+
+    console.log('[힘클로바] POST '+HIMCLOVA_URL+'/transcribe', {engine:engine, file:HimClova.audioFile.name, size:HimClova.audioFile.size, title:title});
+
+    HimClova.showStatus('transcribe');
+
+    fetch(HIMCLOVA_URL + '/transcribe', {
+      method: 'POST',
+      body: fd,
+      signal: ctrl.signal
+    }).then(function(resp){
+      clearTimeout(timeoutId);
+      if (!resp.ok){
+        return resp.text().then(function(t){
+          throw new Error('서버 오류 ('+resp.status+'): '+(t || resp.statusText));
+        });
+      }
+      return resp.json();
+    }).then(function(data){
+      var elapsed = Math.round((Date.now() - t0) / 1000);
+      if (!data || data.ok === false){
+        throw new Error((data && data.message) || '알 수 없는 응답');
+      }
+      console.log('[힘클로바] 변환 완료', data);
+      HimClova.clearDraft();  // 업로드 성공 시 draft 즉시 폐기
+      // 후처리는 서버에서 이미 완료된 상태로 응답이 옴 → analyze 표시 짧게
+      HimClova.showStatus('save');
+      setTimeout(function(){
+        HimClova.showStatus('done');
+        HimClova.showResult(data, elapsed);
+        HimClova._inFlight = false;
+        HimClova._abortCtrl = null;
+        HimClova._stopElapsedTicker();
+        HimClova._setSendBtnMode('done');
+      }, 300);
+    }).catch(function(err){
+      clearTimeout(timeoutId);
+      HimClova._inFlight = false;
+      HimClova._abortCtrl = null;
+      HimClova._stopElapsedTicker();
+      if (err && err.name === 'AbortError'){
+        toast('🛑 진행을 중지했습니다');
+        // 중지 시 input page 로 복귀 (폼 보존)
+        HimClova.showPage('input');
+        HimClova._setSendBtnMode('idle');
+      } else {
+        toast('⚠️ ' + (err && err.message ? err.message : '업로드 실패'));
+        console.error('[힘클로바] upload error:', err);
+        // 에러 시 진행 박스에 error 단계 표시 + 경고 배지 정리
+        HimClova.showStatus('error');
+        HimClova._hideWarn();
+        // result page 에 머무르되 새 녹취록 버튼으로 복귀 가능하게
+        HimClova._setSendBtnMode('done');
+      }
+    });
+  },
+
+  // 텍스트 파일 후처리만 진행 (input page 의 _fileMode === 'text' 케이스).
+  // 음성 변환 단계 건너뛰고 Cloud Run /postprocess 로 multipart 전송.
+  doTextPostprocess: function(title, date, project, memo){
+    HimClova.clearResult();
+
+    // step-transcribe 라벨을 '텍스트 추출' 로 변경 (UX 명확화)
+    var lbl = document.querySelector('#step-transcribe .ps-label');
+    if (lbl) lbl.textContent = '텍스트 추출';
+
+    // result sub-page 전환 + 진행 박스 활성 (upload→analyze 흐름)
+    HimClova.showPage('result');
+    document.getElementById('result-area').style.display = 'none';
+    var pb = document.getElementById('progress-box');
+    if (pb) pb.classList.remove('done');
+    HimClova.showStatus('upload');
+    HimClova._inFlight = true;
+    HimClova._setSendBtnMode('stopping');
+    HimClova._hideWarn();
+    HimClova._switchedToAnalyze = true;   // 텍스트 모드는 transcribe 단계 거치지 않으니 ticker 휴리스틱 비활성
+    // 텍스트 50KB 이상이면 즉시 analyze 옆 경고
+    if (HimClova.audioFile && HimClova.audioFile.size >= HimClova.WARN_TEXT_SIZE_BYTES){
+      HimClova._showWarn('analyze', '⏱ 용량이 커서 3분 이상 걸릴 수 있어요');
+    }
+
+    var ctrl = new AbortController();
+    HimClova._abortCtrl = ctrl;
+    var timeoutId = setTimeout(function(){ ctrl.abort(); }, UPLOAD_TIMEOUT_MS);
+    var t0 = Date.now();
+    HimClova._startElapsedTicker(t0);
+
+    var fd = new FormData();
+    fd.append('document', HimClova.audioFile);
+    fd.append('title', title);
+    fd.append('meeting_date', date);
+    fd.append('project', project);
+    fd.append('memo', memo);
+    fd.append('level_hint', HimClova.selectedLevel);
+
+    console.log('[힘클로바] POST '+HIMCLOVA_URL+'/postprocess (text)', {file:HimClova.audioFile.name, size:HimClova.audioFile.size, title:title});
+
+    HimClova.showStatus('analyze');
+
+    fetch(HIMCLOVA_URL + '/postprocess', {
+      method: 'POST',
+      body: fd,
+      signal: ctrl.signal
+    }).then(function(resp){
+      clearTimeout(timeoutId);
+      if (!resp.ok){
+        return resp.text().then(function(t){
+          throw new Error('서버 오류 ('+resp.status+'): '+(t || resp.statusText));
+        });
+      }
+      return resp.json();
+    }).then(function(data){
+      var elapsed = Math.round((Date.now() - t0) / 1000);
+      if (!data.ok) throw new Error(data.message || '후처리 실패');
+      HimClova.clearDraft();
+      HimClova.showStatus('save');
+      setTimeout(function(){
+        HimClova.showStatus('done');
+        HimClova.showResult(data, elapsed);
+        HimClova._inFlight = false;
+        HimClova._abortCtrl = null;
+        HimClova._stopElapsedTicker();
+        HimClova._setSendBtnMode('done');
+      }, 300);
+    }).catch(function(err){
+      clearTimeout(timeoutId);
+      HimClova._inFlight = false;
+      HimClova._abortCtrl = null;
+      HimClova._stopElapsedTicker();
+      if (err && err.name === 'AbortError'){
+        toast('🛑 진행을 중지했습니다');
+        HimClova.showPage('input');
+        HimClova._setSendBtnMode('idle');
+      } else {
+        toast('⚠️ ' + (err && err.message ? err.message : '후처리 실패'));
+        console.error('[힘클로바] postprocess error:', err);
+        HimClova.showStatus('error');
+        HimClova._hideWarn();
+        HimClova._setSendBtnMode('done');
+      }
+    });
+  },
+
+  // 결과 페이지에서 '↻ 후처리 재진행' 클릭 시 — 현재 transcript 만 다시 Claude 후처리.
+  // CLOVA 변환 비용 0, 30~60초 + ~$0.30. 후처리 실패 케이스 회복용.
+  reprocess: function(){
+    var p = HimClova.loadResult();
+    if (!p || !p.data){
+      toast('⚠️ 후처리할 결과가 없습니다');
+      return;
+    }
+    // raw transcript 우선 (corrected 가 fallback 으로 raw 와 동일하므로 둘 중 아무거나 OK)
+    var transcript = (p.data.transcript || p.data.corrected_transcript || '').trim();
+    if (!transcript){
+      toast('⚠️ transcript 가 비어있습니다');
+      return;
+    }
+    if (!getSession()){ forceReauth('세션이 만료되었습니다'); return; }
+    if (!HIMCLOVA_URL){
+      toast('⚠️ 힘클로바 서버 URL 미설정');
+      return;
+    }
+    if (HimClova._inFlight){
+      toast('💡 이미 진행 중입니다');
+      return;
+    }
+
+    // 진행 박스를 analyze 단계 active 로
+    var pb = document.getElementById('progress-box');
+    if (pb) pb.classList.remove('done');
+    document.getElementById('result-area').style.display = 'none';
+    HimClova.showStatus('analyze');
+    HimClova._inFlight = true;
+    HimClova._setSendBtnMode('stopping');
+    HimClova._hideWarn();
+    HimClova._switchedToAnalyze = true;   // reprocess 는 analyze 단계 — ticker 의 transcribe 트리거 비활성
+    // transcript 50KB 이상이면 즉시 analyze 옆 경고
+    if (transcript.length >= HimClova.WARN_TEXT_SIZE_BYTES){
+      HimClova._showWarn('analyze', '⏱ 용량이 커서 3분 이상 걸릴 수 있어요');
+    }
+
+    var ctrl = new AbortController();
+    HimClova._abortCtrl = ctrl;
+    var t0 = Date.now();
+    HimClova._startElapsedTicker(t0);
+
+    fetch(HIMCLOVA_URL + '/postprocess', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        transcript:   transcript,
+        title:        (p.meta && p.meta.title) || '',
+        meeting_date: (p.meta && p.meta.meetingDate) || '',
+        project:      (p.meta && p.meta.project) || '',
+        memo:         (p.meta && p.meta.memo) || '',
+        level_hint:   p.levelAtComplete || HimClova.selectedLevel || 'auto'
+      }),
+      signal: ctrl.signal
+    }).then(function(r){
+      if (!r.ok) return r.text().then(function(t){ throw new Error('서버 오류 ('+r.status+'): '+(t||r.statusText)); });
+      return r.json();
+    }).then(function(data){
+      var elapsed = Math.round((Date.now() - t0) / 1000);
+      if (!data.ok) throw new Error(data.message || '후처리 실패');
+
+      // 새 후처리 결과를 기존 STT 데이터 (segments/speakers/duration) 위에 병합
+      var merged = Object.assign({}, p.data, {
+        corrected_transcript: data.corrected_transcript,
+        summary:              data.summary,
+        kb_applied:           data.kb_applied,
+        suggested_level:      data.suggested_level,
+        level_rationale:      data.level_rationale,
+        postprocess_meta:     data.postprocess_meta,
+        postprocess_applied:  true,
+        postprocess_error:    null
+      });
+
+      HimClova.showStatus('done');
+      HimClova.showResult(merged, p.elapsedSec || elapsed);   // saveResult 가 안에서 자동 호출
+      HimClova._inFlight = false;
+      HimClova._abortCtrl = null;
+      HimClova._stopElapsedTicker();
+      HimClova._setSendBtnMode('done');
+      toast('✅ 후처리 재진행 완료');
+    }).catch(function(err){
+      HimClova._inFlight = false;
+      HimClova._abortCtrl = null;
+      HimClova._stopElapsedTicker();
+      HimClova._hideWarn();
+      if (err && err.name === 'AbortError'){
+        toast('🛑 후처리 중지');
+      } else {
+        toast('⚠️ ' + (err && err.message || '후처리 실패'));
+        console.error('[힘클로바] reprocess error:', err);
+      }
+      // 어떤 경우든 이전 결과 화면 복원 (사용자가 결과 잃지 않게)
+      HimClova.showStatus('done');
+      HimClova.showResult(p.data, p.elapsedSec || 0);
+      HimClova._setSendBtnMode('done');
+    });
+  },
+
+  showResult: function(data, elapsedSec){
+    var area = document.getElementById('result-area');
+    if (!area) return;
+    HimClova._hideWarn();   // 변환 끝났으므로 경고 hide
+    // 진행 박스를 done 상태로 변환 (체크 표시 + 초록 톤)
+    var pb = document.getElementById('progress-box');
+    if (pb) pb.classList.add('done');
+    var ptitle = document.getElementById('progress-title');
+    var psub   = document.getElementById('progress-sub');
+    if (ptitle) ptitle.textContent = '✅ 변환 완료';
+    if (psub)   psub.textContent   = '결과를 확인해주세요';
+
+    // ── 1) 변환된 텍스트 — corrected 우선, 없으면 raw ───────────
+    var displayed = data.corrected_transcript || data.transcript || '';
+    document.getElementById('transcript-box').textContent = displayed;
+    document.getElementById('rs-postproc-tag').style.display = data.postprocess_applied ? '' : 'none';
+
+    // ── 2) 회의 요약 (안건 / 결정 / 액션아이템) ──────────────────
+    var summarySec = document.getElementById('rs-summary');
+    var summaryEl  = document.getElementById('result-summary');
+    var s = data.summary;
+    var hasSummary = s && (
+      (Array.isArray(s.agenda) && s.agenda.length) ||
+      (Array.isArray(s.decisions) && s.decisions.length) ||
+      (Array.isArray(s.action_items) && s.action_items.length)
+    );
+    if (hasSummary){
+      summaryEl.innerHTML = HimClova._renderSummary(s);
+      summarySec.style.display = '';
+    } else {
+      summarySec.style.display = 'none';
+    }
+
+    // ── 3) KB 적용 단어 ─────────────────────────────────────────
+    var kbSec = document.getElementById('rs-kb');
+    var kbEl  = document.getElementById('result-kb');
+    if (Array.isArray(data.kb_applied) && data.kb_applied.length > 0){
+      kbEl.innerHTML = data.kb_applied.map(function(w){
+        return '<span class="kb-chip">'+escapeHtml(w)+'</span>';
+      }).join('');
+      kbSec.style.display = '';
+    } else {
+      kbSec.style.display = 'none';
+    }
+
+    // ── 4) 추천 등급 ────────────────────────────────────────────
+    var lvSec = document.getElementById('rs-level');
+    var lvEl  = document.getElementById('result-level');
+    var lv = data.suggested_level;
+    if (lv && /^L[123]$/.test(lv)){
+      var lvLabel = (lv === 'L1') ? 'L1 기밀' : (lv === 'L2') ? 'L2 제한' : 'L3 일반';
+      var note = HimClova.selectedLevel === 'auto'
+        ? '자동 등급으로 적용됨 (수동 변경 가능)'
+        : '추천 등급. 현재 수동 선택값 ('+HimClova.selectedLevel+') 우선.';
+      var rationaleHtml = data.level_rationale
+        ? '<div class="level-rationale">📌 판단 근거: '+escapeHtml(data.level_rationale)+'</div>'
+        : '';
+      lvEl.innerHTML = '<span class="level-badge lv-'+lv+'">'+escapeHtml(lvLabel)+'</span>'+
+                       '<span class="level-note">'+escapeHtml(note)+'</span>'+
+                       rationaleHtml;
+      lvSec.style.display = '';
+      // 자동 모드면 선택값에 추천 적용 + 등급 버튼 시각 동기화
+      if (HimClova.selectedLevel === 'auto'){
+        HimClova.selectedLevel = lv;
+        document.querySelectorAll('.mode-himclova .lv-btn').forEach(function(b){
+          b.classList.toggle('on', b.getAttribute('data-lv') === lv);
+        });
+      }
+    } else {
+      lvSec.style.display = 'none';
+    }
+
+    // ── 5) 처리 정보 ────────────────────────────────────────────
+    var info = document.getElementById('result-info');
+    var rows = [];
+    if (data.duration){
+      var mins = Math.floor(data.duration/60);
+      var secs = Math.round(data.duration%60);
+      rows.push(['녹음 길이', mins+'분 '+secs+'초']);
+    }
+    rows.push(['처리 시간', elapsedSec+'초']);
+    if (data.segments) rows.push(['세그먼트', data.segments.length+'개']);
+    if (data.speakers) rows.push(['화자', data.speakers.length+'명']);
+    if (data.postprocess_applied === false){
+      rows.push(['후처리', '실패 (원본 표시)']);
+    }
+    info.innerHTML = rows.map(function(r){
+      return '<div class="result-info-row">'+
+        '<span class="result-info-key">'+escapeHtml(r[0])+'</span>'+
+        '<span class="result-info-val">'+escapeHtml(String(r[1]))+'</span>'+
+        '</div>';
+    }).join('');
+
+    area.style.display = '';
+    area.scrollIntoView({behavior:'smooth', block:'start'});
+
+    // 결과를 localStorage 에 저장 (F5/탭 새로고침 보존). slim 화는 saveResult 안에서.
+    HimClova.saveResult(data, elapsedSec);
+  },
+
+  // 요약 객체 → HTML
+  _renderSummary: function(s){
+    var html = '';
+    if (Array.isArray(s.agenda) && s.agenda.length){
+      html += '<div class="summary-block">'+
+              '<div class="summary-h">📋 안건</div>'+
+              '<ul class="summary-list">'+
+              s.agenda.map(function(a){ return '<li>'+escapeHtml(String(a))+'</li>'; }).join('')+
+              '</ul></div>';
+    }
+    if (Array.isArray(s.decisions) && s.decisions.length){
+      html += '<div class="summary-block">'+
+              '<div class="summary-h">✅ 결정사항</div>'+
+              '<ul class="summary-list">'+
+              s.decisions.map(function(d){ return '<li>'+escapeHtml(String(d))+'</li>'; }).join('')+
+              '</ul></div>';
+    }
+    if (Array.isArray(s.action_items) && s.action_items.length){
+      html += '<div class="summary-block">'+
+              '<div class="summary-h">▶ 액션아이템</div>'+
+              '<ul class="summary-list">';
+      s.action_items.forEach(function(a){
+        var who  = a && a.who  ? '<b>'+escapeHtml(String(a.who))+'</b> · ' : '';
+        var what = escapeHtml(String((a && a.what) || ''));
+        var due  = a && a.due  ? '<span class="action-due">('+escapeHtml(String(a.due))+')</span>' : '';
+        html += '<li>'+who+what+' '+due+'</li>';
+      });
+      html += '</ul></div>';
+    }
+    return html;
+  },
+
+  // 진행 박스 단계 갱신 — activeStep: 'upload'|'transcribe'|'analyze'|'save'|'done'|'error'
+  showStatus: function(activeStep){
+    var steps = ['upload','transcribe','analyze','save'];
+    var labels = {
+      upload:     ['📤 음성 업로드 중...',     '파일을 서버로 전송하고 있어요'],
+      transcribe: ['🎙️ 텍스트 변환 중...',     'CLOVA 가 음성을 텍스트로 바꾸는 중'],
+      analyze:    ['🤖 힘클로드 분석 중...',   '고유명사 교정과 회의 요약을 만드는 중'],
+      save:       ['💫 마무리 중...',          '결과를 정리하는 중'],
+      done:       ['✅ 변환 완료',             '결과를 확인해주세요'],
+      error:      ['⚠️ 오류 발생',             '아래 메시지를 확인해주세요'],
+    };
+    var ptitle = document.getElementById('progress-title');
+    var psub   = document.getElementById('progress-sub');
+    if (ptitle && labels[activeStep]) ptitle.textContent = labels[activeStep][0];
+    if (psub   && labels[activeStep]) psub.textContent   = labels[activeStep][1];
+
+    var activeIdx = steps.indexOf(activeStep);
+    if (activeStep === 'done') activeIdx = steps.length;  // 모두 done
+    if (activeStep === 'error') activeIdx = -1;            // 모두 그대로 + error 표시 따로
+
+    steps.forEach(function(s, i){
+      var el = document.getElementById('step-'+s);
+      if (!el) return;
+      el.classList.remove('done','active','pending','error');
+      if (activeStep === 'error'){
+        // 현재 active 였던 단계를 error 로 (가장 마지막 active 추정)
+        el.classList.add('pending');
+      } else if (i < activeIdx)      el.classList.add('done');
+      else if (i === activeIdx) el.classList.add('active');
+      else                     el.classList.add('pending');
+    });
+  },
+
+  // 경과 시간 ticker (진행 박스 우상단).
+  // - 60초 경과: transcribe 옆 경고 표시 (음성 모드만; 텍스트 모드는 보통 빨라서 안 띄움)
+  // - 240초 경과 + 음성 큰 파일: analyze 단계로 자동 전환 + 경고 위치 이동 (변환 거의 끝났을 추정)
+  _startElapsedTicker: function(t0){
+    HimClova._stopElapsedTicker();
+    var el = document.getElementById('progress-elapsed');
+    if (!el) return;
+    var update = function(){
+      var sec = Math.floor((Date.now() - t0) / 1000);
+      el.textContent = sec + '초';
+
+      // 60초 경과 — transcribe 경고 (음성 모드만; 텍스트 모드는 doTextPostprocess 가 자체 처리)
+      if (sec >= 60 && HimClova._fileMode === 'audio' && !HimClova._switchedToAnalyze){
+        HimClova._showWarn('transcribe');
+      }
+
+      // 240초 경과 + 음성 큰 파일 → analyze 단계로 자동 전환
+      var isBigAudio = HimClova._fileMode === 'audio'
+        && HimClova.audioFile
+        && HimClova.audioFile.size >= HimClova.WARN_SIZE_BYTES;
+      if (sec >= HimClova.ANALYZE_SWITCH_SEC && isBigAudio && !HimClova._switchedToAnalyze){
+        HimClova._switchedToAnalyze = true;
+        HimClova.showStatus('analyze');
+        HimClova._hideWarn('transcribe');
+        HimClova._showWarn('analyze', '⏱ 용량이 커서 3분 이상 추가로 걸릴 수 있어요');
+      }
+    };
+    update();
+    HimClova._elapsedTimer = setInterval(update, 1000);
+  },
+
+  // 장시간 경고 배지 — transcribe / analyze 단계 옆
+  // 음성 ≥ 10MB 또는 60초 경과 시 transcribe 옆 / 텍스트 ≥ 50KB 또는 음성 큰파일 4분 경과 후 analyze 단계 진입 시 analyze 옆.
+  WARN_SIZE_BYTES:      10 * 1024 * 1024,   // 음성: 10MB
+  WARN_TEXT_SIZE_BYTES: 50 * 1024,          // 텍스트: 50KB
+  ANALYZE_SWITCH_SEC:   240,                // 음성 큰파일 4분 경과 시 analyze 단계로 자동 전환
+
+  // step = 'transcribe' | 'analyze'. 인자 없으면 transcribe (하위 호환).
+  _showWarn: function(step, message){
+    var s = step || 'transcribe';
+    var w = document.getElementById('ps-warn-' + s);
+    if (!w) return;
+    if (message) w.textContent = message;
+    w.style.display = '';
+  },
+  // 인자 없으면 두 단계 모두 hide
+  _hideWarn: function(step){
+    if (!step){
+      var t = document.getElementById('ps-warn-transcribe');
+      var a = document.getElementById('ps-warn-analyze');
+      if (t) t.style.display = 'none';
+      if (a) a.style.display = 'none';
+      return;
+    }
+    var w = document.getElementById('ps-warn-' + step);
+    if (w) w.style.display = 'none';
+  },
+  _stopElapsedTicker: function(){
+    if (HimClova._elapsedTimer){
+      clearInterval(HimClova._elapsedTimer);
+      HimClova._elapsedTimer = null;
+    }
+  },
+
+  // ── Draft 시스템 ────────────────────────
+  // 메모·제목·일자·프로젝트·등급을 localStorage 에 자동저장. audioFile 은 binary 라 제외.
+  // 업로드 성공 시 clearDraft, 첫 init() 시 빈 필드만 복구 (사용자 입력 덮어쓰지 않음).
+  saveDraft: function(){
+    if (!profile) return;
+    try {
+      localStorage.setItem(HimClova.DRAFT_KEY, JSON.stringify({
+        email:       profile.email,
+        title:       (document.getElementById('m-title').value    || ''),
+        meetingDate: (document.getElementById('m-date').value     || ''),
+        project:     (document.getElementById('m-project').value  || ''),
+        memo:        (document.getElementById('m-memo').value     || ''),
+        level:       HimClova.selectedLevel,
+        savedAt:     Date.now()
+      }));
+    } catch(e) {}
+  },
+
+  scheduleDraftSave: function(){
+    if (HimClova._draftSaveTimer) clearTimeout(HimClova._draftSaveTimer);
+    HimClova._draftSaveTimer = setTimeout(HimClova.saveDraft, 400);
+  },
+
+  loadDraft: function(){
+    try {
+      var s = localStorage.getItem(HimClova.DRAFT_KEY);
+      if (!s) return null;
+      var d = JSON.parse(s);
+      if (!d || !profile || d.email !== profile.email) return null;
+      return d;
+    } catch(e) { return null; }
+  },
+
+  clearDraft: function(){
+    try { localStorage.removeItem(HimClova.DRAFT_KEY); } catch(e) {}
+  },
+
+  restoreDraft: function(){
+    var d = HimClova.loadDraft();
+    if (!d) return;
+    var ti = document.getElementById('m-title');   if (ti && !ti.value && d.title)       ti.value = d.title;
+    var dt = document.getElementById('m-date');    if (dt && !dt.value && d.meetingDate) dt.value = d.meetingDate;
+    var pj = document.getElementById('m-project'); if (pj && !pj.value && d.project)     pj.value = d.project;
+    var mo = document.getElementById('m-memo');    if (mo && !mo.value && d.memo) { mo.value = d.memo; autosizeTa(mo); }
+    if (d.level) HimClova.selectedLevel = d.level;
+  },
+
+  bindDraftAutoSave: function(){
+    ['m-title','m-date','m-project','m-memo'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el && !el._hcDraftBound){
+        el._hcDraftBound = true;
+        el.addEventListener('input',  HimClova.scheduleDraftSave);
+        el.addEventListener('change', HimClova.scheduleDraftSave);
+      }
+    });
+  },
+
+  // ── Result 캐시 ──────────────────────────
+  // 변환 결과를 localStorage 에 저장. F5/탭 새로고침 후 init() 첫 호출에서 자동 복원.
+  // segments/speakers 배열은 .length 만 사용되므로 array-like {length:N} 으로 슬림화.
+  saveResult: function(data, elapsedSec){
+    if (!data) return;
+    try {
+      var slim = {};
+      for (var k in data) {
+        if (!Object.prototype.hasOwnProperty.call(data, k)) continue;
+        if (k === 'segments' || k === 'speakers'){
+          slim[k] = (data[k] && typeof data[k].length === 'number')
+            ? { length: data[k].length }
+            : data[k];
+        } else {
+          slim[k] = data[k];
+        }
+      }
+      var meta = {
+        title:       (document.getElementById('m-title')   || {}).value || '',
+        meetingDate: (document.getElementById('m-date')    || {}).value || '',
+        project:     (document.getElementById('m-project') || {}).value || '',
+        memo:        (document.getElementById('m-memo')    || {}).value || ''
+      };
+      localStorage.setItem(HimClova.RESULT_KEY, JSON.stringify({
+        data:            slim,
+        elapsedSec:      elapsedSec || 0,
+        levelAtComplete: HimClova.selectedLevel,
+        meta:            meta,
+        savedAt:         Date.now()
+      }));
+    } catch(e) {}
+  },
+
+  loadResult: function(){
+    try {
+      var s = localStorage.getItem(HimClova.RESULT_KEY);
+      if (!s) return null;
+      var p = JSON.parse(s);
+      if (!p || !p.data) return null;
+      return p;
+    } catch(e) { return null; }
+  },
+
+  clearResult: function(){
+    try { localStorage.removeItem(HimClova.RESULT_KEY); } catch(e) {}
+  },
+
+  // F5 후 결과 복원 — 결과가 있으면 result page 로 자동 이동 + showResult 재실행. 성공 시 true.
+  restoreResult: function(){
+    var p = HimClova.loadResult();
+    if (!p || !p.data) return false;
+    if (p.levelAtComplete){
+      HimClova.selectedLevel = p.levelAtComplete;
+      document.querySelectorAll('.mode-himclova .lv-btn').forEach(function(b){
+        b.classList.toggle('on', b.getAttribute('data-lv') === HimClova.selectedLevel);
+      });
+    }
+    var pb = document.getElementById('progress-box');
+    if (pb) pb.classList.add('done');
+    HimClova.showStatus('done');
+    HimClova.showPage('result');
+    HimClova.showResult(p.data, p.elapsedSec || 0);
+    HimClova._setSendBtnMode('done');
+    return true;
+  }
+};
 </script>
 </body>
 </html>

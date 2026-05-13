@@ -1339,6 +1339,17 @@ body.search-mode-active{
   font-size:22px;font-weight:500;color:var(--ink);margin-bottom:10px;
 }
 .done-desc{font-size:14px;color:var(--ink3);line-height:1.8;margin-bottom:28px}
+/* 발송 시각이 일일 브리핑 윈도우 (08:50~16:00) 안에 들어왔을 때 경고 박스.
+   오늘 brfing 이미 생성됨 → 본 보고는 오늘 브리핑 본문에 포함되지 않음을 안내. */
+.done-warn{
+  margin:0 auto 24px;max-width:520px;
+  padding:14px 16px;
+  background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;
+  text-align:left;
+}
+.done-warn-title{font-weight:700;margin-bottom:8px;color:#c65100;font-size:14px}
+.done-warn-desc{font-size:13px;line-height:1.7;color:#5d4037}
+.done-warn-desc b{color:#c65100;font-weight:700}
 .done-new{
   width:100%;height:50px;border-radius:25px;
   border:1.5px solid var(--line);background:transparent;
@@ -5259,11 +5270,33 @@ function performSend(){
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'발송 실패');
     clearDraft();
+    // 발송 시각이 일일 브리핑 윈도우(08:50~16:00) 안이면 누락 경고.
+    // - 오늘 brfing 은 08:50 트리거 1회만 실행되고 alreadyDone 시트로 재실행 차단
+    // - 다음날 brfing 의 cutoff = 어제 16:00 이라 08:50~16:00 발송분은 today 윈도우에도 안 잡힘
+    // → 자동 brfing 본문에 영영 안 들어가고 history(28일 이력 참고용)로만 처리됨
+    var sentNow = new Date();
+    var sh = sentNow.getHours(), sm = sentNow.getMinutes();
+    var afterBrf  = (sh > 8) || (sh === 8 && sm >= 50);
+    var beforeCut = (sh < 16);
+    var isLate = afterBrf && beforeCut;
+    var hhmm = (sh<10?'0':'')+sh+':'+(sm<10?'0':'')+sm;
+    var warnHtml = '';
+    if (isLate) {
+      warnHtml =
+        '<div class="done-warn">'+
+          '<div class="done-warn-title">⚠️ 오늘 브리핑에는 반영되지 않았습니다</div>'+
+          '<div class="done-warn-desc">'+
+            '현재 발송 시각 <b>'+hhmm+'</b> 은 일일 브리핑 자동 생성 시각(<b>오전 8:50</b>) 이후입니다.<br>'+
+            '오늘자 브리핑은 이미 생성·발송되어 본 보고는 <b>오늘 브리핑 본문에 포함되지 않습니다</b>.'+
+          '</div>'+
+        '</div>';
+    }
     showReportDoneScreen(
       '<div class="done-wrap">'+
         '<div class="done-brush">✅</div>'+
         '<div class="done-title">발송 완료</div>'+
         '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>thehim180724@gmail.com으로 전송됐습니다.</div>'+
+        warnHtml+
         '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
         '<button class="done-new go-himclova" onclick="goToHimClovaFromReport()">🎙️ 힘클로바로 가기</button>'+
       '</div>'

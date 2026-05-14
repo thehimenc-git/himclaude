@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>[TEST] 더힘 일일보고</title>
+<title>더힘 일일보고</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
@@ -348,6 +348,137 @@ html::-webkit-scrollbar-button,
   content:'';flex:1;height:1px;
   background:linear-gradient(90deg,var(--line),transparent);
 }
+.sec-title.with-mic::after{display:none}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent);min-width:12px}
+
+/* 일일보고 음성 입력 — sec-title 우측 미니 마이크 버튼 (CLOVA STT) */
+.voice-mini-btn{
+  flex-shrink:0;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:999px;
+  background:rgba(255,255,255,.7);
+  border:1px solid var(--line);
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:12px;font-weight:600;line-height:1;
+  color:var(--ink2);cursor:pointer;
+  letter-spacing:0;
+  transition:all .2s;
+}
+.voice-mini-btn:hover{background:#fff;border-color:var(--brush-rose);color:var(--brush-rose)}
+.voice-mini-btn.rec{
+  border-color:var(--brush-rose);
+  background:rgba(196,144,122,.12);
+  color:var(--brush-rose);
+  animation:breathe 2s ease-in-out infinite;
+}
+.voice-mini-btn.busy{pointer-events:none;opacity:.85;color:var(--ink3);border-color:var(--line);background:rgba(255,255,255,.5)}
+.voice-mini-btn.open{border-color:var(--brush-violet);color:var(--brush-violet);background:rgba(155,138,181,.10)}
+.voice-mini-btn .vmb-icon{font-size:14px}
+.voice-mini-btn .vmb-elapsed{font-variant-numeric:tabular-nums;font-weight:600}
+
+/* 녹음 컨트롤 패널 — 상태 머신 (armed / recording / recorded / converting) */
+.voice-panel{
+  margin:6px 20px 0;
+  padding:14px 14px 12px;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 4px 14px rgba(0,0,0,.04);
+}
+.voice-panel[hidden]{display:none}
+.voice-panel .vp-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:10px;
+}
+.voice-panel .vp-title{
+  font-family:'Noto Serif KR',serif;
+  font-size:12px;color:var(--ink3);letter-spacing:.5px;
+}
+.voice-panel .vp-close{
+  width:26px;height:26px;border-radius:50%;
+  border:1px solid var(--line);background:#fff;
+  font-size:12px;color:var(--ink3);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.voice-panel .vp-close:hover{background:var(--paper);color:var(--ink2)}
+.voice-panel .vp-close:disabled{opacity:.4;cursor:not-allowed}
+.voice-panel .vp-body{display:flex;flex-direction:column;gap:8px}
+.voice-panel .vp-row{display:flex;gap:8px}
+.voice-panel .vp-btn{
+  flex:1;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 14px;border-radius:12px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-family:inherit;font-size:13px;font-weight:600;
+  color:var(--ink);cursor:pointer;
+  transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.voice-panel .vp-btn:hover{background:var(--paper)}
+.voice-panel .vp-btn:active{transform:scale(.98)}
+.voice-panel .vp-btn.vp-primary{
+  background:linear-gradient(135deg, var(--brush-violet, #8C68C8), var(--brush-blue, #6A8DB5));
+  color:#fff;border-color:transparent;
+}
+.voice-panel .vp-btn.vp-primary:hover{opacity:.92;background:linear-gradient(135deg, var(--brush-violet, #8C68C8), var(--brush-blue, #6A8DB5))}
+.voice-panel .vp-btn.vp-danger{
+  background:rgba(196,144,122,.12);
+  color:var(--brush-rose);border-color:var(--brush-rose);
+  animation:breathe 2s ease-in-out infinite;
+}
+.voice-panel .vp-btn.vp-busy{
+  background:var(--paper);color:var(--ink3);cursor:not-allowed;
+  border-color:var(--line);
+}
+.voice-panel .vp-btn .vp-elapsed{
+  font-variant-numeric:tabular-nums;
+  margin-left:4px;opacity:.85;
+}
+
+/* 마이크 권한 진단 모달 — secure context 부재 / 권한 거부 / 장치 문제 */
+.voice-perm-modal{
+  position:fixed;inset:0;z-index:9999;
+  display:none;align-items:center;justify-content:center;
+  padding:20px;
+}
+.voice-perm-modal.show{display:flex}
+.voice-perm-modal .vpm-backdrop{
+  position:absolute;inset:0;background:rgba(28,28,28,.5);
+}
+.voice-perm-modal .vpm-card{
+  position:relative;z-index:1;
+  width:100%;max-width:420px;
+  background:#fff;border-radius:18px;
+  padding:22px 22px 18px;
+  box-shadow:0 24px 60px rgba(0,0,0,.18);
+  font-family:'Noto Sans KR',sans-serif;
+  max-height:90vh;overflow:auto;
+}
+.voice-perm-modal .vpm-title{
+  font-family:'Noto Serif KR',serif;
+  font-size:16px;font-weight:600;color:var(--ink);
+  margin-bottom:12px;
+}
+.voice-perm-modal .vpm-body{
+  font-size:13px;color:var(--ink2);line-height:1.7;
+  word-break:keep-all;
+}
+.voice-perm-modal .vpm-body code{
+  background:rgba(0,0,0,.05);padding:1px 6px;border-radius:4px;font-size:12px;
+}
+.voice-perm-modal .vpm-body small{color:var(--ink3);font-size:11px}
+.voice-perm-modal .vpm-body b{color:var(--ink);font-weight:600}
+.voice-perm-modal .vpm-close{
+  margin-top:14px;width:100%;
+  padding:11px 14px;border-radius:12px;
+  background:var(--brush-rose);color:#fff;border:0;
+  font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:opacity .2s;
+}
+.voice-perm-modal .vpm-close:hover{opacity:.92}
+.voice-perm-modal .vpm-close:active{transform:scale(.98)}
 /* ───────── 모드 탭 (일일보고 ↔ 힘클로바) — 독립된 두 카드, gap 으로 명확히 분리 ───────── */
 .mode-tabs{
   display:flex;
@@ -370,6 +501,9 @@ html::-webkit-scrollbar-button,
   cursor:pointer;
   transition:background .15s, color .15s, border-color .15s;
   display:flex;align-items:center;justify-content:center;gap:6px;
+  text-align:center;             /* 좁은 화면에서 두 줄로 줄바꿈 시 가운데 정렬 */
+  word-break:keep-all;            /* 한국어 단어 단위 줄바꿈 (예: "업무\n보고") */
+  line-height:1.3;
 }
 
 /* ── 탭 정체성 정의 — 추가 탭 시 이 영역에 한 줄만 추가하면 됨 ── */
@@ -505,6 +639,7 @@ html::-webkit-scrollbar-button,
 .bottom-fixed{
   position:fixed;bottom:0;left:0;right:0;
   padding:14px 20px;
+  box-sizing:border-box;       /* 좌우 padding 이 viewport 안에 포함되도록 — 자식 width:100% 가 padding 영역까지 침범 방지 */
   /* fade 영역을 padding-top(14px) 과 정확히 일치 — paper-solid 시작점 = 버튼 맨 위 */
   background:linear-gradient(0deg,var(--paper) calc(100% - 14px),transparent);
 }
@@ -513,6 +648,7 @@ html::-webkit-scrollbar-button,
   display:flex;align-items:center;justify-content:center;gap:8px;
   width:100%;max-width:640px;margin:0 auto;
   padding:16px 20px;
+  box-sizing:border-box;       /* width:100% + padding 이 부모 content 영역 안에 들어가도록 — 모바일 가로 튀어나감 방지 */
   border:none;border-radius:14px;
   background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));
   color:#fff;font-size:15px;font-weight:600;
@@ -544,6 +680,193 @@ html::-webkit-scrollbar-button,
 .report-page-edit{background:
   radial-gradient(ellipse at 20% 80%, rgba(143,175,138,.08) 0%, transparent 50%),
   transparent;}
+
+/* ── disambiguation 챗 UI (2026-05-07, 2026-05-08 박스 적용) ── */
+.report-chat{
+  display:flex; flex-direction:column;
+  height:calc(100vh - 200px);
+  max-height:calc(100vh - 200px);
+  margin:12px 20px;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+}
+/* EDIT sub-page — 인사이트(mode-search) 와 동일 패턴.
+   .report-page-edit 자체를 fixed viewport 로 두면 chat input 이 항상
+   발송 버튼 바로 위에 sticky-stack. top·bottom 은 JS(Report.adjustEditLayout)
+   가 .p1-header bottom + .bottom-fixed.bottom-report height 측정해 동적 설정.
+   2026-05-11 신설 */
+#p1[data-mode="report"] .report-page-edit{
+  position:fixed;
+  top:130px;            /* JS fallback */
+  left:0; right:0;
+  bottom:94px;          /* JS fallback (bottom-fixed h + 간격 8px) */
+  box-sizing:border-box;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+/* fixed flex 컨테이너 안에서 height calc 폐기, flex 채움. input wrap 자동 하단. */
+#p1[data-mode="report"] .report-page-edit .report-chat{
+  flex:1 1 auto; min-height:0;
+  height:auto; max-height:none;
+  margin:12px 20px 0;
+}
+/* 발송 완료 화면 — 동일 컨테이너 안에서 가운데/스크롤 */
+#p1[data-mode="report"] .report-page-edit #report-done-screen{
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto;
+  padding:0 20px;
+}
+/* EDIT 진입 시 body 스크롤 차단 — mode-search 와 동일 이유 (페이지 휠 헛도는 것 방지) */
+body.report-edit-active{ overflow:hidden; }
+.report-chat-messages{
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto;
+  padding:14px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.report-chat-msg{
+  max-width:85%;
+  padding:12px 16px;
+  border-radius:14px;
+  font-size:14px; line-height:1.6;
+  word-break:break-word;
+  white-space:pre-wrap; /* 번호 list 줄바꿈 보존 */
+}
+.report-chat-msg.assistant{
+  align-self:flex-start;
+  background:rgba(255,255,255,.96);
+  border:1px solid var(--line);
+  color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.report-chat-msg.user{
+  align-self:flex-end;
+  background:linear-gradient(135deg, rgba(196,144,122,.18), rgba(196,144,122,.08));
+  border:1px solid rgba(196,144,122,.25);
+  color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.report-chat-msg.system{
+  align-self:center;
+  background:rgba(143,175,138,.12);
+  color:var(--ink2);
+  font-size:12px;
+  border:1px dashed rgba(143,175,138,.3);
+  padding:6px 12px;
+}
+.report-chat-msg .candidates{
+  margin-top:8px; display:flex; flex-direction:column; gap:4px;
+}
+.report-chat-msg .candidates b{font-size:12px; color:var(--ink3); font-weight:600}
+/* L2 확인 요청 항목 (Phase 6) */
+.l2-review-item{
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  margin-bottom:8px;
+  background:rgba(255,255,255,.6);
+}
+.l2-review-item:last-child{margin-bottom:0}
+.l2-review-head{
+  font-size:14px; line-height:1.5;
+  margin-bottom:4px;
+}
+.l2-review-status{
+  font-size:11px; color:var(--ink3);
+  font-weight:500;
+  background:rgba(143,175,138,.12);
+  padding:2px 6px; border-radius:6px;
+  margin-left:6px;
+}
+.l2-review-context{
+  font-size:13px; color:var(--ink2);
+  margin-bottom:8px; line-height:1.5;
+}
+.l2-review-actions{
+  display:flex; gap:6px; flex-wrap:wrap;
+}
+.l2-review-actions button{
+  background:rgba(143,175,138,.10);
+  border:1px solid rgba(143,175,138,.30);
+  color:var(--ink);
+  padding:6px 12px; border-radius:10px;
+  font-size:12px; cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none; appearance:none;
+}
+.l2-review-actions button:hover{
+  background:rgba(143,175,138,.20);
+  border-color:rgba(143,175,138,.50);
+}
+.l2-review-actions button:active{transform:scale(.97); opacity:.9}
+.l2-review-done{
+  font-size:13px; color:var(--ink3);
+  text-align:center;
+  padding:8px;
+  background:rgba(143,175,138,.06);
+  border-radius:6px;
+}
+
+/* 후보 버튼 list (Claude quick_replies) — 세로 정렬 */
+.report-chat-quick-replies{
+  align-self:flex-start;
+  display:flex; flex-direction:column; gap:6px;
+  max-width:90%;
+  margin-top:-2px;
+}
+.report-chat-quick-btn{
+  background:rgba(143,175,138,.10);
+  border:1px solid rgba(143,175,138,.30);
+  color:var(--ink);
+  padding:9px 14px; border-radius:12px;
+  font-size:13px; cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  text-align:left; line-height:1.4;
+  width:100%; box-sizing:border-box;
+  -webkit-appearance:none; appearance:none;
+}
+.report-chat-quick-btn:hover{
+  background:rgba(143,175,138,.20);
+  border-color:rgba(143,175,138,.50);
+}
+.report-chat-quick-btn:active{transform:scale(.97); opacity:.9}
+
+.report-chat-input-wrap{
+  display:flex; gap:8px; align-items:flex-end;
+  padding:10px 12px;
+  border-top:1px solid rgba(143,175,138,.20);
+  background:rgba(255,255,255,.7);
+}
+.report-chat-input-wrap textarea{
+  flex:1 1 auto; min-height:38px; max-height:140px; resize:none;
+  padding:9px 12px; border-radius:18px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.96);
+  font-size:14px; line-height:1.5;
+  font-family:'Noto Sans KR',sans-serif;
+  color:var(--ink);
+  scrollbar-width:none; -ms-overflow-style:none; /* 스크롤바 숨김 */
+}
+.report-chat-input-wrap textarea::-webkit-scrollbar{display:none} /* 스크롤바 숨김 (webkit) */
+.report-chat-input-wrap textarea:focus{outline:none; border-color:var(--brush-gold)}
+.report-chat-send-btn{
+  flex-shrink:0; min-height:38px; padding:0 18px;
+  border-radius:18px; border:none;
+  background:linear-gradient(135deg, var(--ink), var(--ink2));
+  color:var(--paper);
+  font-size:13px; font-weight:600;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.report-chat-send-btn:active{transform:scale(.97); opacity:.9}
+.report-chat-send-btn:disabled{opacity:.5; cursor:not-allowed}
+.report-chat-typing{
+  align-self:flex-start;
+  font-size:13px; color:var(--ink3);
+  padding:6px 0 0 4px;
+}
 
 .p2-topbar{
   display:flex;align-items:center;gap:10px;
@@ -1016,6 +1339,17 @@ body.search-mode-active{
   font-size:22px;font-weight:500;color:var(--ink);margin-bottom:10px;
 }
 .done-desc{font-size:14px;color:var(--ink3);line-height:1.8;margin-bottom:28px}
+/* 발송 시각이 일일 브리핑 윈도우 (08:50~16:00) 안에 들어왔을 때 경고 박스.
+   오늘 brfing 이미 생성됨 + 다음날 brfing 도 history 참고용으로만 사용됨을 안내. */
+.done-warn{
+  margin:0 auto 24px;max-width:520px;
+  padding:14px 16px;
+  background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;
+  text-align:left;
+}
+.done-warn-title{font-weight:700;margin-bottom:8px;color:#c65100;font-size:14px}
+.done-warn-desc{font-size:13px;line-height:1.7;color:#5d4037}
+.done-warn-desc b{color:#c65100;font-weight:700}
 .done-new{
   width:100%;height:50px;border-radius:25px;
   border:1.5px solid var(--line);background:transparent;
@@ -1090,6 +1424,24 @@ body.search-mode-active{
   color:var(--ink3);
   font-weight:500;min-height:40px;
   border-color:transparent;
+}
+/* draft 충돌 다이얼로그 row */
+.conflict-row{
+  text-align:left;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  margin-bottom:8px;
+  background:rgba(255,255,255,.6);
+}
+.conflict-row:last-child{margin-bottom:14px}
+.conflict-head{
+  font-size:12px;color:var(--ink3);font-weight:600;
+  margin-bottom:4px;
+}
+.conflict-body{
+  font-size:13px;color:var(--ink);line-height:1.5;
+  word-break:break-all;
 }
 
 /* 이어서 작성 배너 */
@@ -1383,12 +1735,14 @@ body.search-mode-active{
   border-radius:10px;
   font-size:13px;color:var(--ink);
   text-align:left;
+  min-width:0;max-width:100%;box-sizing:border-box;   /* 모바일 좁은 화면에서 콘텐츠 폭이 박스 밖으로 튀지 않게 */
 }
 .mode-himclova .file-chip-icon{font-size:18px;flex-shrink:0}
-.mode-himclova .file-chip-info{flex:1;min-width:0}
+.mode-himclova .file-chip-info{flex:1 1 0;min-width:0;width:0}   /* width:0 + flex:1 — flex item ellipsis 표준 패턴 (iOS Safari 대응) */
 .mode-himclova .file-chip-name{
   font-weight:500;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;
 }
 .mode-himclova .file-chip-meta{font-size:11px;color:var(--ink3);margin-top:2px}
 .mode-himclova .file-chip-del{
@@ -1735,9 +2089,9 @@ body.search-mode-active{
 
     <!-- 모드 탭 (일일보고 / 힘클로드 / 힘클로바) -->
     <div class="mode-tabs">
-      <button class="mode-tab tab-report on" data-mode="report"  onclick="onTabClick('report')">📝 일일보고</button>
-      <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 힘클로드</button>
-      <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ 힘클로바</button>
+      <button class="mode-tab tab-report on" data-mode="report"  onclick="onTabClick('report')">📝 업무 보고</button>
+      <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 업무 인사이트</button>
+      <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ AI 회의록</button>
     </div>
   </div>
 
@@ -1792,6 +2146,17 @@ body.search-mode-active{
       </div>
     </div>
 
+    <!-- L2 owner 확인 요청 (Phase 6, 2026-05-08) — L2 grade 만 렌더 -->
+    <div class="ctx-card" id="ctx-l2-review" style="display:none">
+      <div class="ctx-head">
+        🔔 <span>어제 보고 확인 요청</span>
+        <span class="rep-toggle" id="ctx-l2-count"></span>
+      </div>
+      <div class="ctx-body" id="ctx-l2-review-body">
+        <div class="ctx-loading-inline">🌿 불러오는 중...</div>
+      </div>
+    </div>
+
     <!-- 받은 지시사항 -->
     <div class="ctx-card" id="ctx-directive">
       <div class="ctx-head">📌 <span>미완료 지시사항</span></div>
@@ -1800,7 +2165,23 @@ body.search-mode-active{
 
   </div>
 
-  <div class="sec-title" style="margin-top:6px">오늘 업무</div>
+  <div class="sec-title with-mic" style="margin-top:6px">
+    <span>오늘 업무</span>
+    <span class="sec-line"></span>
+    <button type="button" class="voice-mini-btn" id="voice-mini-btn" onclick="toggleVoicePanel()" title="음성으로 작성 (CLOVA 변환)">
+      <span class="vmb-icon" id="vmb-icon">🎤</span>
+      <span class="vmb-label" id="vmb-label">음성으로 작성</span>
+    </button>
+  </div>
+
+  <!-- 음성 입력 패널 — 상태 머신 (idle/armed/recording/recorded/converting), JS 가 동적 렌더 -->
+  <div class="voice-panel" id="voice-panel" hidden>
+    <div class="vp-head">
+      <span class="vp-title" id="vp-title">🎤 음성 입력</span>
+      <button type="button" class="vp-close" id="vp-close" aria-label="닫기">✕</button>
+    </div>
+    <div class="vp-body" id="vp-body"></div>
+  </div>
 
   <!-- 오늘 이미 작성한 원문 (발송분 있을 때만 표시, 기본 접힘) -->
   <div class="ctx-card collapsed" id="ctx-td-raw" style="display:none;margin:4px 20px 8px">
@@ -1818,13 +2199,6 @@ body.search-mode-active{
     <div class="input-hint">💡 프로젝트명, 만난 사람, 요청사항 등 생각나는 대로 — 힘클로드가 정리합니다</div>
   </div>
 
-  <div class="voice-wrap" style="display:none">
-    <div class="voice-btn" id="voice-btn" onclick="toggleVoice()">
-      <span class="voice-icon" id="voice-icon">🎤</span>
-      <span id="voice-label">음성으로 말하기</span>
-    </div>
-  </div>
-
   <div class="upload-wrap" style="display:none">
     <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-inp').click()">
       <div class="upload-icon">📎</div>
@@ -1839,15 +2213,35 @@ body.search-mode-active{
 
   </div><!-- /.report-page-input -->
 
-  <!-- ◆ EDIT sub-page (편집·발송 — 기존 #p2 콘텐츠 이동) ◆ -->
+  <!-- ◆ EDIT sub-page (편집·발송 — 챗 형식 disambiguation, 2026-05-07 신설) ◆ -->
   <div class="report-page report-page-edit" id="report-page-edit" style="display:none">
 
-    <div class="p2-main">
-      <div class="p2-col p2-col-edit" id="p2-col-edit">
-        <div id="p2-body">
-          <!-- 동적 생성 -->
-        </div>
+    <!-- 챗 UI — 기존 p2 카드 폐기 후 대체 -->
+    <div class="report-chat" id="report-chat">
+      <div class="report-chat-messages" id="report-chat-messages">
+        <!-- 메시지 동적 추가 -->
       </div>
+      <div class="report-chat-input-wrap">
+        <textarea id="report-chat-input" rows="1"
+          placeholder="자유롭게 답변하거나 수정 요청해주세요"
+          onkeydown="ReportChat.onKeyDown(event)"
+          oninput="autosizeTa(this)"></textarea>
+        <button class="report-chat-send-btn" id="report-chat-send-btn" onclick="ReportChat.sendFromInput()">보내기</button>
+      </div>
+    </div>
+
+    <!-- (옛 p2 카드 동적 생성 영역은 폐기. 함수 코드는 일단 보존 — 직접 호출 안 됨) -->
+    <div class="p2-main" id="p2-legacy-cards" style="display:none">
+      <div class="p2-col p2-col-edit" id="p2-col-edit">
+        <div id="p2-body"></div>
+      </div>
+    </div>
+
+    <!-- 발송 진행·완료·테스트 화면 (회의록 hc-saved-screen 패턴 미러).
+         performSend 4개 분기(발송 중/완료/실패/test) 가 이쪽으로 렌더하고
+         report-chat 은 숨긴다. 오류는 챗 복귀 + toast 로 처리. -->
+    <div id="report-done-screen" style="display:none">
+      <div id="report-done-body"></div>
     </div>
 
   </div><!-- /.report-page-edit -->
@@ -2062,33 +2456,83 @@ body.search-mode-active{
   </div>
 </div>
 
+<!-- draft 충돌 다이얼로그 (다른 기기에서 더 최신 draft 발견 시) -->
+<div class="dlg-back" id="draft-conflict-dlg">
+  <div class="dlg-card">
+    <div class="dlg-title">다른 기기에서 작성 중인 내용이 있어요</div>
+    <div class="dlg-desc" id="draft-conflict-rows">
+      <div class="conflict-row" id="conflict-server-row">
+        <div class="conflict-head" id="conflict-server-head"></div>
+        <div class="conflict-body" id="conflict-server-body"></div>
+      </div>
+      <div class="conflict-row" id="conflict-local-row">
+        <div class="conflict-head" id="conflict-local-head"></div>
+        <div class="conflict-body" id="conflict-local-body"></div>
+      </div>
+    </div>
+    <div class="dlg-btns">
+      <button class="dlg-btn dlg-btn-primary" onclick="useServerDraft()">다른 기기 내용으로 이어쓰기</button>
+      <button class="dlg-btn dlg-btn-secondary" onclick="useLocalDraft()">이 기기 내용 그대로</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
 // ── 직원 데이터 (Apps Script에서 동적 로드) ──────────────────────
 var STAFF=[];
 
 // ── 설정 ──────────────────────
-var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwdHNDJdGOgDqRVXOECr0yxoMGoFJIQ7BCx9UtGje_5Gnsmg2pQ9SU7eI5SjlfS628d/exec'; // [TEST]
+var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzsj_IQ-bzKCY2XKf5KmSJfOe8BlD3nc5SDvVWzlI68SQcnI1qNfQUfb-WMq_6HHq5m/exec'; // [TEST] — 2026-05-12 갱신 (옛 AKfycbwdHNDJ... v32 deployment 가 archive 되어 404 → 활성 deployment URL 로 교체)
 var APPS_SCRIPT_TOKEN='thehim2026_test'; // [TEST]
 
-// 힘클로바 STT 서버 URL — 로컬 개발: localhost:8080, Cloud Run 배포 후: https://himclova-xxx.run.app
-// localStorage 'him_v4_test_himclova_url' 로 임시 오버라이드 가능 (개발자 콘솔에서 설정)
+// 힘클로바 STT 서버 URL — localhost/127.0.0.1 호스트만 로컬 서버, 그 외 (file:// 포함) Cloud Run.
+// 로컬 개발 시 강제로 localhost:8080 쓰고 싶으면 콘솔에서:
+//   localStorage.setItem('himclaude_v2_test_himclova_url','http://localhost:8080')
 var HIMCLOVA_URL = (function(){
-  var override = (function(){ try { return localStorage.getItem('him_v4_test_himclova_url'); } catch(e){ return null; } })();
+  var override = (function(){ try { return localStorage.getItem('himclaude_v2_test_himclova_url'); } catch(e){ return null; } })();
   if (override) return override.replace(/\/$/, '');
-  if (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1)/.test(location.hostname)) {
+  if (/^(localhost|127\.0\.0\.1)/.test(location.hostname)) {
     return 'http://localhost:8080';
   }
-  return ''; // 배포 후 여기에 Cloud Run URL 채워넣기
+  return 'https://himclova-78944797082.asia-northeast3.run.app';
 })();
 var UPLOAD_TIMEOUT_MS = 25 * 60 * 1000;  // 25분 (1시간 회의 처리 여유)
 
 // ★ 재인증 강제할 때만 이 값을 올리세요. 버그 수정·UI 개선 배포에는 그대로 두세요.
 //   마지막 bump: 2026-04-24 (초기 도입)
 var AUTH_RESET_GEN = 1;
-var SESSION_KEY    ='him_v4_test_session'; // [TEST]
-var AUTH_GEN_KEY   ='him_v4_test_authGen'; // [TEST]
-var MODE_KEY       ='him_v4_test_active_mode'; // [TEST] 활성 모드 (report|himclova) — 재인증 시에도 보존
+
+// ── 옛 키 → 새 키 마이그레이션 (1회 실행, 멱등) ─────────────────
+// 2026-05-07: him_v4_test_* → himclaude_v2_test_*
+// 옛 키 있고 새 키 없으면 복사 후 옛 키 삭제. 이미 마이그된 사용자엔 무동작.
+(function migrateLegacyKeys(){
+  try {
+    var pairs = [
+      ['him_v4_test',                 'himclaude_v2_test'],
+      ['him_v4_test_session',         'himclaude_v2_test_session'],
+      ['him_v4_test_authGen',         'himclaude_v2_test_authGen'],
+      ['him_v4_test_active_mode',     'himclaude_v2_test_active_mode'],
+      ['him_v4_test_draft',           'himclaude_v2_test_draft'],
+      ['him_v4_test_chat_conv_id',    'himclaude_v2_test_chat_conv_id'],
+      ['him_v4_test_himclova_draft',  'himclaude_v2_test_himclova_draft'],
+      ['him_v4_test_himclova_result', 'himclaude_v2_test_himclova_result'],
+      ['him_v4_test_himclova_url',    'himclaude_v2_test_himclova_url']
+    ];
+    pairs.forEach(function(p){
+      var oldK = p[0], newK = p[1];
+      if (localStorage.getItem(newK) !== null) return;
+      var v = localStorage.getItem(oldK);
+      if (v === null) return;
+      localStorage.setItem(newK, v);
+      localStorage.removeItem(oldK);
+    });
+  } catch(e) { /* localStorage 비활성 환경 */ }
+})();
+
+var SESSION_KEY    ='himclaude_v2_test_session'; // [TEST]
+var AUTH_GEN_KEY   ='himclaude_v2_test_authGen'; // [TEST]
+var MODE_KEY       ='himclaude_v2_test_active_mode'; // [TEST] 활성 모드 (report|himclova) — 재인증 시에도 보존
 
 // ── 상태 ──────────────────────
 var profile=null,files=[],voiceOn=false,mediaRec=null,editMode=false;
@@ -2126,7 +2570,7 @@ function enforceAuthGen(){
   try{ saved=localStorage.getItem(AUTH_GEN_KEY); }catch(e){ saved=null; }
   if(String(saved)!==String(AUTH_RESET_GEN)){
     try{
-      localStorage.removeItem('him_v4_test');
+      localStorage.removeItem('himclaude_v2_test');
       localStorage.removeItem(SESSION_KEY);
       localStorage.setItem(AUTH_GEN_KEY, String(AUTH_RESET_GEN));
     }catch(e){}
@@ -2148,7 +2592,7 @@ function loadStaff(){
       //   profile 있고 session 없음 → p0 email 단계 pre-select
       //   둘 다 없음 → p0 staff 단계 (기본)
       var saved=null;
-      try{ var s=localStorage.getItem('him_v4_test'); if(s) saved=JSON.parse(s); }catch(e){}
+      try{ var s=localStorage.getItem('himclaude_v2_test'); if(s) saved=JSON.parse(s); }catch(e){}
       if(saved){
         var found=STAFF.find(function(st){return st.email===saved.email});
         if(found){
@@ -2332,7 +2776,7 @@ function p0AutoVerifyOtp(){
     .then(function(d){
       if(d.ok){
         try{
-          localStorage.setItem('him_v4_test',JSON.stringify(profile));
+          localStorage.setItem('himclaude_v2_test',JSON.stringify(profile));
           localStorage.setItem(SESSION_KEY, d.session);
           localStorage.setItem(AUTH_GEN_KEY, String(AUTH_RESET_GEN));
         }catch(e){}
@@ -2503,9 +2947,9 @@ function updateUserDateLabel(){
   var el=document.getElementById('user-date');
   if(!el) return;
   var prefix;
-  if(activeMode==='himclova')      prefix='녹취록 업로드 · ';
-  else if(activeMode==='search')  prefix='브리핑 검색 · ';
-  else                            prefix='일일보고 업로드 · ';
+  if(activeMode==='himclova')      prefix='AI 회의록 · ';
+  else if(activeMode==='search')  prefix='업무 인사이트 · ';
+  else                            prefix='업무 보고 · ';
   el.textContent=prefix+dateLabel;
 }
 
@@ -2518,6 +2962,7 @@ function initP1(){
   switchMode(savedMode);
   loadContext();
   loadYesterdayRaw();
+  loadL2PendingReviews();
   loadTodayRaw();
   bindDraftAutoSave();
   maybeShowDraftBanner();
@@ -2556,6 +3001,193 @@ function bindDraftAutoSave(){
       }
     });
   }
+}
+
+// L2 owner 확인 요청 로딩 (Phase 6, 2026-05-08 / 2026-05-12 인명 병합 확장)
+// L2 grade 만 렌더. PJ 확인 + 인명 merge + 인명 distinct 카드 분기 (순서 = PJ → merge → distinct)
+function loadL2PendingReviews(){
+  var card = document.getElementById('ctx-l2-review');
+  if (!card) return;
+  var grade = profile && profile.grade ? String(profile.grade).toUpperCase() : '';
+  if (grade !== 'L2') { card.style.display = 'none'; return; }
+  card.style.display = '';
+  var body = document.getElementById('ctx-l2-review-body');
+  body.innerHTML = '<div class="ctx-loading-inline">🌿 불러오는 중...</div>';
+
+  var fetchPj = fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      token: APPS_SCRIPT_TOKEN,
+      action: 'get_pending_confirmations',
+      email: profile.email || ''
+    })
+  }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false, items: [] }; });
+
+  var fetchPerson = fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      token: APPS_SCRIPT_TOKEN,
+      action: 'get_pending_person_reviews',
+      email: profile.email || ''
+    })
+  }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false, items: [] }; });
+
+  Promise.all([fetchPj, fetchPerson]).then(function(results){
+    var pjResp = results[0] || { ok: false, items: [] };
+    var pnResp = results[1] || { ok: false, items: [] };
+    var countEl = document.getElementById('ctx-l2-count');
+
+    if (!pjResp.ok && !pnResp.ok) {
+      body.innerHTML = '<div class="ctx-loading-inline">⚠️ ' + escapeHtml((pjResp.message || pnResp.message) || '오류') + '</div>';
+      return;
+    }
+    var pjItems     = (pjResp.ok && Array.isArray(pjResp.items)) ? pjResp.items : [];
+    var personItems = (pnResp.ok && Array.isArray(pnResp.items)) ? pnResp.items : [];
+    // 인명 카드 정렬 — merge 먼저, distinct 나중
+    personItems.sort(function(a, b){ return (a.kind === 'merge' ? 0 : 1) - (b.kind === 'merge' ? 0 : 1); });
+
+    var totalCount = pjItems.length + personItems.length;
+    if (totalCount === 0) {
+      body.innerHTML = '<div class="ctx-loading-inline">✅ 확인 요청 없음</div>';
+      if (countEl) countEl.textContent = '';
+      window._l2Items = [];
+      window._l2PersonItems = [];
+      return;
+    }
+    if (countEl) countEl.textContent = totalCount + '건';
+
+    var html = '';
+    // ① PJ 카드 (기존 형식)
+    pjItems.forEach(function(item, i){
+      html += '<div class="l2-review-item l2-review-pj" data-kind="pj" data-idx="' + i + '">';
+      html += '<div class="l2-review-head">';
+      html += '<strong>' + escapeHtml(item.pj_code || '신규') + '</strong> ';
+      html += escapeHtml(item.pj_name || '');
+      html += '<span class="l2-review-status">' + escapeHtml(item.confirmation_status) + '</span>';
+      html += '</div>';
+      var ctxText = (item['비고'] || '') + (item['담당자'] && item['담당자'].length ? ' (담당: ' + item['담당자'].join(', ') + ')' : '');
+      if (ctxText) html += '<div class="l2-review-context">' + escapeHtml(ctxText) + '</div>';
+      html += '<div class="l2-review-actions">';
+      html += '<button onclick="respondL2(' + i + ', \'confirm\')">✓ 맞음</button>';
+      html += '<button onclick="respondL2(' + i + ', \'different\')">다른 PJ</button>';
+      html += '<button onclick="respondL2(' + i + ', \'new\')">신규 PJ</button>';
+      html += '</div></div>';
+    });
+
+    // ② 인명 카드 (merge → distinct 순)
+    personItems.forEach(function(item, i){
+      var isMerge = item.kind === 'merge';
+      var icon = isMerge ? '👤' : '👥';
+      var heading = isMerge ? '인명 병합 제안' : '동명이인 확정 제안';
+      html += '<div class="l2-review-item l2-review-person" data-kind="person" data-idx="' + i + '">';
+      html += '<div class="l2-review-head"><strong>' + icon + ' ' + heading + '</strong> ';
+      html += '<span class="l2-review-status">' + escapeHtml(item.name_raw || '') + '</span></div>';
+
+      var details = Array.isArray(item.candidates_detail) ? item.candidates_detail : [];
+      if (details.length) {
+        var detailHtml = '<ul class="l2-person-details">';
+        details.forEach(function(d){
+          var line = (d.name || '') + ' / ' + (d.company || '회사 미상');
+          if (d.role)   line += ' / ' + d.role;
+          if (d.mobile) line += ' / ' + d.mobile;
+          detailHtml += '<li>' + escapeHtml(line) + '</li>';
+        });
+        detailHtml += '</ul>';
+        html += '<div class="l2-review-context">' + detailHtml + '</div>';
+      }
+
+      var noteText = '';
+      if (isMerge && item.merge_proposal && item.merge_proposal.transition_note) {
+        noteText = 'L3 메모: ' + item.merge_proposal.transition_note;
+      } else if (!isMerge) {
+        noteText = '전부 다른 사람으로 확정 제안';
+      }
+      if (noteText) html += '<div class="l2-review-context">' + escapeHtml(noteText) + '</div>';
+
+      html += '<div class="l2-review-actions">';
+      html += '<button onclick="respondL2Person(' + i + ', \'approve\')">✓ 승인</button>';
+      html += '<button onclick="respondL2Person(' + i + ', \'reject\')">거부</button>';
+      html += '</div></div>';
+    });
+
+    body.innerHTML = html;
+    window._l2Items = pjItems;
+    window._l2BrfingDate = pjResp.brfing_date || pnResp.brfing_date || '';
+    window._l2PersonItems = personItems;
+  });
+}
+
+function respondL2(idx, response){
+  var item = (window._l2Items || [])[idx];
+  if (!item) return;
+  var correctedCode = '';
+  if (response === 'different') {
+    correctedCode = window.prompt('정정할 PJ 코드를 입력해주세요 (예: 25-U10):', '');
+    if (!correctedCode) return;
+  }
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      token: APPS_SCRIPT_TOKEN,
+      action: 'respond_confirmation',
+      email: profile.email || '',
+      brfing_date: window._l2BrfingDate || '',
+      pj_code: item.pj_code || '',
+      pj_name: item.pj_name || '',
+      response: response,
+      corrected_pj_code: correctedCode,
+      comment: ''
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (!d.ok) { alert(d.message || '응답 실패'); return; }
+    var el = document.querySelector('.l2-review-item[data-kind="pj"][data-idx="' + idx + '"]');
+    if (el) el.innerHTML = '<div class="l2-review-done">✓ 응답 완료</div>';
+  })
+  .catch(function(err){ alert('네트워크 오류: ' + err); });
+}
+
+// 인명 병합·동명이인 확정 응답 (2026-05-12)
+function respondL2Person(idx, response){
+  var item = (window._l2PersonItems || [])[idx];
+  if (!item) return;
+  if (response === 'reject') {
+    if (!window.confirm('이 제안을 거부하시겠어요? 시트는 변경되지 않습니다.')) return;
+  }
+  var comment = '';
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      token: APPS_SCRIPT_TOKEN,
+      action: 'respond_person_review',
+      email: profile.email || '',
+      brfing_date: window._l2BrfingDate || '',
+      kind: item.kind,
+      name_raw: item.name_raw || '',
+      response: response,
+      merge_proposal: item.merge_proposal || null,
+      distinct_proposal: item.distinct_proposal || null,
+      comment: comment
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (!d.ok) { alert(d.message || '응답 실패'); return; }
+    var el = document.querySelector('.l2-review-item[data-kind="person"][data-idx="' + idx + '"]');
+    if (el) {
+      var appliedTxt = '';
+      if (d.applied && (d.applied.merge || d.applied.distinct)) {
+        appliedTxt = ' (시트 ' + (d.applied.merge || d.applied.distinct) + ' 행 갱신)';
+      }
+      el.innerHTML = '<div class="l2-review-done">✓ 응답 완료' + appliedTxt + '</div>';
+    }
+  })
+  .catch(function(err){ alert('네트워크 오류: ' + err); });
 }
 
 function loadYesterdayRaw(){
@@ -2769,11 +3401,11 @@ function toggleTdCard(){
 }
 
 function refreshP2YesterdayIfVisible(){
-  // edit sub-page 가 현재 보이고, 구조화된 보고가 있으면 재렌더로 어제 원문 갱신
-  var edit=document.getElementById('report-page-edit');
-  if(edit && edit.style.display !== 'none' && currentStructured){
-    renderStructuredReport();
-  }
+  // 2026-05-11 — no-op 으로 변경.
+  // 챗 UX 도입(2026-05-07) 후 renderStructuredReport() 는 ReportChat.start() 만 호출하고
+  // 옛 어제 원문 카드 코드는 dead. 그런데 loadYesterdayRaw / loadTodayRaw 가 비동기 응답마다
+  // 이 함수를 호출 → ReportChat.start 중복 발동 → API 호출 누적·메시지 중복 그려짐 (요금 과청구).
+  // 어제·오늘 원문은 별도 UI 가 없으므로 갱신할 게 없다 — 함수 자체를 no-op 처리.
 }
 
 function loadContext(){
@@ -2881,7 +3513,7 @@ function renderContextCards(data){
 function resetProfile(){
   if(!confirm('다른 직원으로 변경할까요? 재인증이 필요합니다.'))return;
   try{
-    localStorage.removeItem('him_v4_test');
+    localStorage.removeItem('himclaude_v2_test');
     localStorage.removeItem(SESSION_KEY);
   }catch(e){}
   clearDraft();
@@ -2914,43 +3546,477 @@ function rmFile(name){
   if(c)c.remove();
 }
 
-// ── 음성 ──────────────────────
-function toggleVoice(){voiceOn?stopV():startV()}
-function startV(){
-  if(!navigator.mediaDevices){toast('이 기기에서 지원되지 않습니다');return}
-  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
-    voiceOn=true;
-    document.getElementById('voice-btn').classList.add('rec');
-    document.getElementById('voice-icon').textContent='⏹';
-    document.getElementById('voice-label').textContent='녹음 중 — 누르면 완료';
-    var chunks=[];
-    mediaRec=new MediaRecorder(stream);
-    mediaRec.ondataavailable=function(e){chunks.push(e.data)};
-    mediaRec.onstop=function(){
-      var blob=new Blob(chunks,{type:'audio/webm'});
-      var fname='음성_'+p2(now.getHours())+p2(now.getMinutes())+'.webm';
-      var f=new File([blob],fname);
-      files.push(f);
-      var chips=document.getElementById('file-chips');
-      var c=document.createElement('div');
-      c.className='file-chip';c.id='chip-'+fname;
-      c.innerHTML='<span>🎤 '+fname+'</span><button class="chip-del" onclick="rmFile(\''+fname+'\')">✕</button>';
-      chips.appendChild(c);
-      stream.getTracks().forEach(function(t){t.stop()});
-      toast('🎤 녹음 완료');
-    };
-    mediaRec.start();
-  }).catch(function(){toast('마이크 권한을 허용해주세요')});
-}
-function stopV(){
-  voiceOn=false;
-  document.getElementById('voice-btn').classList.remove('rec');
-  document.getElementById('voice-icon').textContent='🎤';
-  document.getElementById('voice-label').textContent='음성으로 말하기';
-  if(mediaRec&&mediaRec.state!=='inactive')mediaRec.stop();
+// ── 일일보고 음성 입력 — 상태 머신 (CLOVA STT) ──────────────────────
+// "오늘 업무" 헤더 우측 🎤 → 패널 펼침 (권한 확보 + armed)
+//   armed:      [● 녹음 시작]
+//   recording:  [⏹ 정지 0:23]
+//   recorded:   [▶ 재생][↻ 다시] / [✓ 텍스트로 변환]
+//   closing:    [✓ 변환 후 닫기][🗑 폐기하고 닫기] / [취소]   ← recorded 에서 ✕ 누를 때 진입
+//   converting: [⏳ 변환 중...]   (✕ 비활성)
+// 변환 후 textarea append + armed 자동 복귀 (패널 유지) — 추가 녹음 가능
+// Claude 후처리는 skip — 분석 단계에서 sonnet 이 정리하므로 STT 만으로 충분
+var Voice = {
+  state:'idle', stream:null, rec:null, mimeType:'', chunks:[],
+  blob:null, blobUrl:null, audio:null, audioPlaying:false,
+  startTs:0, durationMs:0, timerId:null, abortCtrl:null,
+  closingPending:false   // recording 중 ✕ 클릭 시 onstop 으로 closing 진입
+};
+
+function _vmb(){return document.getElementById('voice-mini-btn');}
+function _vmbIcon(){return document.getElementById('vmb-icon');}
+function _vmbLabel(){return document.getElementById('vmb-label');}
+function _voicePanel(){return document.getElementById('voice-panel');}
+function _voiceBody(){return document.getElementById('vp-body');}
+function _voiceCloseBtn(){return document.getElementById('vp-close');}
+function _voiceTitleEl(){return document.getElementById('vp-title');}
+
+function _formatVoiceElapsed(ms){
+  var s=Math.floor(ms/1000), m=Math.floor(s/60), ss=s%60;
+  return m+':'+(ss<10?'0':'')+ss;
 }
 
-// ── 분석 → P2 ──────────────────────
+// 권한 진단 — secure context 부재·권한 거부·장치 문제 등 환경별로 가이드 분기
+function _voicePermDiagnose(err){
+  var ua=navigator.userAgent || '';
+  var isiOS=/iPhone|iPad|iPod/i.test(ua);
+  var isAndroid=/Android/i.test(ua);
+  var isEdge=/Edg\//i.test(ua);
+  var isFirefox=/Firefox|FxiOS/i.test(ua);
+  var isSafari=/Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/i.test(ua);
+
+  // 1) 보안 컨텍스트 부재 — file:// 또는 http:// (모바일에서 가장 흔한 막힘)
+  if (!window.isSecureContext || location.protocol==='file:'){
+    var httpsUrl='https://himclova-78944797082.asia-northeast3.run.app/test/test.html';
+    return [
+      '<b>📢 HTTPS 환경이 필요합니다</b>','',
+      '현재 페이지를 <code>'+location.protocol+'</code> 로 열고 계셔서 모바일 브라우저가 마이크 사용을 거부합니다.','',
+      '<b>해결</b> — 아래 URL 로 다시 접속해 주세요',
+      '<small style="word-break:break-all;display:inline-block;margin-top:4px">'+httpsUrl+'</small>'
+    ].join('<br>');
+  }
+
+  // 2) 권한 거부
+  var name = err ? (err.name || '') : '';
+  var msg  = err ? String(err.message || '') : '';
+  if (name==='NotAllowedError' || name==='SecurityError' || /permission|denied/i.test(msg)){
+    var lines=['<b>🔒 마이크 권한이 차단되어 있어요</b>',''];
+    if (isiOS){
+      lines.push('<b>iPhone / iPad Safari</b>');
+      lines.push('1. 주소창 좌측의 <b>aA</b> 아이콘 탭');
+      lines.push('2. <b>웹사이트 설정</b> → <b>마이크</b> → <b>허용</b>');
+      lines.push('3. 페이지 새로고침 후 다시 시도');
+      lines.push('');
+      lines.push('<small>또는 <b>설정 앱 → Safari → 카메라 및 마이크</b></small>');
+    } else if (isAndroid){
+      lines.push('<b>Android Chrome</b>');
+      lines.push('1. 주소창 좌측 🔒 (또는 ⓘ) 아이콘 탭');
+      lines.push('2. <b>권한</b> → <b>마이크</b> → <b>허용</b>');
+      lines.push('3. 페이지 새로고침 후 다시 시도');
+      lines.push('');
+      lines.push('<small>또는 <b>설정 → 앱 → Chrome → 권한 → 마이크</b></small>');
+    } else if (isSafari){
+      lines.push('<b>Mac Safari</b>');
+      lines.push('1. 메뉴바 <b>Safari → 환경설정 (⌘,)</b>');
+      lines.push('2. <b>웹사이트</b> 탭 → 좌측 <b>마이크</b>');
+      lines.push('3. 현재 사이트를 <b>허용</b> 으로 변경');
+      lines.push('4. 페이지 새로고침');
+    } else if (isFirefox){
+      lines.push('<b>Firefox</b>');
+      lines.push('1. 주소창 좌측 🛡 또는 🎤 아이콘 클릭');
+      lines.push('2. 차단된 권한 표시 → <b>차단 해제</b>');
+      lines.push('3. 페이지 새로고침 후 다시 시도');
+    } else {
+      lines.push('<b>PC Chrome / Edge</b>');
+      lines.push('1. 주소창 좌측 🔒 자물쇠 아이콘 클릭');
+      lines.push('2. <b>마이크</b> 항목을 <b>허용</b> 으로 변경');
+      lines.push('3. 페이지 새로고침 후 다시 시도');
+    }
+    return lines.join('<br>');
+  }
+
+  // 3) 장치 없음
+  if (name==='NotFoundError' || name==='OverconstrainedError'){
+    return '<b>🎙️ 마이크 장치를 찾을 수 없어요</b><br><br>외장 마이크가 있다면 다시 꽂아보세요. 노트북 내장 마이크가 비활성화돼 있는지 확인해 주세요.';
+  }
+  // 4) 다른 앱 점유
+  if (name==='NotReadableError' || name==='AbortError'){
+    return '<b>🎙️ 마이크가 다른 앱에서 사용 중이에요</b><br><br>Zoom·Teams·Discord·통화 등 다른 앱을 종료하고 다시 시도해 주세요.';
+  }
+  // 5) MediaRecorder 미지원
+  if (typeof MediaRecorder==='undefined'){
+    return '<b>이 브라우저는 마이크 녹음을 지원하지 않습니다</b><br><br>최신 Chrome·Safari·Firefox 또는 Edge 에서 시도해 주세요.';
+  }
+  return '<b>마이크 사용 중 오류가 발생했어요</b><br><br><small>'+(msg || name || '알 수 없는 오류')+'</small>';
+}
+
+function _showVoicePermModal(html){
+  var m=document.getElementById('voice-perm-modal');
+  if(!m){
+    m=document.createElement('div');
+    m.id='voice-perm-modal';
+    m.className='voice-perm-modal';
+    m.innerHTML='<div class="vpm-backdrop"></div>'+
+      '<div class="vpm-card" role="dialog" aria-modal="true">'+
+        '<div class="vpm-title">🎤 마이크 권한 안내</div>'+
+        '<div class="vpm-body" id="vpm-body"></div>'+
+        '<button type="button" class="vpm-close" id="vpm-close-btn">확인</button>'+
+      '</div>';
+    document.body.appendChild(m);
+    m.querySelector('.vpm-backdrop').addEventListener('click',_closeVoicePermModal);
+    m.querySelector('#vpm-close-btn').addEventListener('click',_closeVoicePermModal);
+  }
+  document.getElementById('vpm-body').innerHTML=html;
+  m.classList.add('show');
+}
+function _closeVoicePermModal(){
+  var m=document.getElementById('voice-perm-modal');
+  if(m) m.classList.remove('show');
+}
+
+// ── 패널 토글 (마이크 버튼 진입점) ──
+function toggleVoicePanel(){
+  if (Voice.state==='idle') openVoicePanel();
+  else requestCloseVoicePanel();
+}
+
+function openVoicePanel(){
+  // secure context / mediaDevices 사전 진단
+  if (!window.isSecureContext || location.protocol==='file:'
+      || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia
+      || typeof MediaRecorder==='undefined'){
+    _showVoicePermModal(_voicePermDiagnose(null));
+    return;
+  }
+  // 권한 + stream 확보 → armed
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    Voice.stream=stream;
+    _showVoicePanel();
+    _voiceTransition('armed');
+  }).catch(function(err){
+    console.warn('[voice] getUserMedia error',err);
+    _showVoicePermModal(_voicePermDiagnose(err));
+  });
+}
+
+function _showVoicePanel(){
+  var p=_voicePanel(); if(p) p.hidden=false;
+  var btn=_vmb(); if(btn) btn.classList.add('open');
+  var lbl=_vmbLabel(); if(lbl) lbl.textContent='닫기';
+  var ic=_vmbIcon(); if(ic) ic.textContent='✕';
+  var cb=_voiceCloseBtn();
+  if (cb && !cb.dataset.bound){
+    cb.addEventListener('click',requestCloseVoicePanel);
+    cb.dataset.bound='1';
+  }
+}
+
+function _hideVoicePanel(){
+  var p=_voicePanel(); if(p) p.hidden=true;
+  var btn=_vmb(); if(btn) btn.classList.remove('open');
+  var lbl=_vmbLabel(); if(lbl) lbl.textContent='음성으로 작성';
+  var ic=_vmbIcon(); if(ic) ic.textContent='🎤';
+}
+
+// ── ✕ 닫기 요청 (상태별 분기) ──
+function requestCloseVoicePanel(){
+  if (Voice.state==='converting') return;          // 변환 중엔 닫기 비활성
+  if (Voice.state==='closing') return;              // 이미 닫기 확인 중
+  if (Voice.state==='recording'){
+    // 녹음 중 ✕ → stop → onstop 콜백에서 closing 진입
+    Voice.closingPending=true;
+    if (Voice.timerId){clearInterval(Voice.timerId);Voice.timerId=null;}
+    if (Voice.rec && Voice.rec.state!=='inactive'){
+      try{Voice.rec.stop();}catch(e){}
+    }
+    return;
+  }
+  if (Voice.state==='recorded'){
+    _voiceTransition('closing');
+    return;
+  }
+  // armed / idle → 즉시 폐기 닫기
+  _voiceFullCleanup();
+}
+
+// ── 전체 정리 (idle 복귀) ──
+function _voiceFullCleanup(){
+  if (Voice.timerId){clearInterval(Voice.timerId);Voice.timerId=null;}
+  if (Voice.audio){try{Voice.audio.pause();}catch(e){} Voice.audio=null;}
+  if (Voice.blobUrl){try{URL.revokeObjectURL(Voice.blobUrl);}catch(e){} Voice.blobUrl=null;}
+  if (Voice.rec){
+    try{ if (Voice.rec.state!=='inactive') Voice.rec.stop(); }catch(e){}
+    Voice.rec=null;
+  }
+  if (Voice.stream){
+    try{Voice.stream.getTracks().forEach(function(t){t.stop();});}catch(e){}
+    Voice.stream=null;
+  }
+  if (Voice.abortCtrl){try{Voice.abortCtrl.abort();}catch(e){} Voice.abortCtrl=null;}
+  Voice.blob=null; Voice.chunks=[]; Voice.audioPlaying=false;
+  Voice.durationMs=0; Voice.closingPending=false;
+  Voice.state='idle';
+  _hideVoicePanel();
+}
+
+// ── 상태 전환 + 본문 렌더 ──
+function _voiceTransition(next){
+  Voice.state=next;
+  _renderVoicePanel();
+}
+
+function _renderVoicePanel(){
+  var body=_voiceBody(); if(!body) return;
+  var cb=_voiceCloseBtn();
+  if (cb) cb.disabled=(Voice.state==='converting');
+  var title=_voiceTitleEl();
+
+  if (Voice.state==='armed'){
+    if (title) title.textContent='🎤 음성 입력';
+    body.innerHTML=
+      '<button type="button" class="vp-btn vp-primary" id="vp-rec-start">'+
+        '<span>●</span><span>녹음 시작</span>'+
+      '</button>';
+    document.getElementById('vp-rec-start').addEventListener('click',_voiceStartRec);
+    return;
+  }
+  if (Voice.state==='recording'){
+    if (title) title.textContent='🎤 녹음 중';
+    body.innerHTML=
+      '<button type="button" class="vp-btn vp-danger" id="vp-rec-stop">'+
+        '<span>⏹</span><span>정지</span>'+
+        '<span class="vp-elapsed" id="vp-elapsed">0:00</span>'+
+      '</button>';
+    document.getElementById('vp-rec-stop').addEventListener('click',_voiceStopRec);
+    return;
+  }
+  if (Voice.state==='recorded'){
+    if (title) title.textContent='🎤 녹음 완료 ('+_formatVoiceElapsed(Voice.durationMs)+')';
+    var playLbl = Voice.audioPlaying ? '⏸ 일시정지' : '▶ 재생';
+    body.innerHTML=
+      '<div class="vp-row">'+
+        '<button type="button" class="vp-btn" id="vp-play">'+playLbl+'</button>'+
+        '<button type="button" class="vp-btn" id="vp-rerec">↻ 다시</button>'+
+      '</div>'+
+      '<button type="button" class="vp-btn vp-primary" id="vp-convert">'+
+        '<span>✓</span><span>텍스트로 변환</span>'+
+      '</button>';
+    document.getElementById('vp-play').addEventListener('click',_voiceTogglePlay);
+    document.getElementById('vp-rerec').addEventListener('click',_voiceReRec);
+    document.getElementById('vp-convert').addEventListener('click',_voiceConvert);
+    return;
+  }
+  if (Voice.state==='closing'){
+    if (title) title.textContent='🎤 녹음한 음성이 있어요';
+    body.innerHTML=
+      '<div class="vp-row">'+
+        '<button type="button" class="vp-btn vp-primary" id="vp-close-conv">'+
+          '<span>✓</span><span>변환 후 닫기</span>'+
+        '</button>'+
+        '<button type="button" class="vp-btn" id="vp-close-discard">'+
+          '<span>🗑</span><span>폐기하고 닫기</span>'+
+        '</button>'+
+      '</div>'+
+      '<button type="button" class="vp-btn" id="vp-close-cancel" style="background:transparent;border-color:transparent;color:var(--ink3)">취소</button>';
+    document.getElementById('vp-close-conv').addEventListener('click',_voiceConvertThenClose);
+    document.getElementById('vp-close-discard').addEventListener('click',_voiceFullCleanup);
+    document.getElementById('vp-close-cancel').addEventListener('click',function(){_voiceTransition('recorded');});
+    return;
+  }
+  if (Voice.state==='converting'){
+    if (title) title.textContent='🎤 변환 중...';
+    body.innerHTML=
+      '<button type="button" class="vp-btn vp-busy" disabled>'+
+        '<span>⏳</span><span>CLOVA 변환 중...</span>'+
+      '</button>';
+    return;
+  }
+}
+
+// ── 녹음 시작 / 정지 ──
+function _voiceStartRec(){
+  if (!Voice.stream){
+    // 비정상 — 권한 재요청
+    _voiceFullCleanup();
+    openVoicePanel();
+    return;
+  }
+  // 이전 녹음 폐기 (다시 녹음 케이스)
+  if (Voice.audio){try{Voice.audio.pause();}catch(e){} Voice.audio=null;}
+  if (Voice.blobUrl){try{URL.revokeObjectURL(Voice.blobUrl);}catch(e){} Voice.blobUrl=null;}
+  Voice.blob=null; Voice.chunks=[]; Voice.audioPlaying=false; Voice.durationMs=0;
+
+  var candidates=['audio/webm;codecs=opus','audio/webm','audio/mp4'];
+  var mt='';
+  for (var i=0;i<candidates.length;i++){
+    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])){mt=candidates[i];break;}
+  }
+  Voice.mimeType=mt||'';
+  try{
+    Voice.rec = mt ? new MediaRecorder(Voice.stream,{mimeType:mt}) : new MediaRecorder(Voice.stream);
+  }catch(e){
+    console.warn('[voice] MediaRecorder init',e);
+    toast('녹음 시작 실패');
+    return;
+  }
+  Voice.rec.ondataavailable=function(e){if (e.data && e.data.size>0) Voice.chunks.push(e.data);};
+  Voice.rec.onstop=function(){
+    var type=Voice.mimeType || (Voice.chunks[0] && Voice.chunks[0].type) || 'audio/webm';
+    var blob=new Blob(Voice.chunks,{type:type});
+    Voice.durationMs=Date.now()-Voice.startTs;
+    if (blob.size<2000){
+      Voice.blob=null; Voice.chunks=[]; Voice.closingPending=false;
+      _voiceTransition('armed');
+      toast('녹음이 너무 짧습니다');
+      return;
+    }
+    Voice.blob=blob;
+    Voice.blobUrl=URL.createObjectURL(blob);
+    if (Voice.closingPending){
+      Voice.closingPending=false;
+      _voiceTransition('closing');
+    }else{
+      _voiceTransition('recorded');
+    }
+  };
+  Voice.startTs=Date.now();
+  Voice.rec.start();
+  _voiceTransition('recording');
+  if (Voice.timerId) clearInterval(Voice.timerId);
+  Voice.timerId=setInterval(function(){
+    var el=document.getElementById('vp-elapsed');
+    if (el) el.textContent=_formatVoiceElapsed(Date.now()-Voice.startTs);
+  },500);
+}
+
+function _voiceStopRec(){
+  if (Voice.timerId){clearInterval(Voice.timerId);Voice.timerId=null;}
+  if (Voice.rec && Voice.rec.state!=='inactive'){
+    try{Voice.rec.stop();}catch(e){console.warn('[voice] stop',e);}
+  }
+}
+
+// ── 재생 / 다시 / 변환 ──
+function _voiceTogglePlay(){
+  if (!Voice.blobUrl) return;
+  if (!Voice.audio){
+    Voice.audio=new Audio(Voice.blobUrl);
+    Voice.audio.addEventListener('ended',function(){
+      Voice.audioPlaying=false;
+      if (Voice.state==='recorded') _renderVoicePanel();
+    });
+  }
+  if (Voice.audioPlaying){
+    try{Voice.audio.pause();}catch(e){}
+    Voice.audioPlaying=false;
+  }else{
+    var p=Voice.audio.play();
+    if (p && typeof p.catch==='function'){
+      p.catch(function(){Voice.audioPlaying=false;_renderVoicePanel();});
+    }
+    Voice.audioPlaying=true;
+  }
+  _renderVoicePanel();
+}
+
+function _voiceReRec(){
+  if (Voice.audio){try{Voice.audio.pause();}catch(e){} Voice.audio=null;}
+  if (Voice.blobUrl){try{URL.revokeObjectURL(Voice.blobUrl);}catch(e){} Voice.blobUrl=null;}
+  Voice.blob=null; Voice.chunks=[]; Voice.audioPlaying=false; Voice.durationMs=0;
+  _voiceTransition('armed');
+}
+
+function _voiceConvert(){
+  if (!Voice.blob){toast('녹음된 음성이 없습니다');return;}
+  _voiceTransition('converting');
+  _voiceSendSTT('armed');   // 변환 후 armed 복귀 (패널 유지)
+}
+
+function _voiceConvertThenClose(){
+  if (!Voice.blob){_voiceFullCleanup();return;}
+  _voiceTransition('converting');
+  _voiceSendSTT('close');
+}
+
+function _voiceSendSTT(then){
+  var blob=Voice.blob;
+  var type=blob.type || 'audio/webm';
+  var ext=type.indexOf('mp4')>=0?'m4a':'webm';
+  var d=new Date();
+  var fname='voice_'+d.getFullYear()+p2(d.getMonth()+1)+p2(d.getDate())+'_'+p2(d.getHours())+p2(d.getMinutes())+p2(d.getSeconds())+'.'+ext;
+  var file=new File([blob],fname,{type:type});
+
+  var fd=new FormData();
+  fd.append('audio',file,fname);
+  fd.append('skip_postprocess','1');
+  fd.append('title','일일보고 음성 메모');
+  fd.append('level_hint','auto');
+
+  var url=(typeof HIMCLOVA_URL==='string' && HIMCLOVA_URL) ? HIMCLOVA_URL : 'https://himclova-78944797082.asia-northeast3.run.app';
+  var ctrl=new AbortController();
+  Voice.abortCtrl=ctrl;
+  var timeoutId=setTimeout(function(){try{ctrl.abort();}catch(e){}}, 5*60*1000);
+
+  fetch(url+'/transcribe',{method:'POST',body:fd,signal:ctrl.signal})
+    .then(function(resp){
+      clearTimeout(timeoutId);
+      if (!resp.ok){
+        return resp.text().then(function(t){throw new Error('서버 오류 ('+resp.status+')');});
+      }
+      return resp.json();
+    })
+    .then(function(data){
+      Voice.abortCtrl=null;
+      if (!data || data.ok===false){
+        throw new Error((data && data.message) || '변환 실패');
+      }
+      var text='';
+      if (typeof data.raw_transcript==='string' && data.raw_transcript.trim()){
+        text=data.raw_transcript.trim();
+      }else if (typeof data.transcript==='string'){
+        text=data.transcript.replace(/^\[화자 [^\]]*\]\s*/gm,'').trim();
+      }
+      if (text){
+        _appendToMainInput(text);
+        toast('🎤 변환 완료');
+      }else{
+        toast('음성을 인식하지 못했습니다');
+      }
+      // blob 폐기
+      if (Voice.audio){try{Voice.audio.pause();}catch(e){} Voice.audio=null;}
+      if (Voice.blobUrl){try{URL.revokeObjectURL(Voice.blobUrl);}catch(e){} Voice.blobUrl=null;}
+      Voice.blob=null; Voice.chunks=[]; Voice.audioPlaying=false; Voice.durationMs=0;
+      if (then==='close') _voiceFullCleanup();
+      else _voiceTransition('armed');
+    })
+    .catch(function(err){
+      clearTimeout(timeoutId);
+      Voice.abortCtrl=null;
+      console.warn('[voice] STT error',err);
+      var msg=(err && err.name==='AbortError') ? '⏱ 변환 시간 초과/취소'
+            : '⚠️ '+(err && err.message ? err.message : '변환 실패');
+      toast(msg);
+      // 실패 시 recorded 로 복귀 — 사용자가 재시도 가능
+      _voiceTransition('recorded');
+    });
+}
+
+function _appendToMainInput(text){
+  if (!text) return;
+  var ta=document.getElementById('main-input');
+  if (!ta) return;
+  var cur=ta.value || '';
+  var sep='';
+  if (cur){
+    if (/\n$/.test(cur)) sep='';
+    else if (/\s$/.test(cur)) sep='';
+    else sep=' ';
+  }
+  ta.value=cur+sep+text;
+  if (typeof autosizeTa==='function') autosizeTa(ta);
+  try{ta.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
+}
+
+// ── 분석 → P2 (챗 형식 UX, 2026-05-07) ──────────
 function doAnalyze(){
   var txt=document.getElementById('main-input').value.trim();
   if(!txt){toast('업무 내용을 입력해주세요');return;}
@@ -2958,15 +4024,17 @@ function doAnalyze(){
   currentRawText=txt;
   goPage('p2');
   loadTodayRaw();
-  // (p2-name 제거됨 — 2026-04-29)
 
   document.getElementById('report-edit-actions').style.display='none';
-  document.getElementById('p2-body').innerHTML=
-    '<div class="loading-wrap">'+
-      '<div class="loading-brush">🖌️</div>'+
-      '<div class="loading-text">힘클로드가 정리하고 있습니다</div>'+
-      '<div class="loading-sub">프로젝트·인물·요청사항을<br>분리하는 중...</div>'+
-    '</div>';
+
+  // 챗 영역 로딩 표시 (1차 분류 응답 대기)
+  var chatBox=document.getElementById('report-chat-messages');
+  if(chatBox){
+    chatBox.innerHTML=
+      '<div class="report-chat-typing" id="report-chat-loading">'+
+        '🖌️ 힘클로드가 정리하고 있습니다 — 프로젝트·인물·요청사항을 분리하는 중'+
+      '</div>';
+  }
 
   fetch(APPS_SCRIPT_URL,{
     method:'POST',
@@ -2981,18 +4049,17 @@ function doAnalyze(){
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'구조화 실패');
     currentStructured=data.structured;
-    lastAIStructured=JSON.stringify(normalizeStructured(data.structured));
-    renderStructuredReport();
+    lastAIStructured=JSON.stringify(currentStructured);
+    ReportChat.start(currentStructured);   // 챗 시작 (renderStructuredReport 도 동일 호출)
     saveDraft('p2');
   })
   .catch(function(err){
-    document.getElementById('p2-body').innerHTML=
-      '<div class="done-wrap">'+
-        '<div class="done-brush">❌</div>'+
-        '<div class="done-title">분석 실패</div>'+
-        '<div class="done-desc">'+err+'<br><br>다시 시도해주세요.</div>'+
-        '<button class="done-new" onclick="goPage(\'p1\')">돌아가기</button>'+
-      '</div>';
+    var box=document.getElementById('report-chat-messages');
+    if(box){
+      box.innerHTML=
+        '<div class="report-chat-msg assistant">⚠️ 분석 실패: '+escapeHtml(String(err))+
+          '<br><br>p1 으로 돌아가서 다시 시도해주세요.</div>';
+    }
   });
 }
 
@@ -3320,13 +4387,28 @@ function renderAnswerHtml(text){
   return html;
 }
 
-// ── 드래프트 (localStorage) ──────────────────────
-var DRAFT_KEY='him_v4_test_draft';
+// ── 드래프트 (localStorage + 서버 동기화) ──────────────────────
+// 2026-05-07: 서버 동기화 추가. 다른 기기/브라우저에서 이어쓰기 가능.
+//   서버 저장소: Drive 의 직원 draft_TEST/{이름}.json
+//   timestamp 비교: 서버가 1초 이상 더 최신이면 충돌 다이얼로그 표시
+//   session 은 디바이스 단위 유지 (의도적) — 동기화 X
+var DRAFT_KEY='himclaude_v2_test_draft';
+var DRAFT_SERVER_DEBOUNCE_MS = 3000;  // 서버 push 디바운스 (작성 중 매번 보내지 않음)
+var _draftServerTimer = null;
+
+function getDeviceLabel(){
+  try{
+    var ua = navigator.userAgent || '';
+    if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) return '휴대폰';
+    return 'PC';
+  } catch(e) { return '기기'; }
+}
+
 function saveDraft(stage){
   if(!profile)return;
   try{
     var mi=document.getElementById('main-input');
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+    var d={
       email: profile.email,
       date: dateStr,
       stage: stage,  // 'p1' | 'p2'
@@ -3334,10 +4416,57 @@ function saveDraft(stage){
       currentRaw: currentRawText,
       structured: currentStructured,
       lastAI: lastAIStructured,
-      savedAt: Date.now()
-    }));
+      savedAt: Date.now(),
+      device: getDeviceLabel()
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    // 서버 push 디바운스 — 작성 중엔 로컬만 반복, 일시 멈춤 시 서버에 1회
+    if (_draftServerTimer) clearTimeout(_draftServerTimer);
+    _draftServerTimer = setTimeout(function(){ saveDraftToServer(d); }, DRAFT_SERVER_DEBOUNCE_MS);
   }catch(e){}
 }
+
+function saveDraftToServer(d){
+  if(!profile||!profile.name) return;
+  try{
+    fetch(APPS_SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        token: APPS_SCRIPT_TOKEN,
+        action: 'save_draft',
+        name: profile.name,
+        email: d.email,
+        date: d.date,
+        stage: d.stage,
+        raw: d.raw,
+        currentRaw: d.currentRaw,
+        structured: d.structured,
+        lastAI: d.lastAI,
+        savedAt: d.savedAt,
+        device: d.device
+      })
+    }).catch(function(){ /* 네트워크 실패 — 다음 디바운스에 재시도 */ });
+  }catch(e){}
+}
+
+function loadDraftFromServer(){
+  return new Promise(function(resolve){
+    if(!profile||!profile.name){resolve(null);return;}
+    var url = APPS_SCRIPT_URL + '?action=load_draft&name=' + encodeURIComponent(profile.name);
+    fetch(url)
+      .then(function(r){return r.json()})
+      .then(function(d){
+        if(!d||!d.ok||!d.draft){resolve(null);return;}
+        // 자기 email 확인 + 옛 날짜는 무시 (오늘 날짜만)
+        if(profile.email && d.draft.email && d.draft.email !== profile.email){resolve(null);return;}
+        if(d.draft.date && d.draft.date !== dateStr){resolve(null);return;}
+        resolve(d.draft);
+      })
+      .catch(function(){resolve(null);});
+  });
+}
+
 function scheduleDraftSave(stage){
   if(_draftSaveTimer)clearTimeout(_draftSaveTimer);
   _draftSaveTimer=setTimeout(function(){saveDraft(stage)}, 400);
@@ -3354,6 +4483,20 @@ function loadDraft(){
 }
 function clearDraft(){
   try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+  // 서버에서도 삭제 (best-effort, 실패 무시)
+  try{
+    if(profile && profile.name){
+      fetch(APPS_SCRIPT_URL,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({
+          token: APPS_SCRIPT_TOKEN,
+          action: 'delete_draft',
+          name: profile.name
+        })
+      }).catch(function(){});
+    }
+  }catch(e){}
 }
 function describeDraftAge(ts){
   var diff=Math.floor((Date.now()-ts)/60000);
@@ -3364,17 +4507,94 @@ function describeDraftAge(ts){
   return h+'시간'+(m?' '+m+'분':'')+' 전 저장됨';
 }
 function maybeShowDraftBanner(){
-  var d=loadDraft();
-  var banner=document.getElementById('draft-banner');
+  // 서버 비교는 비동기 — 결과 도착 후 충돌 다이얼로그 또는 일반 배너
+  var local = loadDraft();
+  var banner = document.getElementById('draft-banner');
+  loadDraftFromServer().then(function(server){
+    decideDraftReconcile_(local, server, banner);
+  });
+}
+function decideDraftReconcile_(local, server, banner){
+  // 1) 둘 다 없음 → 배너 숨김
+  if (!local && !server) {
+    banner.classList.remove('on');
+    return;
+  }
+  // 2) 서버가 명확히 더 최신 (1초 이상 차이) → 충돌 다이얼로그
+  var localTs  = local  ? (local.savedAt  || 0) : 0;
+  var serverTs = server ? (server.savedAt || 0) : 0;
+  if (server && serverTs > localTs + 1000) {
+    showDraftConflictDlg(local, server);
+    return;
+  }
+  // 3) 서버만 있고 로컬 없음 → 서버 데이터 로컬에 복사 후 일반 배너
+  if (server && !local) {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(server)); } catch(e){}
+  }
+  // 4) 일반 배너 (기존 흐름)
+  showLocalDraftBanner_();
+}
+function showLocalDraftBanner_(){
+  var d = loadDraft();
+  var banner = document.getElementById('draft-banner');
   if(!d){banner.classList.remove('on');return;}
-  var hasRaw=d.raw&&d.raw.trim();
-  var hasStructured=d.structured&&d.stage==='p2';
-  if(!hasRaw&&!hasStructured){clearDraft();banner.classList.remove('on');return;}
-  var label='이어서 작성하시겠어요?';
-  if(d.stage==='p2')label='정리된 보고서가 있어요. 이어서 편집하시겠어요?';
-  banner.querySelector('b').textContent=label;
-  document.getElementById('draft-time').textContent=describeDraftAge(d.savedAt);
+  var hasRaw = d.raw && d.raw.trim();
+  var hasStructured = d.structured && d.stage==='p2';
+  if(!hasRaw && !hasStructured){clearDraft(); banner.classList.remove('on'); return;}
+  var label = '이어서 작성하시겠어요?';
+  if(d.stage==='p2') label = '정리된 보고서가 있어요. 이어서 편집하시겠어요?';
+  banner.querySelector('b').textContent = label;
+  document.getElementById('draft-time').textContent = describeDraftAge(d.savedAt);
   banner.classList.add('on');
+}
+function showDraftConflictDlg(local, server){
+  var dlg = document.getElementById('draft-conflict-dlg');
+  if(!dlg) return;
+  function snippet(s){
+    s = String(s||'').replace(/\s+/g,' ').trim();
+    if(!s) return '(작성 내용 없음)';
+    if(s.length <= 40) return s;
+    return s.slice(0,40) + '…';
+  }
+  function fmt(ts){
+    if(!ts) return '';
+    var d = new Date(ts);
+    var mo = d.getMonth()+1, dd = d.getDate();
+    var hh = String(d.getHours()).padStart(2,'0');
+    var mm = String(d.getMinutes()).padStart(2,'0');
+    return mo+'월 '+dd+'일 '+hh+':'+mm;
+  }
+  document.getElementById('conflict-server-head').textContent =
+    (server.device || '다른 기기') + ' · ' + fmt(server.savedAt);
+  document.getElementById('conflict-server-body').textContent = snippet(server.raw || '');
+  document.getElementById('conflict-server-row').style.display = '';
+  if (local && (local.raw || (local.structured && local.stage==='p2'))) {
+    document.getElementById('conflict-local-head').textContent =
+      (local.device || '이 기기') + ' · ' + fmt(local.savedAt);
+    document.getElementById('conflict-local-body').textContent = snippet(local.raw || '');
+    document.getElementById('conflict-local-row').style.display = '';
+  } else {
+    document.getElementById('conflict-local-row').style.display = 'none';
+  }
+  dlg.classList.add('on');
+}
+function closeDraftConflictDlg(){
+  document.getElementById('draft-conflict-dlg').classList.remove('on');
+}
+function useServerDraft(){
+  loadDraftFromServer().then(function(server){
+    closeDraftConflictDlg();
+    if(!server){ return; }
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(server)); } catch(e){}
+    showLocalDraftBanner_();
+  });
+}
+function useLocalDraft(){
+  closeDraftConflictDlg();
+  // 로컬이 진실 — 서버 덮어쓰기
+  var d = loadDraft();
+  if (d) saveDraftToServer(d);
+  showLocalDraftBanner_();
 }
 function restoreDraft(silent){
   var d=loadDraft();
@@ -3405,7 +4625,170 @@ function hideDraftBanner(){
   document.getElementById('draft-banner').classList.remove('on');
 }
 
+// ── disambiguation 챗 (2026-05-07) ──────────
+// 'AI로 정리' 후 p2 진입 시 시작. ambiguities 가 있으면 사용자에게 한 개씩 묻고,
+// 없으면 발송 가능 메시지로 마무리. 사용자 자유 수정도 챗 안에서 처리.
+var ReportChat = {
+  history: [],
+  busy: false,
+  _session: 0,          // 시작·재시작마다 증가. 응답 처리 시 토큰 비교로 stale 응답 차단.
+  _abortCtrl: null,     // 진행 중 fetch — start 호출 시 abort.
+
+  start: function(structured) {
+    // 진행 중 fetch 가 있으면 abort + session 증가 → 늦게 도착하는 응답은 _send 핸들러가 무시.
+    // 2026-05-11 — start 가 빠르게 여러 번 호출되거나 (loadTodayRaw 등 비동기 갱신 race)
+    // 늦은 응답이 도착해 메시지가 중복 그려지는 버그 차단.
+    this._session++;
+    if (this._abortCtrl) { try { this._abortCtrl.abort(); } catch(e){} }
+    this._abortCtrl = null;
+    this.history = [];
+    this.busy    = false;
+    var box = document.getElementById('report-chat-messages');
+    if (box) box.innerHTML = '';
+    document.getElementById('report-edit-actions').style.display='none';
+    // 첫 turn — 자동으로 시작 메시지 보내서 Claude 의 첫 질문 받기
+    this._send('정리 시작해주세요. 첫 항목부터 확인해주세요.', /*hideUser*/ true);
+  },
+
+  addMsg: function(role, text, quickReplies) {
+    var box = document.getElementById('report-chat-messages');
+    if (!box) return;
+    var div = document.createElement('div');
+    div.className = 'report-chat-msg ' + role;
+    var formatted = String(text || '').replace(/\s*([①②③④⑤⑥⑦⑧⑨⑩])\s*/g, '\n$1 ').replace(/^\n+/, '');
+    div.textContent = formatted;
+    box.appendChild(div);
+
+    // quick_replies 버튼 list (assistant 메시지 + 비어있지 않을 때만)
+    if (role === 'assistant' && Array.isArray(quickReplies) && quickReplies.length) {
+      var btnBox = document.createElement('div');
+      btnBox.className = 'report-chat-quick-replies';
+      var self = this;
+      quickReplies.forEach(function(qr) {
+        var label = String(qr.label || qr.value || '');
+        var value = String(qr.value || qr.label || '');
+        if (!label && !value) return;
+        var btn = document.createElement('button');
+        btn.className = 'report-chat-quick-btn';
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.onclick = function() {
+          // 버튼 클릭 시 — value 를 사용자 답변으로 send (사용자 풍선에는 label 표시)
+          self.addMsg('user', label);
+          self._send(value, /*hideUser*/ true);
+        };
+        btnBox.appendChild(btn);
+      });
+      box.appendChild(btnBox);
+    }
+
+    box.scrollTop = box.scrollHeight;
+  },
+
+  addTyping: function() {
+    var box = document.getElementById('report-chat-messages');
+    if (!box) return null;
+    var div = document.createElement('div');
+    div.className = 'report-chat-typing';
+    div.textContent = '응답 중...';
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return div;
+  },
+
+  removeTyping: function(el) { if (el && el.parentNode) el.parentNode.removeChild(el); },
+
+  onKeyDown: function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.sendFromInput(); }
+  },
+
+  sendFromInput: function() {
+    var ta = document.getElementById('report-chat-input');
+    if (!ta) return;
+    var text = ta.value.trim();
+    if (!text) return;
+    ta.value = '';
+    autosizeTa(ta);
+    this._send(text, false);
+  },
+
+  _send: function(text, hideUser) {
+    if (this.busy) return;
+    this.busy = true;
+    var btn = document.getElementById('report-chat-send-btn');
+    if (btn) btn.disabled = true;
+    if (!hideUser) this.addMsg('user', text);
+    var typing = this.addTyping();
+    var self = this;
+    // 응답 시점에 session 비교해서 stale 응답(start 재호출로 이전 fetch 가 폐기된 경우) 차단.
+    var session = self._session;
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    self._abortCtrl = ctrl;
+
+    fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        token:       APPS_SCRIPT_TOKEN,
+        action:      'chat_disambiguate',
+        raw:         currentRawText || '',
+        structured:  currentStructured,
+        history:     self.history,
+        userMessage: text
+      }),
+      signal: ctrl ? ctrl.signal : undefined
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      // stale 응답 가드 — start 가 재호출되어 session 이 증가했다면 이 응답은 무시 (중복 메시지·요금 누적 차단).
+      if (session !== self._session) { return; }
+      self.removeTyping(typing);
+      if (!d.ok) { self.addMsg('assistant', '⚠️ ' + (d.message || '오류')); return; }
+      // race condition 가드 — fetch 진행 중 사용자가 newRep 등으로 INPUT 복귀했다면
+      // edit-actions 토글이 INPUT 화면에 발송 버튼을 노출시키는 버그 (2026-05-11 수정).
+      // chat 자체가 hidden 인 경우(완료 화면·INPUT)에는 응답 메시지·버튼 토글 모두 skip.
+      var editPage = document.getElementById('report-page-edit');
+      if (!editPage || editPage.style.display === 'none') { return; }
+      self.history.push({ role: 'user',      content: text });
+      self.history.push({ role: 'assistant', content: d.message || '' });
+      if (d.updated_structured) {
+        currentStructured = d.updated_structured;
+        lastAIStructured  = JSON.stringify(currentStructured);
+        try { saveDraft('p2'); } catch(e){}
+      }
+      self.addMsg('assistant', d.message || '(응답 없음)', d.quick_replies || []);
+      if (d.ready_to_send) {
+        document.getElementById('report-edit-actions').style.display = 'flex';
+        self.addMsg('system', '✓ 확인 완료. 화면 하단의 "일일보고 발송" 버튼을 눌러주세요.');
+      } else {
+        document.getElementById('report-edit-actions').style.display = 'none';
+      }
+      // edit-actions 표시 토글로 bottom-fixed 높이가 변했으므로 chat-input 위치 재조정.
+      // 이 호출 없으면 chat-input 이 viewport bottom 고정 상태로 남아 발송 버튼과 겹침.
+      if (typeof Report !== 'undefined' && Report.adjustEditLayout) Report.adjustEditLayout();
+    })
+    .catch(function(err){
+      // abort 는 정상적인 폐기 — 사용자에게 노출 X
+      if (err && (err.name === 'AbortError' || /aborted/i.test(String(err.message||'')))) { return; }
+      if (session !== self._session) { return; }
+      self.removeTyping(typing);
+      self.addMsg('assistant', '⚠️ 네트워크 오류: ' + err);
+    })
+    .then(function(){
+      if (session !== self._session) { return; }
+      self.busy = false;
+      if (btn) btn.disabled = false;
+      if (self._abortCtrl === ctrl) self._abortCtrl = null;
+    });
+  }
+};
+
 function renderStructuredReport(){
+  // 2026-05-07: 챗 형식 UX 로 교체. 옛 카드 생성 코드는 아래 dead code 로 보존 (rollback 시 'return;' 1줄 제거).
+  ReportChat.start(currentStructured);
+  return;
+
+  // ↓↓↓ 옛 카드 UI 생성 (dead code, 실행 안 됨) ↓↓↓
   // (p2-name 제거됨 — sticky bar 의 user-bar 가 작성자 표시)
 
   document.getElementById('report-edit-actions').style.display='flex';
@@ -3818,13 +5201,8 @@ function doSave(){
 }
 
 function doFinalSend(){
-  currentStructured=collectStructure();
-  var curJson=JSON.stringify(normalizeStructured(currentStructured));
-  var dirty=(lastAIStructured!==null) && (curJson!==lastAIStructured);
-  if(dirty){
-    openSendDlg();
-    return;
-  }
+  // 챗 형식 UX: currentStructured 는 챗 turn 마다 갱신됨. collectStructure (옛 카드 DOM read)·dirty 체크 의미 없음.
+  if (!currentStructured) { toast('정리된 보고서가 없습니다'); return; }
   performSend();
 }
 
@@ -3843,8 +5221,27 @@ function confirmReanalyzeThenSend(){
   doReanalyze(function(){ performSend(); });
 }
 
+// report-done-screen 토글 — 발송 중/완료/test 시 챗 UI 숨기고 결과 화면만 노출.
+// 오류 시에는 사용자가 챗에서 재시도할 수 있도록 hideReportDoneScreen 으로 원복.
+function showReportDoneScreen(html){
+  var body = document.getElementById('report-done-body');
+  var screen = document.getElementById('report-done-screen');
+  var chat = document.getElementById('report-chat');
+  if (body) body.innerHTML = html;
+  if (screen) screen.style.display = '';
+  if (chat) chat.style.display = 'none';
+}
+function hideReportDoneScreen(){
+  var screen = document.getElementById('report-done-screen');
+  var body = document.getElementById('report-done-body');
+  var chat = document.getElementById('report-chat');
+  if (screen) screen.style.display = 'none';
+  if (body) body.innerHTML = '';
+  if (chat) chat.style.display = '';
+}
+
 function performSend(){
-  currentStructured=collectStructure();
+  // 챗 UX: collectStructure (옛 카드 DOM read) 호출 제거. currentStructured 그대로 사용.
   var structured=flattenToFiveFields(currentStructured);
   var dc=dateStr.replace(/-/g,'');
 
@@ -3853,11 +5250,12 @@ function performSend(){
     return;
   }
 
-  document.getElementById('p2-body').innerHTML=
+  showReportDoneScreen(
     '<div class="done-wrap">'+
       '<div class="done-brush">📤</div>'+
       '<div class="done-title">발송 중...</div>'+
-    '</div>';
+    '</div>'
+  );
   document.getElementById('report-edit-actions').style.display='none';
 
   fetch(APPS_SCRIPT_URL,{
@@ -3871,7 +5269,7 @@ function performSend(){
       dept:profile.dept,
       grade:profile.grade,
       date:dateStr,
-      to:'luri7305@gmail.com',
+      to:'thehim180724@gmail.com',
       cc:'taesilkim2@gmail.com',
       subject:'[일일보고] '+profile.name+'_'+dc,
       raw:currentRawText,
@@ -3882,23 +5280,43 @@ function performSend(){
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'발송 실패');
     clearDraft();
-    document.getElementById('p2-body').innerHTML=
+    // 발송 시각이 일일 브리핑 윈도우(08:50~16:00) 안이면 누락 경고.
+    // - 오늘 brfing 은 08:50 트리거 1회만 실행되고 alreadyDone 시트로 재실행 차단
+    // - 다음날 brfing 의 cutoff = 어제 16:00 이라 08:50~16:00 발송분은 today 윈도우에도 안 잡힘
+    // → 자동 brfing 본문에 영영 안 들어가고 history(28일 이력 참고용)로만 처리됨
+    var sentNow = new Date();
+    var sh = sentNow.getHours(), sm = sentNow.getMinutes();
+    var afterBrf  = (sh > 8) || (sh === 8 && sm >= 50);
+    var beforeCut = (sh < 16);
+    var isLate = afterBrf && beforeCut;
+    var hhmm = (sh<10?'0':'')+sh+':'+(sm<10?'0':'')+sm;
+    var warnHtml = '';
+    if (isLate) {
+      warnHtml =
+        '<div class="done-warn">'+
+          '<div class="done-warn-title">⚠️ 오늘 브리핑에는 반영되지 않았습니다</div>'+
+          '<div class="done-warn-desc">'+
+            '현재 발송 시각 <b>'+hhmm+'</b> 은 일일 브리핑 자동 생성 시각(<b>오전 8:50</b>) 이후입니다.<br>'+
+            '오늘자 브리핑은 이미 생성·발송되어 본 보고는 <b>오늘 브리핑 본문에 포함되지 않습니다</b>.'+
+          '</div>'+
+        '</div>';
+    }
+    showReportDoneScreen(
       '<div class="done-wrap">'+
         '<div class="done-brush">✅</div>'+
         '<div class="done-title">발송 완료</div>'+
-        '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>luri7305@gmail.com으로 전송됐습니다.</div>'+
+        '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>thehim180724@gmail.com으로 전송됐습니다.</div>'+
+        warnHtml+
         '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
         '<button class="done-new go-himclova" onclick="goToHimClovaFromReport()">🎙️ 힘클로바로 가기</button>'+
-      '</div>';
+      '</div>'
+    );
   })
   .catch(function(err){
-    document.getElementById('p2-body').innerHTML=
-      '<div class="done-wrap">'+
-        '<div class="done-brush">❌</div>'+
-        '<div class="done-title">오류 발생</div>'+
-        '<div class="done-desc">'+err+'<br>다시 시도해주세요.</div>'+
-      '</div>';
+    // 오류 시: 챗 UI 복원해 사용자가 재시도 가능하도록. toast 로 원인 알림.
+    hideReportDoneScreen();
     document.getElementById('report-edit-actions').style.display='flex';
+    toast('❌ 발송 실패: '+err);
   });
 }
 
@@ -3908,7 +5326,7 @@ function showTestComplete(structured){
     return '<div class="test-row"><div class="test-row-label">'+label+'</div>'+
            '<div class="test-row-val">'+escapeHtml(val||'(비어있음)')+'</div></div>';
   }
-  document.getElementById('p2-body').innerHTML=
+  showReportDoneScreen(
     '<div class="done-wrap">'+
       '<div class="done-brush">🧪</div>'+
       '<div class="done-title">테스트 모드 · 발송 스킵됨</div>'+
@@ -3922,7 +5340,8 @@ function showTestComplete(structured){
       '</div>'+
       '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
       '<button class="done-new go-himclova" onclick="goToHimClovaFromReport()">🎙️ 힘클로바로 가기</button>'+
-    '</div>';
+    '</div>'
+  );
 }
 
 function newRep(){
@@ -3937,6 +5356,7 @@ function newRep(){
   ctxTdExpanded=false;
   clearDraft();
   hideDraftBanner();
+  hideReportDoneScreen();
   goPage('p1');
 }
 
@@ -3967,8 +5387,37 @@ function goPage(id){
 }
 
 // ── Report 네임스페이스 — 일일보고 sub-page 전환 ──
-var Report = {
-  showPage: function(name){
+// EDIT sub-page 는 fixed viewport 라 (.report-page-edit position:fixed)
+// top / bottom 을 헤더·발송버튼 실측해 동적 설정. mode-search 의 Chat.adjustTop 과 동일 패턴.
+var Report = (function(){
+  var layoutBound = false;
+  function adjustEditLayout(){
+    var edit = document.getElementById('report-page-edit');
+    if (!edit || edit.style.display === 'none') return;
+    var run = function(){
+      var hd = document.querySelector('.p1-header');
+      var bf = document.querySelector('.bottom-fixed.bottom-report');
+      if (hd){
+        var top = hd.getBoundingClientRect().bottom;
+        edit.style.top = Math.max(0, Math.round(top)) + 'px';
+      }
+      if (bf){
+        // bottom-fixed 높이 + 8px 간격 (사용자 요구 "간격을 두고")
+        var bh = bf.getBoundingClientRect().height;
+        edit.style.bottom = Math.max(0, Math.round(bh + 8)) + 'px';
+      }
+    };
+    run();
+    requestAnimationFrame(function(){ requestAnimationFrame(run); });
+    setTimeout(run, 100);
+  }
+  function bindLayoutListeners(){
+    if (layoutBound) return;
+    layoutBound = true;
+    window.addEventListener('resize',          adjustEditLayout);
+    window.addEventListener('orientationchange', adjustEditLayout);
+  }
+  function showPage(name){
     var input = document.getElementById('report-page-input');
     var edit  = document.getElementById('report-page-edit');
     var sendBtn = document.getElementById('report-send-btn');
@@ -3979,14 +5428,19 @@ var Report = {
       edit.style.display  = '';
       if (sendBtn)  sendBtn.style.display  = 'none';
       if (editActs) editActs.style.display = '';
+      document.body.classList.add('report-edit-active');
+      bindLayoutListeners();
+      adjustEditLayout();
     } else {
       input.style.display = '';
       edit.style.display  = 'none';
       if (sendBtn)  sendBtn.style.display  = '';
       if (editActs) editActs.style.display = 'none';
+      document.body.classList.remove('report-edit-active');
     }
   }
-};
+  return { showPage: showPage, adjustEditLayout: adjustEditLayout };
+})();
 
 function toast(m){
   var t=document.getElementById('toast');
@@ -3999,7 +5453,7 @@ function toast(m){
 // 인증·세션은 공유. convId 는 클라 발급, localStorage 보관.
 // "+ 새 대화" → convId 갈아끼움. 기존 대화는 서버 시트에 7일 만료까지 잔존.
 // ═══════════════════════════════════════════════════════════
-var CHAT_CONV_KEY = 'him_v4_test_chat_conv_id';
+var CHAT_CONV_KEY = 'himclaude_v2_test_chat_conv_id';
 
 var Chat = (function(){
   var loaded       = false;
@@ -4294,8 +5748,8 @@ var HimClova = {
   selectedLevel: 'auto',
   _initialized: false,
   _draftSaveTimer: null,
-  DRAFT_KEY:  'him_v4_test_himclova_draft',
-  RESULT_KEY: 'him_v4_test_himclova_result',
+  DRAFT_KEY:  'himclaude_v2_test_himclova_draft',
+  RESULT_KEY: 'himclaude_v2_test_himclova_result',
 
   init: function(){
     // 첫 호출에만: draft 복구 → 자동저장 핸들러 바인딩.
@@ -4632,7 +6086,7 @@ var HimClova = {
     if (!HimClova.audioFile) { toast('⚠️ 파일을 선택해주세요'); return; }
     if (!getSession())   { forceReauth('세션이 만료되었습니다'); return; }
     if (!HIMCLOVA_URL){
-      toast('⚠️ 힘클로바 서버 URL 미설정 — 콘솔에서 localStorage.setItem("him_v4_test_himclova_url","http://localhost:8080") 로 임시 설정');
+      toast('⚠️ 힘클로바 서버 URL 미설정 — 콘솔에서 localStorage.setItem("himclaude_v2_test_himclova_url","http://localhost:8080") 로 임시 설정');
       return;
     }
 

@@ -309,9 +309,10 @@ html::-webkit-scrollbar-button,
 .user-name{font-size:14px;font-weight:500;color:var(--ink)}
 .user-date{font-size:11px;color:var(--ink3);margin-top:1px}
 
-/* Claude 셋업 버튼 + 모달 (2026-05-22) — 1회 온보딩용 진입점 */
+/* Claude 셋업 버튼 + 모달 (2026-05-22) — 1회 온보딩용 진입점.
+   2026-05-22 PM 갱신: 원 크기 32→36 (user-dot 와 동일). 모드별 정렬 룰은 아래 #p1[data-mode=*] 블록 참조 */
 .claude-setup-btn{
-  width:32px;height:32px;border-radius:50%;
+  width:36px;height:36px;border-radius:50%;
   background:linear-gradient(135deg,#d97757,#cc785c);
   color:#fff;border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
@@ -675,6 +676,10 @@ html::-webkit-scrollbar-button,
   order:1;                       /* avatar 가 뒤 (우측 끝) */
   background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));  /* 기존 힘클로바 시그니처 — 보라→청 */
 }
+/* 회의록 모드: ✦ 셋업 버튼 = dot(1) 보다 뒤 → 시각 순서 info(0) → dot(1) → btn(2) */
+#p1[data-mode="himclova"] .claude-setup-btn{
+  order:2;
+}
 
 /* 검색 모드: user-info 자체가 페이지 가운데 X 좌표에 정렬 (모드 탭 가운데와 일치).
    Grid 1fr | auto | 1fr 3열 — 양쪽 spacer 동일 폭이라 가운데 열(info)이 페이지 가운데.
@@ -695,6 +700,12 @@ html::-webkit-scrollbar-button,
   grid-column:2;
   flex:0 1 auto;
   text-align:center;
+}
+/* 인사이트 모드: ✦ 셋업 버튼 = dot 와 대칭 (3번 컬럼 좌측 끝 + info 와 12px 간격) */
+#p1[data-mode="search"] .claude-setup-btn{
+  grid-column:3;
+  justify-self:start;
+  margin-left:12px;
 }
 /* 이니셜 원 — 시도안 #A8C0D8 → #708EA9 (밝은 청회색 → 중청). 사용자 평가 후 확정/롤백. */
 #p1[data-mode="search"] .user-dot{
@@ -938,6 +949,40 @@ body.report-edit-active{ overflow:hidden; }
   background:rgba(143,175,138,.06);
   border-radius:6px;
 }
+/* 신규 PJ 등록 카드 (2026-05-22) — 코드·명칭 input + 3 액션 */
+.l2-review-register{
+  border-left:3px solid var(--brush-gold);
+}
+.l2-pj-register-form{
+  display:flex; flex-direction:column; gap:6px;
+  margin-bottom:8px;
+}
+.l2-pj-register-form input{
+  padding:7px 10px; border:1px solid var(--line);
+  border-radius:6px; font-size:13px;
+  font-family:'Noto Sans KR',sans-serif;
+  background:#fff; color:var(--ink);
+  -webkit-appearance:none; appearance:none;
+}
+.l2-pj-register-form input:focus{
+  outline:none; border-color:var(--brush-gold);
+  box-shadow:0 0 0 2px rgba(196,168,122,.15);
+}
+.l2-pj-suggest{
+  font-size:11px; color:var(--ink3);
+  padding:2px 0;
+}
+/* prefix 의미 legend — 신규 PJ 등록 카드 첫 entry 에만 표시 */
+.l2-pj-prefix-legend{
+  display:flex; flex-wrap:wrap; gap:6px 10px;
+  font-size:11px; color:var(--ink3);
+  padding:6px 8px; margin-bottom:6px;
+  background:rgba(196,168,122,.06);
+  border-left:2px solid var(--brush-gold);
+  border-radius:4px;
+  line-height:1.6;
+}
+.l2-pj-prefix-legend b{color:var(--ink); font-weight:600}
 
 /* 후보 버튼 list (Claude quick_replies) — 세로 정렬 */
 .report-chat-quick-replies{
@@ -2463,6 +2508,7 @@ body.search-mode-active{
           placeholder="브리핑에 대해 자유롭게 물어보세요. 예) 지난주 내 일정"
           onkeydown="Chat.onKeyDown(event)"
           oninput="autosizeTa(this)"></textarea>
+        <button type="button" class="report-chat-mic-btn" id="chat-voice-mini-btn" onclick="SearchVoice.toggle()" title="음성 입력 (클릭하여 녹음 시작·종료 / 침묵 시 자동 종료)">🎤</button>
         <button class="chat-send-btn" id="chat-send-btn" onclick="Chat.sendFromInput()">보내기</button>
       </div>
       <div class="chat-hint">대화기록은 일주일간 보관됩니다 · 다른 기기에서는 이어지지 않아요</div>
@@ -3234,31 +3280,80 @@ function loadL2PendingReviews(){
     })
   }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false, items: [] }; });
 
-  Promise.all([fetchPj, fetchPerson]).then(function(results){
+  // 2026-05-22 — AI 인덱스 B_학습 "PJ 약칭" → L2 즉시 등록 카드 source
+  var fetchRegister = fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      token: APPS_SCRIPT_TOKEN,
+      action: 'get_pending_pj_registrations',
+      email: profile.email || ''
+    })
+  }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false, items: [] }; });
+
+  Promise.all([fetchPj, fetchPerson, fetchRegister]).then(function(results){
     var pjResp = results[0] || { ok: false, items: [] };
     var pnResp = results[1] || { ok: false, items: [] };
+    var rgResp = results[2] || { ok: false, items: [] };
     var countEl = document.getElementById('ctx-l2-count');
 
-    if (!pjResp.ok && !pnResp.ok) {
-      body.innerHTML = '<div class="ctx-loading-inline">⚠️ ' + escapeHtml((pjResp.message || pnResp.message) || '오류') + '</div>';
+    if (!pjResp.ok && !pnResp.ok && !rgResp.ok) {
+      body.innerHTML = '<div class="ctx-loading-inline">⚠️ ' + escapeHtml((pjResp.message || pnResp.message || rgResp.message) || '오류') + '</div>';
       return;
     }
-    var pjItems     = (pjResp.ok && Array.isArray(pjResp.items)) ? pjResp.items : [];
-    var personItems = (pnResp.ok && Array.isArray(pnResp.items)) ? pnResp.items : [];
+    var pjItems       = (pjResp.ok && Array.isArray(pjResp.items)) ? pjResp.items : [];
+    var personItems   = (pnResp.ok && Array.isArray(pnResp.items)) ? pnResp.items : [];
+    var registerItems = (rgResp.ok && Array.isArray(rgResp.items)) ? rgResp.items : [];
+    var suggestions   = (rgResp.ok && rgResp.suggestions) ? rgResp.suggestions : { U:'26-U01', C:'26-C01', S:'26-S01', E:'26-E01', A:'26-A01' };
+    var prefixMax     = (rgResp.ok && rgResp.prefixMax) ? rgResp.prefixMax : { U:0, C:0, S:0, E:0, A:0 };
     // 인명 카드 정렬 — merge 먼저, distinct 나중
     personItems.sort(function(a, b){ return (a.kind === 'merge' ? 0 : 1) - (b.kind === 'merge' ? 0 : 1); });
 
-    var totalCount = pjItems.length + personItems.length;
+    var totalCount = pjItems.length + personItems.length + registerItems.length;
     if (totalCount === 0) {
       body.innerHTML = '<div class="ctx-loading-inline">✅ 확인 요청 없음</div>';
       if (countEl) countEl.textContent = '';
       window._l2Items = [];
       window._l2PersonItems = [];
+      window._l2RegisterItems = [];
       return;
     }
     if (countEl) countEl.textContent = totalCount + '건';
 
     var html = '';
+    // ⓪ 신규 PJ 등록 요청 (2026-05-22) — AI 인덱스 B_학습 "PJ 약칭" → 즉시 마스터 등록
+    if (registerItems.length){
+      var prefixMeaning = (rgResp.ok && rgResp.prefixMeaning) ? rgResp.prefixMeaning : { U:'도시계획', S:'구조', C:'공간기획', E:'검토·임시', A:'AI' };
+      // prefix 의미 + 다음 추천 코드 — 카드 공통 헤더로 1회 표시 (각 entry 위)
+      var prefixHintHtml = '<div class="l2-pj-prefix-legend">';
+      ['U','S','C','E','A'].forEach(function(p){
+        prefixHintHtml += '<span><b>' + p + '</b>=' + escapeHtml(prefixMeaning[p] || '') + ' (현재 최신 ' + (prefixMax[p] || 0) + ' / 다음 ' + escapeHtml(suggestions[p] || '') + ')</span>';
+      });
+      prefixHintHtml += '</div>';
+
+      registerItems.forEach(function(item, i){
+        var defaultCode = suggestions.U;   // 기본 추천 = U prefix (도시계획 가장 많음). L2 가 수정 가능
+        html += '<div class="l2-review-item l2-review-register" data-kind="register" data-idx="' + i + '">';
+        html += '<div class="l2-review-head"><strong>📌 신규 PJ 등록</strong> ';
+        html += '<span class="l2-review-status">' + escapeHtml(item['키'] || '') + '</span></div>';
+        var ctxParts = [];
+        if (item['값'])     ctxParts.push('학습 값: ' + item['값']);
+        if (item['출처'])   ctxParts.push('출처: ' + item['출처']);
+        if (item['갱신일']) ctxParts.push(item['갱신일']);
+        if (ctxParts.length) html += '<div class="l2-review-context">' + escapeHtml(ctxParts.join(' / ')) + '</div>';
+        // 첫 entry 에만 prefix 안내 (반복 노출 방지)
+        if (i === 0) html += prefixHintHtml;
+        html += '<div class="l2-pj-register-form">';
+        html += '<input type="text" id="l2-pj-code-' + i + '" placeholder="코드 (예: ' + escapeHtml(defaultCode) + ')" value="' + escapeHtml(defaultCode) + '" />';
+        html += '<input type="text" id="l2-pj-name-' + i + '" placeholder="공식명칭 (별칭만 추가 시 빈 칸 가능)" value="' + escapeHtml(item['키'] || '') + '" />';
+        html += '</div>';
+        html += '<div class="l2-review-actions">';
+        html += '<button onclick="respondRegisterPj(' + i + ', \'new\')">✓ 신규 등록</button>';
+        html += '<button onclick="respondRegisterPj(' + i + ', \'alias\')">별칭만 추가</button>';
+        html += '<button onclick="respondRegisterPj(' + i + ', \'reject\')">기각</button>';
+        html += '</div></div>';
+      });
+    }
     // ① PJ 카드 (기존 형식)
     pjItems.forEach(function(item, i){
       html += '<div class="l2-review-item l2-review-pj" data-kind="pj" data-idx="' + i + '">';
@@ -3316,7 +3411,65 @@ function loadL2PendingReviews(){
     window._l2Items = pjItems;
     window._l2BrfingDate = pjResp.brfing_date || pnResp.brfing_date || '';
     window._l2PersonItems = personItems;
+    window._l2RegisterItems = registerItems;
   });
+}
+
+// 신규 PJ 등록 응답 (2026-05-22) — 'new' / 'alias' / 'reject'
+function respondRegisterPj(idx, mode){
+  var item = (window._l2RegisterItems || [])[idx];
+  if (!item) return;
+  var codeEl = document.getElementById('l2-pj-code-' + idx);
+  var nameEl = document.getElementById('l2-pj-name-' + idx);
+  var pjCode = codeEl ? String(codeEl.value || '').trim() : '';
+  var pjName = nameEl ? String(nameEl.value || '').trim() : '';
+
+  var action = '';
+  var payload = {
+    token: APPS_SCRIPT_TOKEN,
+    email: profile.email || '',
+    source_key:   item['키']  || '',
+    source_value: item['값'] || ''
+  };
+
+  if (mode === 'new') {
+    if (!pjCode) { alert('코드를 입력해주세요 (예: 26-U25)'); return; }
+    if (!pjName) { alert('공식명칭을 입력해주세요'); return; }
+    if (!/^\d{2}-[UCSEA]\d{1,3}$/i.test(pjCode)) {
+      alert('코드 형식 오류 (YY-PNN 예: 26-U25)'); return;
+    }
+    if (!window.confirm('신규 PJ 등록\n코드: ' + pjCode + '\n명칭: ' + pjName + '\n진행할까요?')) return;
+    action = 'register_new_pj';
+    payload.pj_code = pjCode;
+    payload.official_name = pjName;
+  } else if (mode === 'alias') {
+    if (!pjCode) { alert('어느 PJ 의 별칭인지 코드를 입력해주세요'); return; }
+    if (!window.confirm('"' + (item['키']||'') + '" 를 ' + pjCode + ' 의 별칭으로만 추가할까요?')) return;
+    action = 'register_pj_alias_only';
+    payload.pj_code = pjCode;
+  } else if (mode === 'reject') {
+    if (!window.confirm('이 학습을 기각할까요? AI 인덱스에서 row 제거됩니다.')) return;
+    action = 'reject_pj_learning';
+  } else {
+    return;
+  }
+  payload.action = action;
+
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (!d.ok) { alert(d.message || '응답 실패'); return; }
+    var el = document.querySelector('.l2-review-item[data-kind="register"][data-idx="' + idx + '"]');
+    var doneMsg = (mode === 'new')  ? '✓ 등록 완료 (' + (d.pj_code || pjCode) + ')'
+                : (mode === 'alias') ? '✓ 별칭 추가 완료 (' + (d.pj_code || pjCode) + ')'
+                : '✓ 기각 처리됨';
+    if (el) el.innerHTML = '<div class="l2-review-done">' + doneMsg + '</div>';
+  })
+  .catch(function(err){ alert('네트워크 오류: ' + err); });
 }
 
 function respondL2(idx, response){
@@ -4273,9 +4426,11 @@ function _voiceSendSTT(then){
         text=data.transcript.replace(/^\[화자 [^\]]*\]\s*/gm,'').trim();
       }
       if (text){
-        // 2026-05-21 — target 분기. 'chat' = 챗 input + 자동 전송, 그 외 = raw main-input append
+        // 2026-05-21 — target 분기. 'chat' = 일일보고 챗 input + 자동 전송, 'search' = 인사이트 챗 input + 자동 전송, 그 외 = raw main-input append
         if (Voice.target === 'chat' && typeof ChatVoice !== 'undefined') {
           ChatVoice._onSTTResult(text);
+        } else if (Voice.target === 'search' && typeof SearchVoice !== 'undefined') {
+          SearchVoice._onSTTResult(text);
         } else {
           _appendToMainInput(text);
           toast('🎤 변환 완료');
@@ -4283,6 +4438,7 @@ function _voiceSendSTT(then){
       }else{
         toast('음성을 인식하지 못했습니다');
         if (Voice.target === 'chat' && typeof ChatVoice !== 'undefined') ChatVoice._cleanup();
+        else if (Voice.target === 'search' && typeof SearchVoice !== 'undefined') SearchVoice._cleanup();
       }
       // blob 폐기
       if (Voice.audio){try{Voice.audio.pause();}catch(e){} Voice.audio=null;}
@@ -5330,6 +5486,193 @@ var ChatVoice = {
 
   _updateButton: function(state){
     var btn = document.getElementById('report-chat-mic-btn');
+    if (!btn) return;
+    btn.classList.remove('recording','converting');
+    if (state === 'recording'){
+      btn.classList.add('recording');
+      btn.textContent = '⏹';
+      btn.title = '녹음 중 — 클릭 시 종료 (또는 2초 침묵 시 자동 종료)';
+    } else if (state === 'converting'){
+      btn.classList.add('converting');
+      btn.textContent = '⏳';
+      btn.title = 'CLOVA 변환 중...';
+    } else {
+      btn.textContent = '🎤';
+      btn.title = '음성 입력 (클릭하여 녹음 시작·종료 / 침묵 시 자동 종료)';
+    }
+  }
+};
+
+// ── SearchVoice — 인사이트(mode-search) 챗 음성 입력. ChatVoice 복제.
+// target='search', textarea='#chat-input', 자동 전송 = Chat.sendFromInput().
+// CLOVA STT 호출은 _voiceSendSTT 재사용 (Voice.target === 'search' 분기로 SearchVoice._onSTTResult 호출).
+var SearchVoice = {
+  active:            false,
+  audioContext:      null,
+  analyser:          null,
+  vadRafId:          null,
+  silenceStart:      null,
+  SILENCE_THRESHOLD: 18,
+  SILENCE_DURATION_MS: 2000,
+  MIN_RECORD_MS:     1500,
+
+  toggle: function(){
+    if (Voice.state === 'converting') return;
+    if (this.active) this.stop();
+    else             this.start();
+  },
+
+  start: function(){
+    var self = this;
+    if (Voice.state !== 'idle' && Voice.target !== 'search') {
+      toast('다른 음성 패널이 열려있습니다. 먼저 종료해주세요');
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast('이 브라우저는 음성 입력을 지원하지 않습니다');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      Voice.stream = stream;
+      Voice.target = 'search';
+      self._startRecording();
+      self._setupVAD(stream);
+      self.active = true;
+      self._updateButton('recording');
+    }).catch(function(err){
+      console.warn('[SearchVoice] getUserMedia', err);
+      toast('⚠️ 마이크 권한이 필요합니다');
+      Voice.target = null;
+    });
+  },
+
+  _startRecording: function(){
+    var candidates = ['audio/webm;codecs=opus','audio/webm','audio/mp4'];
+    var mt = '';
+    for (var i=0; i<candidates.length; i++){
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(candidates[i])){ mt=candidates[i]; break; }
+    }
+    Voice.mimeType = mt || '';
+    Voice.chunks = [];
+    Voice.blob = null;
+    try {
+      Voice.rec = mt ? new MediaRecorder(Voice.stream,{mimeType:mt}) : new MediaRecorder(Voice.stream);
+    } catch(e){
+      console.warn('[SearchVoice] rec init', e);
+      toast('녹음 시작 실패');
+      this._cleanup();
+      return;
+    }
+    var self = this;
+    Voice.rec.ondataavailable = function(e){ if (e.data && e.data.size>0) Voice.chunks.push(e.data); };
+    Voice.rec.onstop = function(){
+      var type = Voice.mimeType || (Voice.chunks[0] && Voice.chunks[0].type) || 'audio/webm';
+      var blob = new Blob(Voice.chunks, {type:type});
+      if (blob.size < 2000){
+        toast('음성이 너무 짧습니다');
+        self._cleanup();
+        return;
+      }
+      Voice.blob = blob;
+      Voice.durationMs = Date.now() - Voice.startTs;
+      self._updateButton('converting');
+      Voice.state = 'converting';
+      _voiceSendSTT('close');
+    };
+    Voice.startTs = Date.now();
+    Voice.rec.start();
+    Voice.state = 'recording';
+  },
+
+  _setupVAD: function(stream){
+    var self = this;
+    try {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      var source = this.audioContext.createMediaStreamSource(stream);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      source.connect(this.analyser);
+      var dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+      function check(){
+        if (!self.active) return;
+        self.analyser.getByteFrequencyData(dataArray);
+        var sum = 0;
+        for (var i=0; i<dataArray.length; i++) sum += dataArray[i];
+        var avg = sum / dataArray.length;
+        var elapsed = Date.now() - Voice.startTs;
+        if (elapsed < self.MIN_RECORD_MS){
+          // warm-up
+        } else if (avg < self.SILENCE_THRESHOLD){
+          if (!self.silenceStart) self.silenceStart = Date.now();
+          else if (Date.now() - self.silenceStart > self.SILENCE_DURATION_MS){
+            self.stop();
+            return;
+          }
+        } else {
+          self.silenceStart = null;
+        }
+        self.vadRafId = requestAnimationFrame(check);
+      }
+      this.vadRafId = requestAnimationFrame(check);
+    } catch(e){
+      console.warn('[SearchVoice] VAD setup failed (수동 종료만 가능)', e);
+    }
+  },
+
+  stop: function(){
+    if (!this.active) return;
+    this.active = false;
+    if (this.vadRafId){ cancelAnimationFrame(this.vadRafId); this.vadRafId = null; }
+    this.silenceStart = null;
+    if (this.audioContext){
+      try { this.audioContext.close(); } catch(e){}
+      this.audioContext = null;
+    }
+    if (Voice.rec && Voice.rec.state !== 'inactive'){
+      try { Voice.rec.stop(); } catch(e){}
+    }
+  },
+
+  _onSTTResult: function(text){
+    var self = this;
+    var ta = document.getElementById('chat-input');
+    if (ta){
+      ta.value = text;
+      if (typeof autosizeTa === 'function') autosizeTa(ta);
+    }
+    setTimeout(function(){
+      if (typeof Chat !== 'undefined' && Chat.sendFromInput){
+        Chat.sendFromInput();
+      }
+      self._cleanup();
+    }, 500);
+  },
+
+  _cleanup: function(){
+    if (this.vadRafId){ cancelAnimationFrame(this.vadRafId); this.vadRafId = null; }
+    this.silenceStart = null;
+    if (this.audioContext){
+      try { this.audioContext.close(); } catch(e){}
+      this.audioContext = null;
+    }
+    if (Voice.rec){
+      try { if (Voice.rec.state !== 'inactive') Voice.rec.stop(); } catch(e){}
+      Voice.rec = null;
+    }
+    if (Voice.stream){
+      try { Voice.stream.getTracks().forEach(function(t){ t.stop(); }); } catch(e){}
+      Voice.stream = null;
+    }
+    Voice.blob = null;
+    Voice.chunks = [];
+    Voice.target = null;
+    Voice.state = 'idle';
+    this.active = false;
+    this._updateButton('idle');
+  },
+
+  _updateButton: function(state){
+    var btn = document.getElementById('chat-voice-mini-btn');
     if (!btn) return;
     btn.classList.remove('recording','converting');
     if (state === 'recording'){

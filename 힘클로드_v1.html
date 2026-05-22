@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>더힘 일일보고</title>
+
+<!-- Google Identity Services — 직원 본인 Gmail 로 보고 발송 (2026-05-22 PM 신설) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
@@ -2731,6 +2734,84 @@ var STAFF=[];
 // ── 설정 ──────────────────────
 var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzmZxOy4mzgudsmdFrdBMvlkw5WpPse5zE0IRM1jS9x8RGWMaKBoWx2MPdCc7pBZuE/exec';
 var APPS_SCRIPT_TOKEN='thehim2026';
+
+// ─── Google OAuth + Gmail API (2026-05-22 PM 신설) ─────────────────────────
+// 직원 본인 Gmail 로 보고 발송 → 본인 Sent 폴더에 기록 축적 (대표님 요청).
+// GCP project `him-claude`, OAuth client `힘클로드 test` (test·prod 공유).
+var GOOGLE_OAUTH_CLIENT_ID = '78944797082-812csuhf14psu3pakcmqd236h7s9lcea.apps.googleusercontent.com';
+var GMAIL_SEND_SCOPE       = 'https://www.googleapis.com/auth/gmail.send';
+var _gmailTokenClient = null;
+var _gmailAccessToken = '';
+
+// GIS 페이지 load 후 1회 초기화 — 발송 첫 시도 직전 lazy init
+function _initGmailTokenClient() {
+  if (_gmailTokenClient) return true;
+  if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) return false;
+  if (GOOGLE_OAUTH_CLIENT_ID.indexOf('PLACEHOLDER') === 0) return false;   // 미등록 = fallback
+  _gmailTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_OAUTH_CLIENT_ID,
+    scope: GMAIL_SEND_SCOPE,
+    callback: function(){}   // dynamic callback — 매 호출 시 덮어쓰기
+  });
+  return true;
+}
+
+// 캐시된 토큰 우선, 없으면 동의 popup. callback(token|null).
+function requestUserGmailAccess(callback) {
+  if (!_initGmailTokenClient()) { callback(null); return; }
+  // sessionStorage 캐시 — 1 세션 내 재사용 (GIS access_token 만료 ~1시간)
+  var cached = sessionStorage.getItem('him_v4_gmail_token');
+  if (cached) { _gmailAccessToken = cached; callback(cached); return; }
+  _gmailTokenClient.callback = function(resp) {
+    if (resp && resp.access_token) {
+      _gmailAccessToken = resp.access_token;
+      sessionStorage.setItem('him_v4_gmail_token', resp.access_token);
+      callback(resp.access_token);
+    } else {
+      callback(null);
+    }
+  };
+  try { _gmailTokenClient.requestAccessToken({prompt: 'consent'}); }
+  catch(e) { callback(null); }
+}
+
+// MIME 메일 빌드 + base64url 인코딩 + Gmail API send.
+// callback(success, errorMsg).
+function sendViaUserGmail(token, to, cc, subject, body, callback) {
+  if (!token) { callback(false, 'no_token'); return; }
+  var lines = [];
+  lines.push('To: ' + to);
+  if (cc) lines.push('Cc: ' + cc);
+  // 한글 subject → RFC 2047 encoded-word
+  lines.push('Subject: =?UTF-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=');
+  lines.push('MIME-Version: 1.0');
+  lines.push('Content-Type: text/plain; charset=UTF-8');
+  lines.push('');
+  lines.push(body);
+  var mime = lines.join('\r\n');
+  var raw = btoa(unescape(encodeURIComponent(mime)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({raw: raw})
+  })
+  .then(function(r){
+    if (!r.ok) {
+      if (r.status === 401) {
+        sessionStorage.removeItem('him_v4_gmail_token');
+        _gmailAccessToken = '';
+      }
+      return r.text().then(function(t){ throw new Error('Gmail API ' + r.status + ': ' + t); });
+    }
+    return r.json();
+  })
+  .then(function(){ callback(true, ''); })
+  .catch(function(e){ callback(false, e.message); });
+}
 
 // 힘클로바 STT 서버 URL — localhost/127.0.0.1 호스트만 로컬 서버, 그 외 (file:// 포함) Cloud Run.
 // 로컬 개발 시 강제로 localhost:8080 쓰고 싶으면 콘솔에서:
@@ -6158,13 +6239,61 @@ function performSend(){
     return;
   }
 
-  showReportDoneScreen(
-    '<div class="done-wrap">'+
-      '<div class="done-brush">📤</div>'+
-      '<div class="done-title">발송 중...</div>'+
-    '</div>'
-  );
-  document.getElementById('report-edit-actions').style.display='none';
+  // 2026-05-22 PM 신설 — 본인 Gmail 로 발송 (OAuth 동의 시). 실패 시 옛 흐름 (GAS GmailApp = thehim180724 발신) fallback.
+  if (!_initGmailTokenClient()) {
+    _performSendViaGAS(structured, dc, false);
+    return;
+  }
+  requestUserGmailAccess(function(token){
+    if (!token) {
+      if (!confirm('본인 Gmail 권한 없음 (또는 OAuth 거부됨).\n운영 hub(thehim180724) 발신으로 진행할까요?\n\n참고: 예 = 옛 방식 (본인 Sent 미기록). 아니오 = 발송 취소.')) {
+        toast('발송 취소됨');
+        return;
+      }
+      _performSendViaGAS(structured, dc, false);
+      return;
+    }
+    // 본인 Gmail 로 발송 시도
+    showReportDoneScreen(
+      '<div class="done-wrap">'+
+        '<div class="done-brush">📤</div>'+
+        '<div class="done-title">본인 Gmail 로 발송 중...</div>'+
+      '</div>'
+    );
+    document.getElementById('report-edit-actions').style.display='none';
+    sendViaUserGmail(token,
+      'thehim180724@gmail.com', 'taesilkim2@gmail.com',
+      '[일일보고] '+profile.name+'_'+dc,
+      JSON.stringify(structured, null, 2),
+      function(success, err){
+        if (success) {
+          // 시트·Drive 누적만 (GAS GmailApp 스킵)
+          _performSendViaGAS(structured, dc, true);
+        } else {
+          hideReportDoneScreen();
+          document.getElementById('report-edit-actions').style.display='flex';
+          if (!confirm('본인 Gmail 발송 실패: '+err+'\n\n운영 hub(thehim180724) 발신으로 fallback 할까요?')) {
+            toast('❌ 발송 실패: '+err);
+            return;
+          }
+          _performSendViaGAS(structured, dc, false);
+        }
+      }
+    );
+  });
+}
+
+// 옛 흐름 (GAS GmailApp 발송 + 시트·Drive 누적). 본인 Gmail 발송 성공 시 useUserSend=true 로 GmailApp 만 스킵.
+function _performSendViaGAS(structured, dc, useUserSend){
+  if (!useUserSend) {   // 옛 흐름이면 "발송 중..." 화면 노출 (본인 Gmail 흐름은 이미 위에서 노출됨)
+    showReportDoneScreen(
+      '<div class="done-wrap">'+
+        '<div class="done-brush">📤</div>'+
+        '<div class="done-title">발송 중...</div>'+
+      '</div>'
+    );
+    document.getElementById('report-edit-actions').style.display='none';
+  }
 
   fetch(APPS_SCRIPT_URL,{
     method:'POST',
@@ -6181,7 +6310,8 @@ function performSend(){
       cc:'taesilkim2@gmail.com',
       subject:'[일일보고] '+profile.name+'_'+dc,
       raw:currentRawText,
-      structured:structured
+      structured:structured,
+      use_user_send: !!useUserSend   // true 면 GAS GmailApp 스킵 (이미 클라가 본인 Gmail 로 발송)
     })
   })
   .then(function(r){return r.json()})
@@ -6209,11 +6339,14 @@ function performSend(){
           '</div>'+
         '</div>';
     }
+    var senderNote = useUserSend
+      ? '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>본인 Gmail → thehim180724@gmail.com 으로 전송됐습니다.<br><small>(본인 Sent 폴더에 기록 ✓)</small></div>'
+      : '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>thehim180724@gmail.com으로 전송됐습니다.</div>';
     showReportDoneScreen(
       '<div class="done-wrap">'+
         '<div class="done-brush">✅</div>'+
         '<div class="done-title">발송 완료</div>'+
-        '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>thehim180724@gmail.com으로 전송됐습니다.</div>'+
+        senderNote+
         warnHtml+
         '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
         '<button class="done-new go-himclova" onclick="goToHimClovaFromReport()">🎙️ 힘클로바로 가기</button>'+

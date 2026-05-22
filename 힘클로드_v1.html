@@ -7877,9 +7877,30 @@ function csLookupAndBuild(){
         .replace(/\{\{EMAIL\}\}/g, me.email || '');
       csSetResult(filled);
       csMsg('cs-msg-name','매칭 완료 (' + me.name + ' / ' + me.dept + ') — [결과 복사] 누르세요','ok');
+      // [3] OAuth 버튼 활성화 — 본인 email 저장
+      _csMyEmail = me.email || '';
+      var oauthBtn = document.getElementById('cs-oauth-btn');
+      if (oauthBtn) {
+        oauthBtn.disabled = !_csMyEmail;
+        if (_csMyEmail) csMsg('cs-msg-oauth','준비 완료 — 아래 버튼 누르면 새 탭에서 Google 동의 시작','');
+      }
     })
     .catch(function(e){ csMsg('cs-msg-name','오류: ' + e.message,'err'); });
 }
+
+// [3] 발송 OAuth 진입 — 새 탭에서 /oauth/start?email=X 열기
+var _csMyEmail = '';
+var CS_OAUTH_BASE = 'https://himreport-mcp-prod-production.up.railway.app/oauth/start';
+function csOpenOauth(){
+  if (!_csMyEmail) {
+    csMsg('cs-msg-oauth','먼저 위 2번 단계 [생성] 으로 본인 정보 매칭 필요','err');
+    return;
+  }
+  var url = CS_OAUTH_BASE + '?email=' + encodeURIComponent(_csMyEmail);
+  window.open(url, '_blank', 'noopener');
+  csMsg('cs-msg-oauth','새 탭 열림 — Google 동의 완료 후 이 모달 닫고 Claude.ai 사용. 7일마다 자동 만료.','ok');
+}
+
 // Esc 로 모달 닫기
 document.addEventListener('keydown', function(e){
   if (e.key === 'Escape') {
@@ -8163,6 +8184,23 @@ remember({
         <button class="cs-btn" onclick="csCopyResult()">결과 복사</button>
       </div>
       <p class="desc">복사한 텍스트를 claude.ai 프로젝트 → 프로젝트 지침란에 통째로 붙여넣으세요.</p>
+    </div>
+
+    <div class="cs-section">
+      <h4>3. 본인 Gmail 발송 권한 (선택, 권장)</h4>
+      <p class="desc" style="margin:0 0 8px">
+        동의하시면 Claude.ai 일일보고가 <b>본인 Gmail 에서</b> thehim180724 으로 발송되어 본인 <b>보낸편지함에 업무 기록</b>이 남습니다. 동의 안 하시면 운영 hub(thehim180724) 발신 — 기록 X.
+      </p>
+      <div class="cs-name-row">
+        <button class="cs-btn primary" id="cs-oauth-btn" onclick="csOpenOauth()" disabled style="flex:1">본인 Gmail 발송 권한 동의 (새 탭)</button>
+      </div>
+      <p class="cs-msg" id="cs-msg-oauth"></p>
+      <p class="desc">
+        ⚠ 동의 화면에 <b>"Google이 이 앱을 확인하지 않았습니다"</b> 경고가 뜨면 <b>[고급]</b> → <b>[힘보고로 이동(안전하지 않음)]</b> 클릭 후 진행하세요. 회사 내부 도구라 정상입니다.
+      </p>
+      <p class="desc">
+        약 7일 후 자동 만료됩니다 (Testing 모드 정책). 만료 시 Claude.ai 발송할 때 안내 메시지가 다시 표시되니 같은 절차로 재동의하면 됩니다.
+      </p>
     </div>
 
     <div class="cs-actions">

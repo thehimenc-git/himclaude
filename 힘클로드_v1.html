@@ -7962,6 +7962,23 @@ document.addEventListener('keydown', function(e){
 
 ---
 
+## 본인 Gmail 발송 권한 (선택, 권장)
+
+`send_daily_report` 가 본인 Gmail 계정에서 발신하면 본인 **보낸편지함에 업무 기록**이 남습니다 (대표님 방침). 1회 OAuth 동의 필요, Testing 모드 정책상 약 7일 주기 재동의.
+
+흐름:
+- 동의 상태 → 발송 시 자동으로 본인 Gmail 사용 (`user_sent: true`)
+- 미동의·만료 → 운영 hub(thehim180724) 자동 fallback + 응답에 OAuth URL 동봉
+
+언제 사용자에게 OAuth 안내?
+- **사용자가 명시적으로 "보낸편지함 기록 남기고 싶어" 식으로 요청할 때**: `get_oauth_status({ email })` 호출 → `has_token: false` 면 응답의 `oauth_url` 을 그대로 사용자에게 안내.
+- **`send_daily_report` 응답에 `oauth_notice` 가 들어왔을 때**: 그 안의 `oauth_url` 또는 `reauth_url` 을 6단계 메시지에 자연스럽게 포함 (위 [보고 모드 4단계] 응답 분기 참고).
+- **그 외**: 먼저 권유하지 않음. 사용자가 운영 hub 발신으로 충분히 만족할 수도 있음.
+
+힘클로드 앱 셋업 모달 ([3] 섹션) 에서도 동일한 OAuth URL 진입 가능. 사용자가 거기서 동의해두면 Claude.ai 에서도 자동으로 본인 발송 활성화.
+
+---
+
 ## 두 가지 모드
 
 이 어시스턴트는 **자유 대화 모드**(기본)와 **보고 모드** 두 가지 상태를 가집니다. 사용자 의도에 따라 자연스럽게 전환됩니다.
@@ -8072,17 +8089,24 @@ document.addEventListener('keydown', function(e){
 
 payload (모든 필드는 위 [보고자 정보]에서 가져옴):
 ```
-name:    [보고자 정보의 이름]
-role:    [보고자 정보의 직책]
-dept:    [보고자 정보의 부서]
-grade:   [보고자 정보의 등급]
-date:    오늘 (yyyy-MM-dd)
-to:      thehim180724@gmail.com
-cc:      taesilkim2@gmail.com
-subject: [일일보고] {보고자이름}_yyMMdd  (예: 유성원_260521)
-raw:     사용자 원문 + 세션 누적 요약
+name:       [보고자 정보의 이름]
+role:       [보고자 정보의 직책]
+dept:       [보고자 정보의 부서]
+grade:      [보고자 정보의 등급]
+date:       오늘 (yyyy-MM-dd)
+from_email: [보고자 정보의 "개인 식별 email"]  ← 본인 Gmail 발송용. 토큰 있으면 본인 발신, 없거나 만료면 운영 hub 자동 fallback.
+to:         thehim180724@gmail.com
+cc:         taesilkim2@gmail.com
+subject:    [일일보고] {보고자이름}_yyMMdd  (예: 유성원_260521)
+raw:        사용자 원문 + 세션 누적 요약
 structured: { pj, meeting, issue, dir, schedule }
 ```
+
+응답에 따라 6단계 메시지 한 줄 분기 (5단계 remember 호출 후 6단계 응답에서 처리):
+- `user_sent: true` → 본인 Gmail 발송 완료. 6단계 메시지 상단에 "📮 본인 Gmail 발송 (본인 보낸편지함 기록 ✓)" 한 줄.
+- `user_sent: false` + `oauth_notice.no_token` → "📮 운영 hub 발신 (본인 보낸편지함 기록은 안 됐어요). 다음부터 본인 발송 원하시면 30초만 동의해주세요: [oauth_url]" 안내.
+- `user_sent: false` + `oauth_notice.expired` → "📮 운영 hub 발신 (발송 권한 7일 만료). 다음 발송 전 30초만 재동의: [reauth_url]" 안내.
+- `user_sent: false` + `oauth_notice` 없음 → "📮 운영 hub 발신" (정상 동작, 별도 안내 불필요).
 
 #### 5단계. 발송 후 즉시 학습 저장 (필수 — 같은 응답 안에서 연속 도구 호출)
 

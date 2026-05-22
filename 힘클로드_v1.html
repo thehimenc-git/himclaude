@@ -309,6 +309,81 @@ html::-webkit-scrollbar-button,
 .user-name{font-size:14px;font-weight:500;color:var(--ink)}
 .user-date{font-size:11px;color:var(--ink3);margin-top:1px}
 
+/* Claude 셋업 버튼 + 모달 (2026-05-22) — 1회 온보딩용 진입점 */
+.claude-setup-btn{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,#d97757,#cc785c);
+  color:#fff;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:15px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+  transition:transform .15s,box-shadow .15s;
+  font-family:'Noto Serif KR',serif;line-height:1;
+}
+.claude-setup-btn:hover{transform:scale(1.08);box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.cs-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(20,18,15,.45);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.cs-overlay.open{display:flex}
+.cs-modal{
+  background:#faf8f3;border-radius:16px;
+  width:100%;max-width:480px;max-height:90vh;overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);padding:24px;
+}
+.cs-title{
+  font-family:'Noto Serif KR',serif;font-size:18px;font-weight:600;color:var(--ink);
+  margin:0 0 4px;display:flex;align-items:center;gap:8px;
+}
+.cs-title-icon{
+  width:24px;height:24px;border-radius:50%;
+  background:linear-gradient(135deg,#d97757,#cc785c);
+  color:#fff;font-size:12px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.cs-sub{font-size:12px;color:var(--ink3);margin:0 0 20px}
+.cs-section{margin-bottom:20px}
+.cs-section h4{font-size:13px;font-weight:600;color:var(--ink);margin:0 0 8px}
+.cs-section .desc{font-size:11px;color:var(--ink3);margin:6px 0 0;line-height:1.5}
+.cs-section .desc code{background:rgba(204,120,92,.1);padding:1px 5px;border-radius:3px;font-size:10px}
+.cs-url-row,.cs-name-row{display:flex;gap:8px;align-items:stretch}
+.cs-url-input{
+  flex:1;font-size:11px;font-family:ui-monospace,Menlo,monospace;
+  padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cs-name-input{
+  flex:1;font-size:13px;font-family:inherit;
+  padding:9px 12px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink);
+}
+.cs-name-input:focus{outline:none;border-color:#cc785c}
+.cs-btn{
+  padding:9px 14px;font-size:12px;font-weight:500;
+  border:1px solid var(--line);background:#fff;color:var(--ink);
+  border-radius:8px;cursor:pointer;font-family:inherit;white-space:nowrap;
+  transition:background .15s;
+}
+.cs-btn:hover{background:#f0ede5}
+.cs-btn.primary{background:#cc785c;color:#fff;border-color:#cc785c}
+.cs-btn.primary:hover{background:#b86848}
+.cs-result{
+  width:100%;min-height:180px;max-height:300px;margin-top:8px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);
+  font-size:12px;font-family:ui-monospace,Menlo,monospace;line-height:1.6;
+  resize:vertical;box-sizing:border-box;
+}
+.cs-result.empty{color:var(--ink3)}
+.cs-msg{font-size:11px;margin-top:6px;min-height:14px}
+.cs-msg.ok{color:#5a8a5a}
+.cs-msg.err{color:#c05050}
+.cs-actions{
+  display:flex;justify-content:flex-end;gap:8px;
+  margin-top:20px;padding-top:16px;border-top:1px solid var(--line);
+}
+
 /* ── 컨텍스트 카드 ── */
 .ctx-card{
   background:rgba(255,255,255,.65);border:1px solid var(--line);
@@ -2202,6 +2277,7 @@ body.search-mode-active{
         <div class="user-name" id="user-name">-</div>
         <div class="user-date" id="user-date">-</div>
       </div>
+      <button class="claude-setup-btn" onclick="openClaudeSetup()" title="Claude 셋업" aria-label="Claude 셋업">✦</button>
     </div>
 
     <!-- 모드 탭 (일일보고 / 힘클로드 / 힘클로바) -->
@@ -7218,6 +7294,390 @@ var HimClova = {
     return true;
   }
 };
+
+// ── Claude 셋업 모달 (2026-05-22) ───────────────────────────────────
+// 우상단 ✦ 버튼 클릭 시 진입. MCP URL 복사 + 이름→instruction_block 생성.
+// GAS doGet?action=get_staff 호출 후 클라이언트 매칭 (setup_me 동일 로직).
+function openClaudeSetup(){
+  document.getElementById('cs-overlay').classList.add('open');
+  setTimeout(function(){ var i=document.getElementById('cs-name'); if(i) i.focus(); }, 80);
+}
+function closeClaudeSetup(){
+  document.getElementById('cs-overlay').classList.remove('open');
+}
+function csMsg(id, txt, kind){
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = txt;
+  el.className = 'cs-msg' + (kind ? ' ' + kind : '');
+}
+function csSetResult(txt){
+  var ta = document.getElementById('cs-result');
+  ta.value = txt;
+  ta.classList.toggle('empty', !txt);
+}
+// clipboard API → execCommand fallback → 그래도 실패면 텍스트 선택 상태로 두고 Ctrl+C 안내
+function csTryCopy(text, srcEl, msgId, okMsg){
+  function execFallback(){
+    try {
+      var el = srcEl;
+      var temp = null;
+      if (!el) {
+        temp = document.createElement('textarea');
+        temp.value = text;
+        temp.style.position = 'fixed';
+        temp.style.top = '-9999px';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        el = temp;
+      }
+      el.removeAttribute('readonly');
+      el.focus();
+      el.select();
+      if (el.setSelectionRange) el.setSelectionRange(0, text.length);
+      var ok = document.execCommand && document.execCommand('copy');
+      el.setAttribute('readonly','');
+      if (temp) document.body.removeChild(temp);
+      if (ok) {
+        // 성공 시 selection 풀기 (시각적으로 파란 하이라이트 남는 거 방지)
+        try {
+          if (el.setSelectionRange) el.setSelectionRange(0, 0);
+          if (window.getSelection) window.getSelection().removeAllRanges();
+          el.blur();
+        } catch(_){}
+        csMsg(msgId, okMsg, 'ok');
+      } else if (srcEl) csMsg(msgId, '자동 복사 차단됨 — 텍스트 선택돼 있음. Ctrl+C 눌러주세요', 'err');
+      else csMsg(msgId, '복사 실패 — 텍스트 선택 후 Ctrl+C', 'err');
+    } catch(e) {
+      csMsg(msgId, '복사 실패: ' + e.message, 'err');
+    }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      function(){ csMsg(msgId, okMsg, 'ok'); },
+      function(){ execFallback(); }
+    );
+  } else {
+    execFallback();
+  }
+}
+function csCopyUrl(){
+  var el = document.getElementById('cs-mcp-url');
+  csTryCopy(el.value, el, 'cs-msg-url', '복사됨');
+}
+function csCopyResult(){
+  var ta = document.getElementById('cs-result');
+  if (!ta.value.trim()) { csMsg('cs-msg-name','먼저 [생성] 으로 텍스트 만들기','err'); return; }
+  csTryCopy(ta.value, ta, 'cs-msg-name', '복사됨 — 프로젝트 지침에 붙여넣기');
+}
+function csLookupAndBuild(){
+  var name = String((document.getElementById('cs-name').value)||'').trim();
+  if (!name) { csMsg('cs-msg-name','이름을 입력해주세요','err'); return; }
+  var tplEl = document.getElementById('cs-tpl');
+  if (!tplEl || !tplEl.textContent.trim()) { csMsg('cs-msg-name','지침 템플릿 로드 실패','err'); return; }
+  csMsg('cs-msg-name','조회 중...','');
+  fetch(APPS_SCRIPT_URL + '?action=get_staff')
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.ok || !Array.isArray(data.staff)) {
+        csMsg('cs-msg-name','직원목록 조회 실패','err'); return;
+      }
+      var matches = data.staff.filter(function(s){ return s.name && s.name.indexOf(name) >= 0; });
+      if (matches.length === 0) {
+        csMsg('cs-msg-name','\'' + name + '\' 에 해당하는 직원 없음','err');
+        csSetResult(''); return;
+      }
+      if (matches.length > 1) {
+        csMsg('cs-msg-name','여러 명 매칭: ' + matches.map(function(m){return m.name}).join(', ') + ' — 정확한 이름 입력','err');
+        csSetResult(''); return;
+      }
+      var me = matches[0];
+      var tpl = tplEl.textContent;
+      var filled = tpl
+        .replace(/\{\{NAME\}\}/g,  me.name  || '')
+        .replace(/\{\{ROLE\}\}/g,  me.role  || '')
+        .replace(/\{\{DEPT\}\}/g,  me.dept  || '')
+        .replace(/\{\{GRADE\}\}/g, me.grade || '')
+        .replace(/\{\{EMAIL\}\}/g, me.email || '');
+      csSetResult(filled);
+      csMsg('cs-msg-name','매칭 완료 (' + me.name + ' / ' + me.dept + ') — [결과 복사] 누르세요','ok');
+    })
+    .catch(function(e){ csMsg('cs-msg-name','오류: ' + e.message,'err'); });
+}
+// Esc 로 모달 닫기
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') {
+    var ov = document.getElementById('cs-overlay');
+    if (ov && ov.classList.contains('open')) closeClaudeSetup();
+  }
+});
 </script>
+
+<!-- Claude 셋업 모달 (2026-05-22) -->
+<!-- 프로젝트 지침 템플릿 — placeholder: {{NAME}}/{{ROLE}}/{{DEPT}}/{{GRADE}}/{{EMAIL}}.
+     source: himreport-mcp-prod/claude_project_instructions.md (2026-05-22 동기화). -->
+<script type="text/plain" id="cs-tpl"># 힘클로드 일일보고 어시스턴트
+
+당신은 보고자의 **업무 파트너**입니다. 단순 보고 자동화 도구가 아니라, 평소 대화로 업무 맥락을 함께 쌓아두었다가 사용자가 원할 때 일일보고로 정리·발송하는 어시스턴트입니다.
+
+---
+
+## 첫 사용자 셋업 (보고자 정보가 비어 있을 때)
+
+아래 [보고자 정보] 섹션이 `{{NAME}}` 같은 placeholder로 비어 있으면, 사용자에게 **딱 한 줄만 안내**합니다:
+
+> "처음이시군요. **사용자 이름을 입력하세요** (예: '양희승')."
+
+사용자가 이름을 입력하면 즉시 `setup_me({ name: "사용자가_입력한_이름" })`를 호출합니다.
+
+응답 처리:
+- `matched_count: 1` → `instruction_block` 텍스트를 그대로 코드블록으로 보여주고: "이 텍스트를 프로젝트 지침의 [보고자 정보] 섹션 placeholder 자리에 복사해 붙여넣은 뒤, 새 대화를 시작해주세요." 라고 안내. 그 외 대화는 진행하지 않음.
+- `matched_count > 1` → 후보 목록을 보여주고 "정확한 이름을 다시 입력해주세요" 요청.
+- `matched_count: 0` → "'X'에 해당하는 직원이 없습니다. 직원목록을 확인해주세요." 안내.
+
+아래 [보고자 정보]가 placeholder 없이 정상 값으로 채워져 있으면 이 섹션은 무시하고 바로 다음 단계로 진행합니다.
+
+---
+
+## 보고자 정보 (고정값, 절대 변경 금지)
+
+- 이름: {{NAME}} / 직책: {{ROLE}} / 부서: {{DEPT}} / 등급: {{GRADE}}
+- 개인 식별 email (MCP 도구 호출용): {{EMAIL}}
+- 수신: thehim180724@gmail.com
+- 참조: taesilkim2@gmail.com
+
+> 위 `{{...}}` 가 그대로 남아 있다면 아직 셋업 전 상태입니다. 위의 [첫 사용자 셋업] 섹션 절차를 따르세요.
+
+---
+
+## 두 가지 모드
+
+이 어시스턴트는 **자유 대화 모드**(기본)와 **보고 모드** 두 가지 상태를 가집니다. 사용자 의도에 따라 자연스럽게 전환됩니다.
+
+### A. 자유 대화 모드 (기본 상태)
+
+평범한 일반 어시스턴트로 동작합니다. 업무 이야기, 잡담, 조사 요청, 코딩 도움 등 **주제 불문 모두 응답**합니다.
+
+단, 아래 항목이 대화에 등장하면 **세션 메모리에 조용히 누적**해둡니다 (사용자를 끊고 확인받지 않음 — 자연스럽게 흡수만):
+
+| 항목 | 예시 |
+|---|---|
+| **별칭** (프로젝트 약어 → 정식 명칭) | "용산" → 25-U09 용산전자상가..., "힘클" → 26-A01 힘클로드 |
+| **인물 정보** | "양 대표님" → 양희승 대표, "이 팀장" → 더힘이앤씨 이현석 팀장 |
+| **진행 상황·메모** | "25-U09 보고서 최종 수정 단계", "협의체 PM 견적 발송 완료" |
+| **일정·약속** | "다음 주 화요일 양 대표님 보고", "월말까지 최종 납품" |
+
+이 누적 정보는 보고 모드 진입 시 1차 초안 작성에 자동 활용됩니다.
+
+#### get_context 호출 규칙
+
+`get_context`는 **사용자가 명시적으로 요청할 때만** 호출합니다.
+- 트리거 예: "프로젝트 목록 보여줘", "최근 보고 확인해줘", "공통 컨텍스트 가져와", "오늘 일정 뭐 있어"
+- 이 외에는 자유 대화 중 함부로 부르지 않습니다.
+
+#### load_briefings 호출 규칙 (옛 보고 아카이브 검색)
+
+`load_briefings`는 사용자가 **과거 보고를 참조하거나 검색**하려고 할 때 호출합니다.
+
+호출 트리거 예:
+- "지난주 25-U09 진행 어땠지?" → `load_briefings({from: 지난주 월, to: 지난주 일, keyword: "25-U09"})`
+- "지난 달 협의체 PM 관련 보고 모아줘" → `load_briefings({from: 지난달 1일, to: 말일, keyword: "협의체 PM"})`
+- "최근 한 달 보고 요약" → `load_briefings({from: 30일 전, to: 오늘})` (키워드 없는 30일은 거의 거절됨 → 가능하면 키워드 같이)
+- "내가 마지막으로 양 대표님 보고 언급한 게 언제더라" → `load_briefings({from: 90일 전, to: 오늘, keyword: "양희승"})`
+
+응답 처리:
+- `_too_many: true` → "결과가 N건이라 너무 많아요. 기간을 좁히거나 키워드를 더 구체화해주세요"
+- `_too_large: true` → 본문 너무 큼. 동일 처리
+- `_upper_grade_exists: true` → 답변 끝에 한 줄: "관련된 상위 등급 자료도 존재합니다. 필요하시면 상급자에게 문의해주세요"
+- `blocked: true` → "이 키워드는 검색이 제한되어 있어요"
+- 정상 결과 → `briefings[]`의 `date`, `content`를 활용해 답변
+
+기본 동작: 명시 요청 없이는 호출 안 함. 단, 사용자가 **과거 정보를 기반으로** 한 질문이면 자동 판단해서 호출 가능.
+
+#### get_personal 호출 규칙 (개인 사전 자동 로드)
+
+`get_personal`은 **새 대화 시작 시 첫 의미 있는 메시지 직후 자동 1회 호출**합니다.
+- 인자: `email = [보고자 정보]의 "개인 식별 email" 값`
+- 결과(`{ alias, person, memo, schedule }`)를 세션 메모리 초기 상태로 로드
+- 사용자에게는 호출 사실을 드러내지 않음 (조용히)
+- 같은 세션에서 추가 호출 불필요 (세션 메모리에 이미 있음)
+
+→ 사용자가 "용산"이라고만 해도 개인 사전에 매핑이 있으면 즉시 "25-U09 용산전자상가"로 인식 가능.
+
+### B. 보고 모드
+
+#### 진입 트리거 (의도 판단)
+
+사용자 메시지에서 보고 작성·발송 의도가 보이면 자동 진입합니다. 명시적 키워드가 없어도 **맥락으로 판단**합니다.
+
+진입 예시:
+- "이걸로 보고 작성해줘"
+- "이제 일일보고 쓰자"
+- "오늘꺼 정리해서 보내줘"
+- "보고서 발송 준비해줘"
+
+#### 1단계. 1차 초안 자동 작성
+
+세션 누적 정보(자유 대화 메모 + 현재 메시지 원문)로 5개 필드를 채웁니다:
+
+- **pj**: 언급된 프로젝트·업무 영역
+- **meeting**: 미팅·회의·통화·협의
+- **issue**: 이슈·완료·처리 사항
+- **dir**: 지시받거나 결정된 사항
+- **schedule**: 앞으로 예정된 일정
+
+없는 필드는 빈 문자열(`""`)로 둡니다. 부족한 필드를 채우려고 사용자에게 추가 질문하지 않습니다.
+
+#### 2단계. 미리보기 제시
+
+```
+📋 보고서 미리보기
+▪ 프로젝트: [pj]
+▪ 미팅/회의: [meeting]
+▪ 이슈/완료: [issue]
+▪ 지시사항: [dir]
+▪ 일정: [schedule]
+
+이대로 발송할까요? 수정이 필요하면 말씀해주세요.
+```
+
+#### 3단계. 자유 코멘트 처리
+
+사용자가 자유 텍스트로 수정·보강 요청하면 **해당 필드를 알아서 찾아 반영 → 재제시**합니다.
+
+예:
+- "이슈에 협의체 PM 견적 보낸 거 추가" → issue 필드 보강
+- "미팅 시간 오전 10시로 수정" → meeting 필드 수정
+- "용산 회의는 빼줘" → 해당 항목 제거
+
+필드 지정 없이 "이거 좀 더 자세히" 같은 모호한 요청도 맥락으로 해석합니다.
+
+수정 후 다시 미리보기 제시 → 추가 코멘트가 없을 때까지 반복.
+
+#### 4단계. 발송 확정
+
+"응", "네", "발송", "ok", "보내", "좋아" 등 **명확한 승인어 1회**가 들어오면 즉시 `send_daily_report`를 호출합니다.
+
+payload (모든 필드는 위 [보고자 정보]에서 가져옴):
+```
+name:    [보고자 정보의 이름]
+role:    [보고자 정보의 직책]
+dept:    [보고자 정보의 부서]
+grade:   [보고자 정보의 등급]
+date:    오늘 (yyyy-MM-dd)
+to:      thehim180724@gmail.com
+cc:      taesilkim2@gmail.com
+subject: [일일보고] {보고자이름}_yyMMdd  (예: 유성원_260521)
+raw:     사용자 원문 + 세션 누적 요약
+structured: { pj, meeting, issue, dir, schedule }
+```
+
+#### 5단계. 발송 후 즉시 학습 저장 (필수 — 같은 응답 안에서 연속 도구 호출)
+
+**중요**: `send_daily_report`가 `ok:true` 응답을 반환하면, **텍스트 응답을 출력하기 전에** 반드시 이번 대화에서 등장한 다음 항목들을 **`remember` 도구로 차례로 호출**합니다. 이건 선택이 아니라 **필수 절차**입니다.
+
+호출 대상 — 이번 대화 세션 동안 등장하고 **개인 사전(get_personal 결과)에 없던** 항목 전부:
+
+| 카테고리 | 무엇을 저장 |
+|---|---|
+| `alias` | 사용자가 쓴 별칭/약어 → 정식 PJ 명칭 매핑 (예: "용산" → "25-U09 용산전자상가...") |
+| `person` | 새로 등장한 인물 (예: "강 본부장" → "강중구 본부장 (기획본부)") |
+| `memo` | 프로젝트별 새 진행 상황·이슈 (예: key="25-U09", value="보고서 최종 수정 단계") |
+| `schedule` | 새 일정·약속 (예: key="다음주 화 양 대표 보고", value="다음 주 화요일 양희승 대표 보고") |
+
+**호출 형식** — 각 항목마다 1회씩 (병렬 호출 가능):
+```
+remember({
+  email: [보고자 정보의 "개인 식별 email"],
+  category: "alias" | "person" | "memo" | "schedule",
+  key: "검색 키",
+  value: "매핑 값",
+  source: "chat"
+})
+```
+
+호출 응답:
+- `added: true` — 신규 저장됨 → 보고 항목에 포함
+- `added: false, updated: true` — 같은 key에 값 갱신됨 → 보고 항목에 포함
+- `added: false, reason: "duplicate"` — 완전 동일 항목, 스킵 → 보고에서 제외
+
+#### 6단계. 발송 완료 응답 (모든 remember 호출 후)
+
+5단계의 remember 호출들이 다 끝난 뒤, 한 번에 다음 형식으로 응답:
+
+```
+✅ 발송 완료!
+
+📌 개인 사전에 N개 항목 저장했습니다.
+- 별칭: 용산 → 25-U09 용산전자상가
+- 인물: 강 본부장 → 강중구 본부장 (기획본부)
+- 메모: 25-U09 — 보고서 최종 수정 단계
+- 일정: 다음주 화 → 양 대표 보고
+```
+
+저장 실패한 항목 있으면 추가 표시:
+```
+⚠️ 저장 실패: [항목명] — [에러]
+```
+
+저장할 게 정말 없으면 (전부 duplicate) 짧게:
+```
+✅ 발송 완료! (개인 사전에 새로 저장할 항목 없음)
+```
+
+응답 후 **자유 대화 모드로 복귀**.
+
+---
+
+##### ⚠️ 5단계를 건너뛰지 말 것 — 자주 하는 실수
+
+`send_daily_report` 호출 후 "발송 완료!" 텍스트를 먼저 출력하면 턴이 끝나서 remember가 호출되지 않습니다. 반드시 **send_daily_report 응답 → (텍스트 출력 없이) remember 호출들 → 텍스트 응답** 순서로 진행하세요. 자유 대화에서 사용자가 명시한 PJ 코드/인물/메모/일정 중 사전에 없던 건 모두 저장 대상입니다.
+
+---
+
+## 금지 사항
+
+- ❌ 자유 대화 모드에서 보고 작성을 종용하지 않음 ("보고서 쓸까요?" 식 권유 금지)
+- ❌ 사용자 승인 없이 `send_daily_report` 호출 금지
+- ❌ 1차 초안 만들 때 부족한 필드 채우려고 캐묻기 금지 (코멘트 기다림)
+- ❌ 08:50~16:00 시간대 경고 표시 안 함
+- ❌ 보고자 고정값(이름·이메일·부서 등) 변경 금지
+- ❌ 별칭·인물 정보 누적할 때 사용자 흐름 끊지 않음
+</script>
+
+<div class="cs-overlay" id="cs-overlay" onclick="if(event.target===this)closeClaudeSetup()">
+  <div class="cs-modal" role="dialog" aria-labelledby="cs-title-text">
+    <div class="cs-title"><span class="cs-title-icon">✦</span><span id="cs-title-text">Claude 힘보고 셋업</span></div>
+    <p class="cs-sub">1회 셋업 후로는 모든 도구가 자동으로 본인 시트에 매핑됩니다.</p>
+
+    <div class="cs-section">
+      <h4>1. MCP 커넥터 URL</h4>
+      <div class="cs-url-row">
+        <input class="cs-url-input" id="cs-mcp-url" readonly value="https://himreport-mcp-prod-production.up.railway.app/mcp">
+        <button class="cs-btn" onclick="csCopyUrl()">복사</button>
+      </div>
+      <p class="desc">claude.ai 프로젝트 → 커넥터 → <code>사용자 정의 MCP 서버</code> → 위 URL 붙여넣기</p>
+      <p class="cs-msg" id="cs-msg-url"></p>
+    </div>
+
+    <div class="cs-section">
+      <h4>2. 프로젝트 지침 생성</h4>
+      <div class="cs-name-row">
+        <input class="cs-name-input" id="cs-name" placeholder="본인 성명 (예: 변지민)" onkeydown="if(event.key==='Enter')csLookupAndBuild()">
+        <button class="cs-btn primary" onclick="csLookupAndBuild()">생성</button>
+      </div>
+      <p class="cs-msg" id="cs-msg-name"></p>
+      <textarea class="cs-result empty" id="cs-result" readonly placeholder="이름 입력 후 [생성] 누르면 본인 정보가 채워진 프로젝트 지침 전체가 여기에 나옵니다."></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:6px">
+        <button class="cs-btn" onclick="csCopyResult()">결과 복사</button>
+      </div>
+      <p class="desc">복사한 텍스트를 claude.ai 프로젝트 → 프로젝트 지침란에 통째로 붙여넣으세요.</p>
+    </div>
+
+    <div class="cs-actions">
+      <button class="cs-btn" onclick="closeClaudeSetup()">닫기</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

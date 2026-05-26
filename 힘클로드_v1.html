@@ -2779,6 +2779,15 @@ function requestUserGmailAccess(callback) {
 // callback(success, errorMsg).
 function sendViaUserGmail(token, to, cc, subject, body, callback) {
   if (!token) { callback(false, 'no_token'); return; }
+
+  // 본문 base64 인코딩 (한글 UTF-8 안전 — line wrapping 영향 받지 않음).
+  // 2026-05-26 신설: 옛 흐름은 transfer-encoding 미설정 → SMTP 76자 line wrap 시 한글 multibyte 중간 split →
+  //                  수신측 getPlainBody 디코드 실패 → JSON.parse 실패 (5/26 brfing 17 row ✗parse 원인).
+  // base64 transfer-encoding 으로 영구 해결.
+  var bodyBase64 = btoa(unescape(encodeURIComponent(body)));
+  // RFC 2045 권장 — 76자마다 CRLF (선택사항이지만 호환성 ↑)
+  var bodyB64Wrapped = (bodyBase64.match(/.{1,76}/g) || [bodyBase64]).join('\r\n');
+
   var lines = [];
   lines.push('To: ' + to);
   if (cc) lines.push('Cc: ' + cc);
@@ -2786,9 +2795,11 @@ function sendViaUserGmail(token, to, cc, subject, body, callback) {
   lines.push('Subject: =?UTF-8?B?' + btoa(unescape(encodeURIComponent(subject))) + '?=');
   lines.push('MIME-Version: 1.0');
   lines.push('Content-Type: text/plain; charset=UTF-8');
+  lines.push('Content-Transfer-Encoding: base64');
   lines.push('');
-  lines.push(body);
+  lines.push(bodyB64Wrapped);
   var mime = lines.join('\r\n');
+  // 전체 MIME 을 Gmail API raw 필드용 base64url 인코딩. mime 은 이제 ASCII only (subject/body 모두 인코딩됨) 라 안전.
   var raw = btoa(unescape(encodeURIComponent(mime)))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
@@ -6261,10 +6272,20 @@ function performSend(){
       '</div>'
     );
     document.getElementById('report-edit-actions').style.display='none';
+    // ★ 본문에 identity 필드 동봉 (name/role/dept/grade/date) — GmailToQueue 가 큐 식별자 컬럼 채우는 근거.
+    // 누락 시 큐 row 의 name/role/dept 가 공란 → brfing 생성 시 Claude 가 "미상 보고자"로 처리.
+    // 옛 GAS path 는 서버 sendDailyReport 가 structured.name 등을 박은 후 Gmail 발송했음. OAuth path 는 클라가 직접 발송이라 여기서 박아야 함.
+    var oauthBody = JSON.stringify(Object.assign({}, structured, {
+      name:  profile.name,
+      role:  profile.role,
+      dept:  profile.dept,
+      grade: profile.grade,
+      date:  dateStr
+    }), null, 2);
     sendViaUserGmail(token,
       'thehim180724@gmail.com', 'taesilkim2@gmail.com',
       '[일일보고] '+profile.name+'_'+dc,
-      JSON.stringify(structured, null, 2),
+      oauthBody,
       function(success, err){
         if (success) {
           // 시트·Drive 누적만 (GAS GmailApp 스킵)
@@ -7877,30 +7898,9 @@ function csLookupAndBuild(){
         .replace(/\{\{EMAIL\}\}/g, me.email || '');
       csSetResult(filled);
       csMsg('cs-msg-name','매칭 완료 (' + me.name + ' / ' + me.dept + ') — [결과 복사] 누르세요','ok');
-      // [3] OAuth 버튼 활성화 — 본인 email 저장
-      _csMyEmail = me.email || '';
-      var oauthBtn = document.getElementById('cs-oauth-btn');
-      if (oauthBtn) {
-        oauthBtn.disabled = !_csMyEmail;
-        if (_csMyEmail) csMsg('cs-msg-oauth','준비 완료 — 아래 버튼 누르면 새 탭에서 Google 동의 시작','');
-      }
     })
     .catch(function(e){ csMsg('cs-msg-name','오류: ' + e.message,'err'); });
 }
-
-// [3] 발송 OAuth 진입 — 새 탭에서 /oauth/start?email=X 열기
-var _csMyEmail = '';
-var CS_OAUTH_BASE = 'https://himreport-mcp-prod-production.up.railway.app/oauth/start';
-function csOpenOauth(){
-  if (!_csMyEmail) {
-    csMsg('cs-msg-oauth','먼저 위 2번 단계 [생성] 으로 본인 정보 매칭 필요','err');
-    return;
-  }
-  var url = CS_OAUTH_BASE + '?email=' + encodeURIComponent(_csMyEmail);
-  window.open(url, '_blank', 'noopener');
-  csMsg('cs-msg-oauth','새 탭 열림 — Google 동의 완료 후 이 모달 닫고 Claude.ai 사용. 7일마다 자동 만료.','ok');
-}
-
 // Esc 로 모달 닫기
 document.addEventListener('keydown', function(e){
   if (e.key === 'Escape') {
@@ -7959,23 +7959,6 @@ document.addEventListener('keydown', function(e){
 - 연결돼 있지 않으면 그냥 무시. 사용자에게 "노션 연결하세요" 식으로 권유하지 않음.
 - 호출 사실을 매번 드러내지 않음 (조용히 활용).
 - 정보가 풍부해도 일일보고 발송 형식은 5개 필드(pj/meeting/issue/dir/schedule)에 맞춰 정리.
-
----
-
-## 본인 Gmail 발송 권한 (선택, 권장)
-
-`send_daily_report` 가 본인 Gmail 계정에서 발신하면 본인 **보낸편지함에 업무 기록**이 남습니다 (대표님 방침). 1회 OAuth 동의 필요, Testing 모드 정책상 약 7일 주기 재동의.
-
-흐름:
-- 동의 상태 → 발송 시 자동으로 본인 Gmail 사용 (`user_sent: true`)
-- 미동의·만료 → 운영 hub(thehim180724) 자동 fallback + 응답에 OAuth URL 동봉
-
-언제 사용자에게 OAuth 안내?
-- **사용자가 명시적으로 "보낸편지함 기록 남기고 싶어" 식으로 요청할 때**: `get_oauth_status({ email })` 호출 → `has_token: false` 면 응답의 `oauth_url` 을 그대로 사용자에게 안내.
-- **`send_daily_report` 응답에 `oauth_notice` 가 들어왔을 때**: 그 안의 `oauth_url` 또는 `reauth_url` 을 6단계 메시지에 자연스럽게 포함 (위 [보고 모드 4단계] 응답 분기 참고).
-- **그 외**: 먼저 권유하지 않음. 사용자가 운영 hub 발신으로 충분히 만족할 수도 있음.
-
-힘클로드 앱 셋업 모달 ([3] 섹션) 에서도 동일한 OAuth URL 진입 가능. 사용자가 거기서 동의해두면 Claude.ai 에서도 자동으로 본인 발송 활성화.
 
 ---
 
@@ -8089,24 +8072,17 @@ document.addEventListener('keydown', function(e){
 
 payload (모든 필드는 위 [보고자 정보]에서 가져옴):
 ```
-name:       [보고자 정보의 이름]
-role:       [보고자 정보의 직책]
-dept:       [보고자 정보의 부서]
-grade:      [보고자 정보의 등급]
-date:       오늘 (yyyy-MM-dd)
-from_email: [보고자 정보의 "개인 식별 email"]  ← 본인 Gmail 발송용. 토큰 있으면 본인 발신, 없거나 만료면 운영 hub 자동 fallback.
-to:         thehim180724@gmail.com
-cc:         taesilkim2@gmail.com
-subject:    [일일보고] {보고자이름}_yyMMdd  (예: 유성원_260521)
-raw:        사용자 원문 + 세션 누적 요약
+name:    [보고자 정보의 이름]
+role:    [보고자 정보의 직책]
+dept:    [보고자 정보의 부서]
+grade:   [보고자 정보의 등급]
+date:    오늘 (yyyy-MM-dd)
+to:      thehim180724@gmail.com
+cc:      taesilkim2@gmail.com
+subject: [일일보고] {보고자이름}_yyMMdd  (예: 유성원_260521)
+raw:     사용자 원문 + 세션 누적 요약
 structured: { pj, meeting, issue, dir, schedule }
 ```
-
-응답에 따라 6단계 메시지 한 줄 분기 (5단계 remember 호출 후 6단계 응답에서 처리):
-- `user_sent: true` → 본인 Gmail 발송 완료. 6단계 메시지 상단에 "📮 본인 Gmail 발송 (본인 보낸편지함 기록 ✓)" 한 줄.
-- `user_sent: false` + `oauth_notice.no_token` → "📮 운영 hub 발신 (본인 보낸편지함 기록은 안 됐어요). 다음부터 본인 발송 원하시면 30초만 동의해주세요: [oauth_url]" 안내.
-- `user_sent: false` + `oauth_notice.expired` → "📮 운영 hub 발신 (발송 권한 7일 만료). 다음 발송 전 30초만 재동의: [reauth_url]" 안내.
-- `user_sent: false` + `oauth_notice` 없음 → "📮 운영 hub 발신" (정상 동작, 별도 안내 불필요).
 
 #### 5단계. 발송 후 즉시 학습 저장 (필수 — 같은 응답 안에서 연속 도구 호출)
 
@@ -8208,23 +8184,6 @@ remember({
         <button class="cs-btn" onclick="csCopyResult()">결과 복사</button>
       </div>
       <p class="desc">복사한 텍스트를 claude.ai 프로젝트 → 프로젝트 지침란에 통째로 붙여넣으세요.</p>
-    </div>
-
-    <div class="cs-section">
-      <h4>3. 본인 Gmail 발송 권한 (선택, 권장)</h4>
-      <p class="desc" style="margin:0 0 8px">
-        동의하시면 Claude.ai 일일보고가 <b>본인 Gmail 에서</b> thehim180724 으로 발송되어 본인 <b>보낸편지함에 업무 기록</b>이 남습니다. 동의 안 하시면 운영 hub(thehim180724) 발신 — 기록 X.
-      </p>
-      <div class="cs-name-row">
-        <button class="cs-btn primary" id="cs-oauth-btn" onclick="csOpenOauth()" disabled style="flex:1">본인 Gmail 발송 권한 동의 (새 탭)</button>
-      </div>
-      <p class="cs-msg" id="cs-msg-oauth"></p>
-      <p class="desc">
-        ⚠ 동의 화면에 <b>"Google이 이 앱을 확인하지 않았습니다"</b> 경고가 뜨면 <b>[고급]</b> → <b>[힘보고로 이동(안전하지 않음)]</b> 클릭 후 진행하세요. 회사 내부 도구라 정상입니다.
-      </p>
-      <p class="desc">
-        약 7일 후 자동 만료됩니다 (Testing 모드 정책). 만료 시 Claude.ai 발송할 때 안내 메시지가 다시 표시되니 같은 절차로 재동의하면 됩니다.
-      </p>
     </div>
 
     <div class="cs-actions">

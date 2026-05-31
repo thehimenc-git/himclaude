@@ -8072,6 +8072,7 @@ function closeSetupMenu(){
 function chooseSetup(which){
   closeSetupMenu();
   if (which === 'voice') openVoicePost();
+  else if (which === 'oauth') openOauthConsent();
   else openClaudeSetup();
 }
 function openVoicePost(){
@@ -8149,12 +8150,35 @@ function vpLookupAndBuild(){
     })
     .catch(function(e){ csMsg('vp-msg-name','오류: ' + e.message,'err'); });
 }
+
+// ── 메일 권한 동의 (2026-06-01 복구·확장) — 이메일 직접 입력 → /oauth/start?email= 새 탭.
+// /oauth/start 가 Google authorize 로 redirect → callback 에서 refresh_token 을 GAS 에 저장.
+// 1회 동의로 Claude.ai 측 메일 읽기·검색·첨부·발송 + Drive 가 모두 켜짐 (gmail.readonly+send+drive.file+drive.readonly).
+var OAUTH_START_BASE = 'https://himreport-mcp-prod-production.up.railway.app/oauth/start';
+function openOauthConsent(){
+  document.getElementById('oauth-overlay').classList.add('open');
+  setTimeout(function(){ var i=document.getElementById('oauth-email'); if(i) i.focus(); }, 80);
+}
+function closeOauthConsent(){
+  document.getElementById('oauth-overlay').classList.remove('open');
+}
+function oauthOpenConsent(){
+  var email = String((document.getElementById('oauth-email').value)||'').trim();
+  if (!email || email.indexOf('@') < 1 || email.indexOf('.') < 0) {
+    csMsg('oauth-msg','올바른 이메일을 입력하세요 (예: paulyoo999@gmail.com)','err'); return;
+  }
+  var url = OAUTH_START_BASE + '?email=' + encodeURIComponent(email);
+  window.open(url, '_blank', 'noopener');
+  csMsg('oauth-msg','새 탭 열림 — Google 동의를 마치면 이 창을 닫으세요. Testing 모드라 약 7일마다 재동의가 필요합니다.','ok');
+}
 document.addEventListener('keydown', function(e){
   if (e.key === 'Escape') {
     var ov = document.getElementById('vp-overlay');
     if (ov && ov.classList.contains('open')) closeVoicePost();
     var mv = document.getElementById('setup-menu-overlay');
     if (mv && mv.classList.contains('open')) closeSetupMenu();
+    var au = document.getElementById('oauth-overlay');
+    if (au && au.classList.contains('open')) closeOauthConsent();
   }
 });
 </script>
@@ -8609,9 +8633,43 @@ remember({
         <span style="font-size:14px;font-weight:600">🎙 후처리 셋업</span><br>
         <span style="font-size:11px;color:var(--ink3)">음성 텍스트 정제 transcript 프로젝트 지침 생성</span>
       </button>
+      <button class="cs-btn" onclick="chooseSetup('oauth')" style="text-align:left;padding:14px 16px;white-space:normal;line-height:1.4;border:1px solid var(--brush-blue);background:#eef4f7">
+        <span style="font-size:14px;font-weight:600">🔑 메일 권한 동의</span><br>
+        <span style="font-size:11px;color:var(--ink3)">Claude.ai 에서 본인 Gmail 읽기·검색·첨부·발송 + Drive 1회 동의</span>
+      </button>
     </div>
     <div class="cs-actions" style="margin-top:16px">
       <button class="cs-btn" onclick="closeSetupMenu()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 메일 권한 동의 모달 (2026-06-01) — 이메일 직접 입력 → /oauth/start. .cs-* 재사용 ===== -->
+<div class="cs-overlay" id="oauth-overlay" onclick="if(event.target===this)closeOauthConsent()">
+  <div class="cs-modal" role="dialog" aria-labelledby="oauth-title">
+    <div class="cs-title"><span class="cs-title-icon">🔑</span><span id="oauth-title">메일 권한 동의</span></div>
+    <p class="cs-sub">Claude.ai 에서 본인 Gmail/Drive 를 쓰기 위한 1회 Google 동의입니다.</p>
+
+    <div class="cs-section">
+      <h4>본인 이메일 입력</h4>
+      <div class="cs-name-row">
+        <input class="cs-name-input" id="oauth-email" type="email" placeholder="본인 회사 Gmail (예: paulyoo999@gmail.com)" onkeydown="if(event.key==='Enter')oauthOpenConsent()">
+      </div>
+      <p class="cs-msg" id="oauth-msg"></p>
+      <p class="desc">MCP 도구 호출에 쓰는 본인 식별 이메일과 동일해야 합니다.</p>
+    </div>
+
+    <div class="cs-section">
+      <h4>Google 동의</h4>
+      <button class="cs-btn primary" onclick="oauthOpenConsent()" style="width:100%">본인 Gmail 권한 동의 (새 탭) →</button>
+      <p class="desc">누르면 새 탭에서 Google 동의가 열립니다. <b>1회 동의로 메일 읽기·검색·첨부·발송 + Drive</b> 가 모두 켜집니다.</p>
+      <p class="desc">⚠ "Google이 이 앱을 확인하지 않았습니다" 경고가 뜨면 <b>[고급] → [힘보고로 이동(안전하지 않음)]</b> 클릭 후 진행하세요. 회사 내부 도구라 정상입니다.</p>
+      <p class="desc">약 7일 후 자동 만료됩니다(Testing 모드). 만료 시 같은 절차로 재동의하면 됩니다.</p>
+    </div>
+
+    <div class="cs-actions">
+      <button class="cs-btn" onclick="closeOauthConsent();openSetupMenu()" style="min-width:72px">← 뒤로</button>
+      <button class="cs-btn" onclick="closeOauthConsent()" style="min-width:72px">닫기</button>
     </div>
   </div>
 </div>

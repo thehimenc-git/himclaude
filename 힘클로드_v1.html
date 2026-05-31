@@ -8165,7 +8165,7 @@ function closeOauthConsent(){
 function oauthOpenConsent(){
   var email = String((document.getElementById('oauth-email').value)||'').trim();
   if (!email || email.indexOf('@') < 1 || email.indexOf('.') < 0) {
-    csMsg('oauth-msg','올바른 이메일을 입력하세요 (예: paulyoo999@gmail.com)','err'); return;
+    csMsg('oauth-msg','올바른 이메일을 입력하세요 (예: thehimenc180724@gmail.com)','err'); return;
   }
   var url = OAUTH_START_BASE + '?email=' + encodeURIComponent(email);
   window.open(url, '_blank', 'noopener');
@@ -8653,7 +8653,7 @@ remember({
     <div class="cs-section">
       <h4>본인 이메일 입력</h4>
       <div class="cs-name-row">
-        <input class="cs-name-input" id="oauth-email" type="email" placeholder="본인 회사 Gmail (예: paulyoo999@gmail.com)" onkeydown="if(event.key==='Enter')oauthOpenConsent()">
+        <input class="cs-name-input" id="oauth-email" type="email" placeholder="본인 회사 Gmail (예: thehimenc180724@gmail.com)" onkeydown="if(event.key==='Enter')oauthOpenConsent()">
       </div>
       <p class="cs-msg" id="oauth-msg"></p>
       <p class="desc">MCP 도구 호출에 쓰는 본인 식별 이메일과 동일해야 합니다.</p>

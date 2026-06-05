@@ -2756,22 +2756,32 @@ function _initGmailTokenClient() {
   return true;
 }
 
-// 캐시된 토큰 우선, 없으면 동의 popup. callback(token|null).
+// 캐시된 토큰 우선(만료 5분 전까지), 없거나 만료 임박이면 조용히 재발급(prompt:''). callback(token|null).
 function requestUserGmailAccess(callback) {
   if (!_initGmailTokenClient()) { callback(null); return; }
-  // sessionStorage 캐시 — 1 세션 내 재사용 (GIS access_token 만료 ~1시간)
+  // sessionStorage 캐시 — access_token(~1시간) + 만료시각 동반 저장.
+  // 2026-06-05 추가2 — 옛 코드는 만료된 토큰을 그대로 반환 → 1시간 후 첫 발송 401 실패 → fallback confirm.
+  //   만료 5분 전부터 캐시 무효 처리 → prompt:'' 로 조용히 재발급 (사용자 개입 X) → 그 friction 제거.
   var cached = sessionStorage.getItem('him_v4_gmail_token');
-  if (cached) { _gmailAccessToken = cached; callback(cached); return; }
+  var exp    = parseInt(sessionStorage.getItem('him_v4_gmail_token_exp') || '0', 10);
+  if (cached && Date.now() < exp) { _gmailAccessToken = cached; callback(cached); return; }
   _gmailTokenClient.callback = function(resp) {
     if (resp && resp.access_token) {
       _gmailAccessToken = resp.access_token;
       sessionStorage.setItem('him_v4_gmail_token', resp.access_token);
+      // expires_in(초, 보통 3599) - 300초(5분 마진). 응답에 없으면 보수적으로 50분.
+      var ttlMs = (resp.expires_in ? resp.expires_in - 300 : 3000) * 1000;
+      sessionStorage.setItem('him_v4_gmail_token_exp', String(Date.now() + ttlMs));
       callback(resp.access_token);
     } else {
       callback(null);
     }
   };
-  try { _gmailTokenClient.requestAccessToken({prompt: 'consent'}); }
+  // 2026-06-05 — prompt:'consent'(매 세션 전체 동의 강제) → prompt:''(이미 동의한 사용자는 조용히 재발급).
+  //   GIS token model 은 refresh_token 이 없어 매 세션 access_token 재발급인데, consent 강제라 직원이
+  //   브라우저 닫을 때마다(다음날) 전체 동의 화면을 다시 봤음. ''(빈 prompt)=동의 필요 시만 노출 → "매일 재동의" 해소.
+  //   hint=본인 이메일 → 계정 선택 화면까지 스킵 (재방문 사용자 무클릭).
+  try { _gmailTokenClient.requestAccessToken({prompt: '', hint: (profile && profile.email) || ''}); }
   catch(e) { callback(null); }
 }
 
@@ -2814,6 +2824,7 @@ function sendViaUserGmail(token, to, cc, subject, body, callback) {
     if (!r.ok) {
       if (r.status === 401) {
         sessionStorage.removeItem('him_v4_gmail_token');
+        sessionStorage.removeItem('him_v4_gmail_token_exp');
         _gmailAccessToken = '';
       }
       return r.text().then(function(t){ throw new Error('Gmail API ' + r.status + ': ' + t); });

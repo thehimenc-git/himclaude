@@ -4507,7 +4507,8 @@ function _voiceSendSTT(then){
   var url=(typeof HIMCLOVA_URL==='string' && HIMCLOVA_URL) ? HIMCLOVA_URL : 'https://himclova-server-production.up.railway.app';
   var ctrl=new AbortController();
   Voice.abortCtrl=ctrl;
-  var timeoutId=setTimeout(function(){try{ctrl.abort();}catch(e){}}, 5*60*1000);
+  // 2026-07-20: 5분 → 25분 (UPLOAD_TIMEOUT_MS 와 통일). 서버 heartbeat 로 Railway 엣지 300초 절단도 해소됨.
+  var timeoutId=setTimeout(function(){try{ctrl.abort();}catch(e){}}, 25*60*1000);
 
   fetch(url+'/transcribe',{method:'POST',body:fd,signal:ctrl.signal})
     .then(function(resp){

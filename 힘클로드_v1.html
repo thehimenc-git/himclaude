@@ -3887,7 +3887,7 @@ function loadContext(){
   if(!profile)return;
   renderContextLoading();
 
-  fetch(APPS_SCRIPT_URL+'?action=get_schedule&name='+encodeURIComponent(profile.name)+'&days_before=1&days_after=30')
+  fetch(APPS_SCRIPT_URL+'?action=get_schedule&name='+encodeURIComponent(profile.name)+'&days_before=10&days_after=30')
     .then(function(r){return r.json()})
     .then(function(data){
       if(!data || !data.ok){
@@ -3977,6 +3977,7 @@ function renderCardSections(bodyId, entries, options){
     var d=e.d_offset||0;
     if(d === 0) today.push(e);
     else if(d > 0) future.push(e);
+    else if(options.includePast) today.push(e);   // 2026-07-23 받은 지시: 기한 지난 미완료도 표시 (완료 체크 대상)
   });
 
   future.sort(function(a,b){ return a.d_offset - b.d_offset; });
@@ -4007,8 +4008,9 @@ function renderCardSections(bodyId, entries, options){
   var previewLimit = options.previewLimit || 0;
   var needsPreview = previewLimit > 0 && combined.length > previewLimit;
 
+  var mkRow = options.completable ? buildCompletableRow : buildEntryRow;   // 2026-07-23 완료 체크 카드
   if(needsPreview){
-    var rows = combined.map(function(it){ return buildEntryRow(it); });
+    var rows = combined.map(function(it){ return mkRow(it); });
     var expanded = false;
 
     var toggle = document.createElement('button');
@@ -4029,10 +4031,53 @@ function renderCardSections(bodyId, entries, options){
     box.appendChild(toggle);
     applyState();
   }else{
-    combined.forEach(function(it){ box.appendChild(buildEntryRow(it)); });
+    combined.forEach(function(it){ box.appendChild(mkRow(it)); });
   }
 
   body.appendChild(box);
+
+  // 2026-07-23 — 받은 지시 완료 체크 카드 (테스트서버 검증 후 이식)
+  if(options.completable && combined.length){
+    var hint=document.createElement('div');
+    hint.style.cssText='font-size:11px;color:#8a8578;line-height:1.6;margin:8px 2px 4px;';
+    hint.innerHTML='완료한 지시는 체크 후 아래 버튼으로 제출해주세요.<br>아직 진행 중인 지시는 오늘 업무보고 본문에 진행사항을 적어주세요.';
+    var doneBtn=document.createElement('button');
+    doneBtn.id='dir-done-btn'; doneBtn.type='button'; doneBtn.className='ctx-more-btn';
+    doneBtn.textContent='✓ 체크한 지시 완료 제출';
+    doneBtn.onclick=submitCompletedDirectives;
+    body.appendChild(hint);
+    body.appendChild(doneBtn);
+  }
+}
+
+// 받은 지시 row 앞에 완료 체크박스 부착 (2026-07-23)
+function buildCompletableRow(e){
+  var row=buildEntryRow(e);
+  var chk=document.createElement('input');
+  chk.type='checkbox'; chk.className='dir-done-chk';
+  chk.setAttribute('data-id', e.id||'');
+  chk.style.cssText='margin-right:6px;width:15px;height:15px;flex-shrink:0;cursor:pointer;accent-color:#7C5BC8;';
+  row.insertBefore(chk, row.firstChild);
+  return row;
+}
+
+// 체크한 지시 완료 제출 → sync_schedule → 완료 기록 + 지시자·본부장 알림(서버측) (2026-07-23)
+function submitCompletedDirectives(){
+  var body=document.getElementById('ctx-directive-body');
+  if(!body||!profile)return;
+  var checks=body.querySelectorAll('input.dir-done-chk:checked');
+  var ids=Array.prototype.map.call(checks,function(c){return c.getAttribute('data-id');}).filter(Boolean);
+  if(!ids.length){alert('완료할 지시를 먼저 체크해주세요.');return;}
+  if(!confirm('체크한 '+ids.length+'건을 완료 처리할까요?\n완료 시 지시자·본부장에게 알림이 전송됩니다.'))return;
+  var btn=document.getElementById('dir-done-btn');
+  if(btn){btn.disabled=true;btn.textContent='처리 중...';}
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'sync_schedule',token:'thehim2026',name:profile.name,completed_ids:ids})})
+    .then(function(r){return r.json()})
+    .then(function(res){
+      if(res&&res.ok){alert('\u2705 '+res.count+'건 완료 처리됐습니다.\n내일 브리핑·아침 알림에서 자동으로 빠집니다.');loadContext();}
+      else{alert('처리 실패: '+((res&&res.error)||'알 수 없는 오류'));if(btn){btn.disabled=false;btn.textContent='✓ 체크한 지시 완료 제출';}}
+    })
+    .catch(function(e){alert('통신 오류: '+e.message);if(btn){btn.disabled=false;btn.textContent='✓ 체크한 지시 완료 제출';}});
 }
 
 function renderScheduleCard(data){
@@ -4055,7 +4100,9 @@ function renderScheduleCard(data){
   });
   renderCardSections('ctx-directive-body', receivedEntries, {
     cardId: 'ctx-directive',
-    emptyMessage: '지시받은 사항이 없습니다'
+    emptyMessage: '지시받은 사항이 없습니다',
+    includePast: true,     // 기한 지난 미완료 지시도 표시 (완료 체크 대상)
+    completable: true      // 완료 체크박스 + 제출 버튼 (2026-07-23)
   });
   renderCardSections('ctx-sent-body', sentEntries, {
     cardId: 'ctx-sent',

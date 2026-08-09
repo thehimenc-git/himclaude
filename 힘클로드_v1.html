@@ -644,6 +644,7 @@ html::-webkit-scrollbar-button,
 .mode-tab.tab-report  { --tab-color: #5C8557;  --tab-tint: rgba(143,175,138,.14); }   /* 청록(녹색) 계열 */
 .mode-tab.tab-search  { --tab-color: #6B84A1;  --tab-tint: rgba(107,132,161,.18); }   /* 블루-그레이 계열 (임시) */
 .mode-tab.tab-himclova { --tab-color: #7C5BC8;  --tab-tint: rgba(124,91,200,.14); }    /* 보라 계열 */
+.mode-tab.tab-calendar { --tab-color: #B8860B;  --tab-tint: rgba(184,134,11,.12); }    /* 앰버 계열 (일정 탭, 2026-08-09) */
 
 /* hover (비활성) & active 동일 색상 — font-weight 만 차이로 구분 */
 .mode-tab:not(.on):hover,
@@ -663,6 +664,7 @@ html::-webkit-scrollbar-button,
 #p1[data-mode="search"]  .mode-content.mode-search    {display:block}
 #p1[data-mode="himclova"] .mode-content.mode-himclova,
 #p1[data-mode="himclova"] .bottom-fixed.bottom-himclova {display:block}
+#p1[data-mode="calendar"] .mode-content.mode-calendar {display:block}
 /* 검색 모드는 하단 고정 버튼 없음 — 검색 패널 자체에 검색 버튼 포함 (Phase 2 이식 예정) */
 
 /* 힘클로바 모드: user-bar 우측 배치 + 이니셜 원 보라 톤
@@ -2333,6 +2335,7 @@ body.search-mode-active{
       <button class="mode-tab tab-report on" data-mode="report"  onclick="onTabClick('report')">📝 업무 보고</button>
       <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 업무 인사이트</button>
       <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ AI 회의록</button>
+      <button class="mode-tab tab-calendar"   data-mode="calendar" onclick="onTabClick('calendar')">📅 일정</button>
     </div>
   </div>
 
@@ -2446,6 +2449,26 @@ body.search-mode-active{
     <div class="input-hint">💡 프로젝트명, 만난 사람, 요청사항 등 생각나는 대로 — 힘클로드가 정리합니다</div>
   </div>
 
+  <!-- 지시·요청사항 별도 입력칸 (2026-08-07 신설) — 본문과 분리 + 완료 기한 달력 -->
+  <style>
+    .dirx-wrap{margin:10px 20px 4px}
+    .dirx-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#7a6a55;margin:0 2px 6px}
+    .dirx-title .sec-line{flex:1;height:1px;background:rgba(0,0,0,.08)}
+    .dirx-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+    .dirx-text{flex:1;padding:9px 12px;border:1px solid rgba(0,0,0,.12);border-radius:10px;font-size:13.5px;background:#fffdf9;min-width:0}
+    .dirx-date{width:138px;padding:8px 8px;border:1px solid rgba(0,0,0,.12);border-radius:10px;font-size:12.5px;background:#fffdf9;color:#555}
+    .dirx-del{border:none;background:transparent;color:#b09a80;font-size:15px;cursor:pointer;padding:4px}
+    .dirx-add{border:1px dashed rgba(0,0,0,.18);background:transparent;border-radius:10px;padding:6px 12px;font-size:12.5px;color:#8a7a63;cursor:pointer}
+    .dirx-add:hover{background:rgba(0,0,0,.03)}
+    .dirx-hint{font-size:11.5px;color:#a99a86;margin:4px 2px 0}
+  </style>
+  <div class="dirx-wrap" id="dirx-wrap">
+    <div class="dirx-title"><span>📌 지시·요청사항 (선택)</span><span class="sec-line"></span></div>
+    <div id="dirx-rows"></div>
+    <button type="button" class="dirx-add" onclick="dirxAddRow()">＋ 지시·요청 추가</button>
+    <div class="dirx-hint">누구에게 무엇을 요청하는지 적고 완료 기한을 고르세요. 기한을 비우면 정리 단계에서 힘클로드가 물어봅니다.</div>
+  </div>
+
   <div class="upload-wrap" style="display:none">
     <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-inp').click()">
       <div class="upload-icon">📎</div>
@@ -2519,6 +2542,75 @@ body.search-mode-active{
   </div>
 
   <!-- ── 힘클로바 모드 ── -->
+  <!-- 일정 탭 (2026-08-07 신설) — 전직원 일정·지시 달력 (`프로젝트 일정` 시트 기반) -->
+  <div class="mode-content mode-calendar">
+    <style>
+      .calx-bar{display:flex;align-items:center;gap:8px;margin:12px 20px 6px}
+      .calx-title{font-weight:700;font-size:15px;color:#5a4a38;min-width:104px;text-align:center}
+      .calx-nav{border:1px solid rgba(0,0,0,.12);background:#fffdf9;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px}
+      .calx-nav:hover{background:rgba(0,0,0,.04)}
+      .calx-sel{margin-left:auto;padding:5px 8px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:12.5px;background:#fffdf9;max-width:130px}
+      .calx-legend{font-size:11.5px;color:#a99a86;margin:0 22px 6px}
+      .calx-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin:0 20px}
+      .calx-dow{text-align:center;font-size:11px;color:#8a7a63;padding:4px 0;font-weight:600}
+      .calx-day{background:#fffdf9;border:1px solid rgba(0,0,0,.06);border-radius:8px;min-height:74px;padding:3px 4px;font-size:10.5px;overflow:hidden;cursor:pointer}
+      .calx-day.other{opacity:.3;cursor:default}
+      .calx-day.today{border-color:#B8860B;box-shadow:0 0 0 1px rgba(184,134,11,.35)}
+      .calx-dnum{font-size:11px;font-weight:600;color:#7a6a55;margin-bottom:2px}
+      .calx-day.sun .calx-dnum{color:#c05a5a}
+      .calx-day.sat .calx-dnum{color:#5a7ac0}
+      .calx-chip{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;padding:1px 4px;margin-bottom:1px;color:#4a4238}
+      .calx-chip.directive{background:rgba(220,90,90,.15)}
+      .calx-chip.schedule{background:rgba(90,122,192,.15)}
+      .calx-chip.task{background:rgba(92,133,87,.15)}
+      .calx-more{font-size:10px;color:#a99a86}
+      .calx-detail{margin:10px 20px 90px;font-size:13px}
+      .calx-detail .cd-head{font-weight:700;color:#5a4a38;margin-bottom:6px}
+      .calx-detail .cd-item{background:#fffdf9;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:8px 12px;margin-bottom:6px}
+      .calx-detail .cd-meta{font-size:11.5px;color:#8a7a63;margin-top:2px}
+      .calx-mini{border:1px solid rgba(0,0,0,.12);background:#fff;border-radius:6px;font-size:10.5px;color:#5a7ac0;padding:2px 7px;margin-left:5px;cursor:pointer}
+      .calx-mini:hover{background:rgba(0,0,0,.04)}
+      /* 내 일정 등록 (2026-08-08) */
+      .myx-wrap{margin:14px 20px 6px;background:#fffdf9;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:10px 12px}
+      .myx-title{font-weight:700;font-size:13.5px;color:#5a4a38;margin-bottom:8px}
+      .myx-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+      .myx-date{width:128px;padding:7px 6px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:12px;background:#fff;color:#555}
+      .myx-time{width:136px;padding:7px 6px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:12px;background:#fff;color:#555}
+      .myx-clr{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:6px;font-size:11px;color:#8a7a63;padding:5px 7px;cursor:pointer}
+      .myx-clr:hover{background:rgba(0,0,0,.04)}
+      .myx-text{flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:13px;background:#fff;min-width:0}
+      .myx-submit{border:none;background:#B8860B;color:#fff;border-radius:10px;padding:7px 18px;font-size:12.5px;font-weight:600;cursor:pointer}
+      .myx-submit:disabled{opacity:.5;cursor:default}
+      .myx-hint{font-size:11.5px;color:#a99a86;margin-top:4px}
+    </style>
+    <div class="calx-bar">
+      <button type="button" class="calx-nav" onclick="CalTab.move(-1)">◀</button>
+      <span class="calx-title" id="calx-title"></span>
+      <button type="button" class="calx-nav" onclick="CalTab.move(1)">▶</button>
+      <select id="calx-person" class="calx-sel" onchange="CalTab.render()"><option value="">전체 직원</option></select>
+      <button type="button" class="calx-nav" onclick="CalTab.load(true)" title="새로고침">🔄</button>
+    </div>
+    <div class="calx-legend">📅 시간 잡힌 일정(미팅·외근·약속)만 표시 — 날짜를 누르면 아래에 직원별 일정이 나옵니다</div>
+    <div id="calx-grid" class="calx-grid"></div>
+
+    <!-- 내 일정 등록 (2026-08-08 신설) — 달력과 직원별 상세 사이 -->
+    <div class="myx-wrap" id="myx-wrap">
+      <div class="myx-title">➕ 내 일정 등록</div>
+      <div id="myx-rows"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
+        <button type="button" class="calx-nav" onclick="myxAddRow()">＋ 일정 추가</button>
+        <button type="button" class="myx-submit" id="myx-submit" onclick="myxSubmit()">제출하기</button>
+      </div>
+      <div class="myx-hint">
+        · 시간을 잘 모르면 시간칸은 비우고, 내용칸에 "오전 / 오후 / 점심쯤"처럼 대략 적어주세요 (예: "국민은행 방문 (오후)")<br>
+        · 날짜를 잘 모르면 날짜는 오늘로 두거나 비우고, 내용칸에 "이번 주 / 다음 주 / 미정"처럼 적어주세요 (예: "서울시 협의 — 다음 주")<br>
+        · 날짜를 비우고 제출하면 오늘 날짜로 등록됩니다. 날짜 기본값 = 달력에서 마지막으로 누른 날짜.
+      </div>
+    </div>
+
+    <div id="calx-detail" class="calx-detail"></div>
+  </div>
+
   <div class="mode-content mode-himclova">
 
     <!-- ◆ INPUT sub-page (입력 폼) ◆ -->
@@ -3227,7 +3319,7 @@ function forceReauth(reason){
 // ── 모드 전환 (일일보고 ↔ 힘클로바) ──────────────
 var activeMode='report'; // 'report' | 'himclova'
 
-var VALID_MODES = ['report','search','himclova'];
+var VALID_MODES = ['report','search','himclova','calendar'];
 
 // 모드 탭 클릭 핸들러 — 사용자 클릭 트리거에만 사용 (시스템 호출은 switchMode 직접).
 // 현재 활성 탭 재클릭 시 confirm → 예면 모드별 reset + input sub-page 복귀.
@@ -3288,6 +3380,8 @@ function switchMode(name){
   if(name==='himclova' && typeof HimClova !== 'undefined') HimClova.init();
   // 검색 모드 첫 진입 시 챗 로드 (lazy + idempotent)
   if(name==='search'  && typeof Chat     !== 'undefined') Chat.init();
+  // 일정 탭 첫 진입 시 달력 로드 (lazy + idempotent, 2026-08-09)
+  if(name==='calendar' && typeof CalTab  !== 'undefined') CalTab.init();
   // 검색 모드일 때만 body 스크롤 차단 — mode-search 가 fixed 라 페이지 휠 이벤트가 헛동작
   document.body.classList.toggle('search-mode-active', name === 'search');
 }
@@ -3298,6 +3392,7 @@ function updateUserDateLabel(){
   var prefix;
   if(activeMode==='himclova')      prefix='AI 회의록 · ';
   else if(activeMode==='search')  prefix='업무 인사이트 · ';
+  else if(activeMode==='calendar')prefix='일정 · ';
   else                            prefix='업무 보고 · ';
   el.textContent=prefix+dateLabel;
 }
@@ -4122,6 +4217,7 @@ function resetProfile(){
   currentStructured=null;lastAIStructured=null;currentRawText='';
   document.getElementById('file-chips').innerHTML='';
   document.getElementById('main-input').value='';
+  if(typeof dirxClear==='function')dirxClear();
   goPage('p0');loadStaff();
 }
 
@@ -4626,10 +4722,339 @@ function _appendToMainInput(text){
   try{ta.dispatchEvent(new Event('input',{bubbles:true}));}catch(e){}
 }
 
+// ── 지시·요청사항 별도 입력칸 (2026-08-07) ──────────
+function dirxAddRow(){
+  var box=document.getElementById('dirx-rows');
+  if(!box)return;
+  var row=document.createElement('div');
+  row.className='dirx-row';
+  row.innerHTML=
+    '<input type="text" class="dirx-text" placeholder="예: 김려원 — 온보딩 자료 정리 요청" maxlength="200">'+
+    '<input type="date" class="dirx-date" title="완료 기한 (비우면 정리 단계에서 질문)">'+
+    '<button type="button" class="dirx-del" title="삭제" onclick="this.parentNode.remove()">✕</button>';
+  box.appendChild(row);
+  try{row.querySelector('.dirx-text').focus();}catch(e){}
+}
+function dirxCollect(){
+  var box=document.getElementById('dirx-rows');
+  if(!box)return '';
+  var lines=[];
+  var rows=box.querySelectorAll('.dirx-row');
+  for(var i=0;i<rows.length;i++){
+    var t=rows[i].querySelector('.dirx-text').value.trim();
+    if(!t)continue;
+    var d=rows[i].querySelector('.dirx-date').value;  // yyyy-mm-dd
+    if(d){
+      var p=d.split('-');
+      t+=' (기한 '+parseInt(p[1],10)+'/'+parseInt(p[2],10)+')';
+    }
+    lines.push('- '+t);
+  }
+  return lines.length?lines.join('\n'):'';
+}
+function dirxClear(){
+  var box=document.getElementById('dirx-rows');
+  if(box)box.innerHTML='';
+}
+
+// ── 일정 탭 (2026-08-07) — 전직원 일정·지시 달력 (`프로젝트 일정` 시트, get_schedule_all) ──
+var CalTab={
+  _loaded:false,_entries:[],_ym:null,_inited:false,
+  init:function(){
+    if(!this._inited){
+      var now=new Date();this._ym=[now.getFullYear(),now.getMonth()];this._inited=true;
+    }
+    if(!this._loaded)this.load();
+    else this.render();
+  },
+  load:function(force){
+    var self=this;
+    var grid=document.getElementById('calx-grid');
+    if(grid&&(!self._loaded||force))grid.innerHTML='<div style="grid-column:1/8;padding:30px;text-align:center;color:#a99a86">📅 일정을 불러오는 중...</div>';
+    fetch(APPS_SCRIPT_URL+'?action=get_schedule_all')
+      .then(function(r){return r.json()})
+      .then(function(d){
+        if(!d.ok)throw new Error(d.error||'일정 로드 실패');
+        self._entries=d.entries||[];
+        self._loaded=true;
+        self.fillPersons();
+        self.render();
+      })
+      .catch(function(e){
+        if(grid)grid.innerHTML='<div style="grid-column:1/8;padding:30px;text-align:center;color:#c06a5a">⚠️ '+escapeHtml(String(e.message||e))+'</div>';
+      });
+  },
+  fillPersons:function(){
+    var sel=document.getElementById('calx-person');if(!sel)return;
+    var cur=sel.value;
+    var names={};
+    this._entries.forEach(function(e){if(e.to)names[e.to]=1;});
+    var opts='<option value="">전체 직원</option>';
+    Object.keys(names).sort().forEach(function(n){opts+='<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>';});
+    sel.innerHTML=opts;
+    sel.value=cur||'';
+  },
+  move:function(d){
+    var dt=new Date(this._ym[0],this._ym[1]+d,1);
+    this._ym=[dt.getFullYear(),dt.getMonth()];
+    this.render();
+  },
+  _filtered:function(){
+    var person=(document.getElementById('calx-person')||{}).value||'';
+    return this._entries.filter(function(e){
+      if(person&&e.to!==person)return false;
+      if(e.status==='completed')return false;
+      return true;
+    });
+  },
+  // 중복 접기 — 같은 사람 + 사실상 같은 내용(공백·문장부호 차이 무시)은 1건으로 (2026-08-08)
+  _dedup:function(list){
+    var seen={},out=[];
+    list.forEach(function(e){
+      var key=(e.to||'')+'|'+String(e.title||'').replace(/[\s·,\.\-–—()\[\]\/:;'"~]/g,'').toLowerCase().substring(0,40);
+      if(seen[key]){seen[key].dup++;return;}
+      var c={e:e,dup:1};seen[key]=c;out.push(c);
+    });
+    return out;   // [{e, dup}]
+  },
+  // 제목에서 시각 추출 (11:30 / 14시 / 점심) — 없으면 null
+  _timeOf:function(t){
+    t=String(t||'');
+    var m=t.match(/(\d{1,2}):(\d{2})/);
+    if(m)return parseInt(m[1],10)*60+parseInt(m[2],10);
+    m=t.match(/(\d{1,2})시/);
+    if(m&&parseInt(m[1],10)<=24)return parseInt(m[1],10)*60;
+    if(/점심/.test(t))return 12*60;
+    return null;
+  },
+  // 하루치 정리: [시간 일정(시간순)] / [지시] / [할 일] 3그룹 (전부 중복 접힘)
+  _dayGroups:function(ds){
+    var self=this;
+    var list=this._filtered().filter(function(e){return (e.due_date||e.issued_date)===ds;});
+    var dd=this._dedup(list);
+    var timed=[],dirs=[],tasks=[];
+    dd.forEach(function(c){
+      var tm=self._timeOf(c.e.title);
+      c.tm=tm;
+      if(c.e.origin==='schedule'||tm!==null)timed.push(c);
+      else if(c.e.origin==='directive')dirs.push(c);
+      else tasks.push(c);
+    });
+    timed.sort(function(a,b){
+      var x=a.tm===null?9999:a.tm, y=b.tm===null?9999:b.tm;
+      return x-y;
+    });
+    return {timed:timed,dirs:dirs,tasks:tasks};
+  },
+  render:function(){
+    var grid=document.getElementById('calx-grid');if(!grid||!this._ym)return;
+    var y=this._ym[0],m=this._ym[1];
+    var title=document.getElementById('calx-title');
+    if(title)title.textContent=y+'년 '+(m+1)+'월';
+    var byDate={};
+    this._filtered().forEach(function(e){
+      var d=e.due_date||e.issued_date;if(!d)return;
+      (byDate[d]=byDate[d]||[]).push(e);
+    });
+    var t=new Date();
+    var todayStr=t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);
+    var startDow=new Date(y,m,1).getDay();
+    var days=new Date(y,m+1,0).getDate();
+    var dows=['일','월','화','수','목','금','토'];
+    var html='';
+    for(var i=0;i<7;i++)html+='<div class="calx-dow">'+dows[i]+'</div>';
+    for(var b=0;b<startDow;b++)html+='<div class="calx-day other"></div>';
+    for(var day=1;day<=days;day++){
+      var ds=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+day).slice(-2);
+      var dow=(startDow+day-1)%7;
+      var cls='calx-day'+(ds===todayStr?' today':'')+(dow===0?' sun':(dow===6?' sat':''));
+      var list=byDate[ds]||[];
+      // 칩도 중복 접기 + 시간 일정 우선 (2026-08-08)
+      var dd=this._dedup(list);
+      var self2=this;
+      dd.sort(function(a,b){
+        var pa=(a.e.origin==='schedule'||self2._timeOf(a.e.title)!==null)?0:(a.e.origin==='directive'?1:2);
+        var pb=(b.e.origin==='schedule'||self2._timeOf(b.e.title)!==null)?0:(b.e.origin==='directive'?1:2);
+        return pa-pb;
+      });
+      var chips='';
+      for(var c=0;c<dd.length&&c<3;c++){
+        var e2=dd[c].e;
+        var oc=e2.origin==='directive'?'directive':(e2.origin==='schedule'?'schedule':'task');
+        chips+='<div class="calx-chip '+oc+'">'+escapeHtml((e2.to?e2.to+' · ':'')+e2.title)+'</div>';
+      }
+      if(dd.length>3)chips+='<div class="calx-more">+'+(dd.length-3)+'건</div>';
+      html+='<div class="'+cls+'" onclick="CalTab.showDay(\''+ds+'\')"><div class="calx-dnum">'+day+'</div>'+chips+'</div>';
+    }
+    grid.innerHTML=html;
+    var det=document.getElementById('calx-detail');if(det)det.innerHTML='';
+  },
+  // 날짜 클릭 → 직원별 아코디언 (2026-08-08 재설계)
+  //   목적: "이 사람 오늘 회사에 있나 / 몇 시에 나가나" — 시간·외부 일정만, 사람당 한 줄.
+  //   같은 사람 + 같은 시각 = 같은 일정 취급 (재생성 문구 변형 중복 자동 병합).
+  showDay:function(ds){
+    var det=document.getElementById('calx-detail');if(!det)return;
+    this._lastDay=ds;   // 내 일정 등록 날짜 기본값 (2026-08-08)
+    var self=this;
+    var person=(document.getElementById('calx-person')||{}).value||'';
+    var byName={};
+    this._entries.forEach(function(e){
+      if(e.status==='completed')return;
+      if((e.due_date||e.issued_date)!==ds)return;
+      var tm=self._timeOf(e.title);
+      if(e.origin!=='schedule'&&tm===null)return;   // 시간 없는 할 일·지시는 제외
+      var name=e.to||'';if(!name)return;
+      var bucket=(byName[name]=byName[name]||{});
+      var key=(tm!==null)?('t'+tm):('x'+String(e.title||'').replace(/[\s·,\.\-–—()\[\]\/:;'"~]/g,'').toLowerCase().substring(0,30));
+      if(bucket[key]){bucket[key].dup++;return;}
+      bucket[key]={id:e.id,title:String(e.title||''),tm:tm,pj:e.pj_code||'',dup:1};
+    });
+    function itemsOf(name){
+      var b=byName[name];if(!b)return [];
+      var arr=Object.keys(b).map(function(k){return b[k];});
+      arr.sort(function(a,c){var x=a.tm===null?9999:a.tm,y=c.tm===null?9999:c.tm;return x-y;});
+      return arr;
+    }
+    function fmt(tm){var h=Math.floor(tm/60),mi=tm%60;return h+':'+('0'+mi).slice(-2);}
+    var roster=(typeof STAFF!=='undefined'&&Array.isArray(STAFF)&&STAFF.length)?STAFF.slice():[];
+    if(person)roster=roster.filter(function(s){return s.name===person;});
+    Object.keys(byName).forEach(function(n){   // 명단 밖 인물(옛 데이터)도 뒤에 표시
+      if(person&&n!==person)return;
+      if(!roster.some(function(s){return s.name===n;}))roster.push({name:n,role:''});
+    });
+    // 직급 서열순 정렬 (2026-08-08) — 같은 직급끼리는 직원목록 시트 순서 유지
+    var RANK={'대표':0,'사장':1,'부사장':2,'본부장':3,'상무':4,'이사':5,'실장':6,'팀장':7,'차장':8,'과장':9,'대리':10,'주임':11,'사원':12,'외주':13};
+    roster.forEach(function(s,i){s._i=i;});
+    roster.sort(function(a,b){
+      var ra=(RANK[a.role]!==undefined)?RANK[a.role]:99;
+      var rb=(RANK[b.role]!==undefined)?RANK[b.role]:99;
+      return ra!==rb?ra-rb:a._i-b._i;
+    });
+    var html='<div class="cd-head">📅 '+ds+' — 직원별 외부·시간 일정 <span style="font-weight:400;color:#a99a86;font-size:12px">(줄을 누르면 상세)</span></div>';
+    roster.forEach(function(s,i){
+      var arr=itemsOf(s.name);
+      if(!arr.length){
+        html+='<div class="cd-item" style="opacity:.45;padding:7px 12px"><b>'+escapeHtml(s.name)+'</b> '+escapeHtml(s.role||'')+' — 등록된 일정 없음</div>';
+        return;
+      }
+      var bodyId='calx-pb-'+i;
+      var times=arr.map(function(a){return a.tm!==null?fmt(a.tm):'시간미정';}).join(' · ');
+      html+='<div class="cd-item" style="padding:7px 12px;cursor:pointer" '+
+        'onclick="var b=document.getElementById(\''+bodyId+'\');if(b)b.style.display=(b.style.display===\'none\'?\'block\':\'none\');">'+
+        '<b>'+escapeHtml(s.name)+'</b> '+escapeHtml(s.role||'')+
+        ' — <span style="color:#5a7ac0;font-weight:600">⏰ '+times+'</span> <span style="color:#8a7a63">('+arr.length+'건)</span>'+
+        '<span style="float:right;color:#b09a80">▼</span>'+
+        '<div id="'+bodyId+'" style="display:none;margin-top:6px;border-top:1px dashed rgba(0,0,0,.08);padding-top:6px" onclick="event.stopPropagation()">'+
+        arr.map(function(a){
+          var mine=(typeof profile!=='undefined'&&profile&&profile.name===s.name);
+          var btns=mine?(' <button type="button" class="calx-mini" onclick="event.stopPropagation();calxEditMine(\x27'+a.id+'\x27,\x27'+ds+'\x27,\x27'+(a.tm===null?'':a.tm)+'\x27,\x27'+encodeURIComponent(a.title)+'\x27)">수정</button>'+
+            '<button type="button" class="calx-mini" style="color:#c05a5a" onclick="event.stopPropagation();calxDeleteMine(\x27'+a.id+'\x27)">삭제</button>'):'';
+          return '<div style="margin-bottom:3px">'+(a.tm!==null?'<b style="color:#5a7ac0">'+fmt(a.tm)+'</b> ':'')+escapeHtml(a.title)+
+            (a.pj?' <span style="color:#8a7a63;font-size:11.5px">· '+escapeHtml(a.pj)+'</span>':'')+
+            (a.dup>1?' <span style="color:#b09a80;font-size:11px">(중복 '+a.dup+'벌 접힘)</span>':'')+btns+'</div>';
+        }).join('')+
+        '</div></div>';
+    });
+    if(!roster.length){
+      html+='<div style="color:#a99a86">해당 날짜의 일정이 없습니다.</div>';
+    }
+    det.innerHTML=html;
+  }
+};
+
+// ── 내 일정 등록 (일정 탭, 2026-08-08) ──────────
+function myxTodayStr(){
+  var t=new Date();
+  return t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);
+}
+function myxDefaultDate(){
+  if(typeof CalTab!=='undefined'&&CalTab._lastDay)return CalTab._lastDay;
+  return myxTodayStr();
+}
+function myxAddRow(){
+  var box=document.getElementById('myx-rows');if(!box)return;
+  var row=document.createElement('div');
+  row.className='myx-row';
+  row.innerHTML=
+    '<input type="date" class="myx-date" value="'+myxDefaultDate()+'">'+
+    '<input type="time" class="myx-time" title="대략적인 시간 (비우면 시간미정)">'+
+    '<button type="button" class="myx-clr" title="시간 지우기 (시간미정으로)" onclick="this.previousElementSibling.value=\'\'">⌫</button>'+
+    '<input type="text" class="myx-text" placeholder="예: 국민은행 방문 (오후) / 서울시 협의 — 다음 주 / 미정" maxlength="120">'+
+    '<button type="button" class="dirx-del" title="삭제" onclick="this.parentNode.remove()">✕</button>';
+  box.appendChild(row);
+  try{row.querySelector('.myx-text').focus();}catch(e){}
+}
+function myxSubmit(){
+  var box=document.getElementById('myx-rows');if(!box)return;
+  var rows=box.querySelectorAll('.myx-row'),items=[];
+  for(var i=0;i<rows.length;i++){
+    var date=rows[i].querySelector('.myx-date').value;
+    var time=rows[i].querySelector('.myx-time').value;   // "14:00" 또는 ""
+    var text=rows[i].querySelector('.myx-text').value.trim();
+    if(!text)continue;
+    if(!date)date=myxTodayStr();   // 날짜 비우면 오늘 날짜로 등록 (내용칸에 "다음 주" 등으로 시기 표기)
+    items.push({date:date,time:time,text:text,replace_id:(rows[i].dataset&&rows[i].dataset.replaceId)||''});
+  }
+  if(!items.length){toast('등록할 일정을 입력해주세요');return;}
+  if(!profile||!profile.name){toast('로그인 정보가 없습니다 — 처음 화면에서 본인 선택 후 이용해주세요');return;}
+  var btn=document.getElementById('myx-submit');
+  if(btn){btn.disabled=true;btn.textContent='등록 중...';}
+  var done=function(){if(btn){btn.disabled=false;btn.textContent='제출하기';}};
+  fetch(APPS_SCRIPT_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({token:APPS_SCRIPT_TOKEN,action:'add_my_schedule',name:profile.name,items:items})
+  })
+  .then(function(r){return r.json()})
+  .then(function(d){
+    done();
+    if(!d.ok)throw new Error(d.message||d.error||'등록 실패');
+    toast('✅ 일정 '+items.length+'건 등록 완료');
+    box.innerHTML='';
+    if(typeof CalTab!=='undefined')CalTab.load(true);
+  })
+  .catch(function(e){done();toast('❌ '+String(e.message||e));});
+}
+
+// ── 일정 수정·삭제 (일정 탭, 2026-08-09) — 본인 일정 한정 ──────────
+function calxDeleteMine(id){
+  if(!profile||!profile.name){toast('로그인 정보가 없습니다');return;}
+  if(!confirm('이 일정을 삭제할까요?'))return;
+  fetch(APPS_SCRIPT_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({token:APPS_SCRIPT_TOKEN,action:'delete_my_schedule',name:profile.name,id:id})})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(!d.ok)throw new Error(d.message||'삭제 실패');
+    toast('🗑 일정 삭제됨');
+    if(typeof CalTab!=='undefined')CalTab.load(true);
+  })
+  .catch(function(e){toast('❌ '+String(e.message||e));});
+}
+function calxEditMine(id, ds, tm, titleEnc){
+  var title='';
+  try{title=decodeURIComponent(titleEnc||'');}catch(e){title=String(titleEnc||'');}
+  title=title.replace(/^\s*\d{1,2}:\d{2}\s*/,'');   // 제목 앞머리 시간 표기는 시간칸으로 옮기므로 제거
+  myxAddRow();
+  var box=document.getElementById('myx-rows');
+  var row=box&&box.lastElementChild;if(!row)return;
+  row.querySelector('.myx-date').value=ds;
+  if(tm!==''&&tm!==null){
+    var t=parseInt(tm,10);
+    if(!isNaN(t))row.querySelector('.myx-time').value=('0'+Math.floor(t/60)).slice(-2)+':'+('0'+(t%60)).slice(-2);
+  }
+  row.querySelector('.myx-text').value=title;
+  row.dataset.replaceId=id;
+  toast('✏️ 수정 모드 — 고친 뒤 [제출하기]를 누르면 이 일정이 교체됩니다');
+  try{document.getElementById('myx-wrap').scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
+  try{row.querySelector('.myx-text').focus();}catch(e){}
+}
+
 // ── 분석 → P2 (챗 형식 UX, 2026-05-07) ──────────
 function doAnalyze(){
   var txt=document.getElementById('main-input').value.trim();
-  if(!txt){toast('업무 내용을 입력해주세요');return;}
+  var dirBlock=dirxCollect();   // 지시·요청 칸 → [지시사항] 블록으로 본문에 합류 (2026-08-07)
+  if(!txt&&!dirBlock){toast('업무 내용을 입력해주세요');return;}
+  if(dirBlock)txt=(txt?txt+'\n\n':'')+'[지시사항]\n'+dirBlock;
 
   currentRawText=txt;
   goPage('p2');
@@ -6468,6 +6893,7 @@ function showTestComplete(structured){
 
 function newRep(){
   document.getElementById('main-input').value='';
+  if(typeof dirxClear==='function')dirxClear();
   files=[];document.getElementById('file-chips').innerHTML='';
   currentStructured=null;
   lastAIStructured=null;

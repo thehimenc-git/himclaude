@@ -4771,7 +4771,7 @@ var CalTab={
     var self=this;
     var grid=document.getElementById('calx-grid');
     if(grid&&(!self._loaded||force))grid.innerHTML='<div style="grid-column:1/8;padding:30px;text-align:center;color:#a99a86">📅 일정을 불러오는 중...</div>';
-    fetch(APPS_SCRIPT_URL+'?action=get_schedule_all')
+    fetch(APPS_SCRIPT_URL+'?action=get_schedule_all&name='+encodeURIComponent((typeof profile!=='undefined'&&profile&&profile.name)||''))
       .then(function(r){return r.json()})
       .then(function(d){
         if(!d.ok)throw new Error(d.error||'일정 로드 실패');
@@ -4811,7 +4811,9 @@ var CalTab={
   _dedup:function(list){
     var seen={},out=[];
     list.forEach(function(e){
-      var key=(e.to||'')+'|'+String(e.title||'').replace(/[\s·,\.\-–—()\[\]\/:;'"~]/g,'').toLowerCase().substring(0,40);
+      var key;
+      if(e.redacted){ key=(e.to||'')+'|R'+(e.time||'미정'); }
+      else { key=(e.to||'')+'|'+String(e.title||'').replace(/[\s·,\.\-–—()\[\]\/:;'"~]/g,'').toLowerCase().substring(0,40); }
       if(seen[key]){seen[key].dup++;return;}
       var c={e:e,dup:1};seen[key]=c;out.push(c);
     });
@@ -4881,7 +4883,8 @@ var CalTab={
       for(var c=0;c<dd.length&&c<3;c++){
         var e2=dd[c].e;
         var oc=e2.origin==='directive'?'directive':(e2.origin==='schedule'?'schedule':'task');
-        chips+='<div class="calx-chip '+oc+'">'+escapeHtml((e2.to?e2.to+' · ':'')+e2.title)+'</div>';
+        var chipLabel=e2.redacted?((e2.to?e2.to+' · ':'')+(e2.time?e2.time+' ':'')+'외부일정'):((e2.to?e2.to+' · ':'')+e2.title);
+        chips+='<div class="calx-chip '+oc+'">'+escapeHtml(chipLabel)+'</div>';
       }
       if(dd.length>3)chips+='<div class="calx-more">+'+(dd.length-3)+'건</div>';
       html+='<div class="'+cls+'" onclick="CalTab.showDay(\''+ds+'\')"><div class="calx-dnum">'+day+'</div>'+chips+'</div>';
@@ -4901,6 +4904,16 @@ var CalTab={
     this._entries.forEach(function(e){
       if(e.status==='completed')return;
       if((e.due_date||e.issued_date)!==ds)return;
+      if(e.redacted){   // 타인 비공개 일정 (2026-08-10) — 딱지만
+        if(e.origin!=='schedule')return;
+        var rtm=self._timeOf(e.time||'');
+        var rname=e.to||'';if(!rname)return;
+        var rb=(byName[rname]=byName[rname]||{});
+        var rkey=(rtm!==null)?('t'+rtm):'xredacted';
+        if(rb[rkey]){rb[rkey].dup++;return;}
+        rb[rkey]={id:e.id,redacted:true,tm:rtm,dup:1};
+        return;
+      }
       var tm=self._timeOf(e.title);
       if(e.origin!=='schedule'&&tm===null)return;   // 시간 없는 할 일·지시는 제외
       var name=e.to||'';if(!name)return;
@@ -4946,6 +4959,11 @@ var CalTab={
         '<span style="float:right;color:#b09a80">▼</span>'+
         '<div id="'+bodyId+'" style="display:none;margin-top:6px;border-top:1px dashed rgba(0,0,0,.08);padding-top:6px" onclick="event.stopPropagation()">'+
         arr.map(function(a){
+          if(a.redacted){
+            return '<div style="margin-bottom:3px;color:#8a7a63">'+
+              (a.tm!==null?'⏰ <b style="color:#5a7ac0">'+fmt(a.tm)+'</b> 외부일정 있음':'시간 미정인 외부일정 있음')+
+              (a.dup>1?' ('+a.dup+'건)':'')+'</div>';
+          }
           var mine=(typeof profile!=='undefined'&&profile&&profile.name===s.name);
           var btns=mine?(' <button type="button" class="calx-mini" onclick="event.stopPropagation();calxEditMine(\x27'+a.id+'\x27,\x27'+ds+'\x27,\x27'+(a.tm===null?'':a.tm)+'\x27,\x27'+encodeURIComponent(a.title)+'\x27)">수정</button>'+
             '<button type="button" class="calx-mini" style="color:#c05a5a" onclick="event.stopPropagation();calxDeleteMine(\x27'+a.id+'\x27)">삭제</button>'):'';

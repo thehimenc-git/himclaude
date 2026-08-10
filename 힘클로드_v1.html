@@ -4873,6 +4873,14 @@ var CalTab={
       var list=byDate[ds]||[];
       // 칩도 중복 접기 + 시간 일정 우선 (2026-08-08)
       var dd=this._dedup(list);
+      // 2026-08-10 fix: 칩은 일정만 + 직원 명단 내 인물만 (할일·지시·외부인 제외 — 상세줄과 기준 통일)
+      var staffSet=null;
+      if(typeof STAFF!=='undefined'&&STAFF&&STAFF.length){staffSet={};STAFF.forEach(function(s){staffSet[s.name]=1;});}
+      dd=dd.filter(function(x){
+        if(x.e.origin!=='schedule')return false;
+        if(staffSet&&!staffSet[x.e.to||''])return false;
+        return true;
+      });
       var self2=this;
       dd.sort(function(a,b){
         var pa=(a.e.origin==='schedule'||self2._timeOf(a.e.title)!==null)?0:(a.e.origin==='directive'?1:2);
@@ -4901,8 +4909,11 @@ var CalTab={
     var self=this;
     var person=(document.getElementById('calx-person')||{}).value||'';
     var byName={};
+    var staffSet2=null;
+    if(typeof STAFF!=='undefined'&&STAFF&&STAFF.length){staffSet2={};STAFF.forEach(function(s){staffSet2[s.name]=1;});}
     this._entries.forEach(function(e){
       if(e.status==='completed')return;
+      if(staffSet2&&!staffSet2[e.to||''])return;   // 직원 명단 밖 인물(외부인) 제외 (2026-08-10)
       if((e.due_date||e.issued_date)!==ds)return;
       if(e.redacted){   // 타인 비공개 일정 (2026-08-10) — 딱지만
         if(e.origin!=='schedule')return;

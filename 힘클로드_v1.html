@@ -4812,7 +4812,7 @@ var CalTab={
     var seen={},out=[];
     list.forEach(function(e){
       var key;
-      if(e.redacted){ key=(e.to||'')+'|R'+(e.time||'미정'); }
+      if(e.redacted){ key=(e.to||'')+'|R'+(e.kind||'')+'|'+(e.time||'미정'); }
       else { key=(e.to||'')+'|'+String(e.title||'').replace(/[\s·,\.\-–—()\[\]\/:;'"~]/g,'').toLowerCase().substring(0,40); }
       if(seen[key]){seen[key].dup++;return;}
       var c={e:e,dup:1};seen[key]=c;out.push(c);
@@ -4878,6 +4878,8 @@ var CalTab={
       if(typeof STAFF!=='undefined'&&STAFF&&STAFF.length){staffSet={};STAFF.forEach(function(s){staffSet[s.name]=1;});}
       dd=dd.filter(function(x){
         if(x.e.origin!=='schedule')return false;
+        var kk=x.e.kind||'';
+        if(kk!=='외부'&&kk!=='내부')return false;   // 외부/내부일정만 표시 — 업무·근태 제외 (2026-08-10)
         if(staffSet&&!staffSet[x.e.to||''])return false;
         return true;
       });
@@ -4891,7 +4893,7 @@ var CalTab={
       for(var c=0;c<dd.length&&c<3;c++){
         var e2=dd[c].e;
         var oc=e2.origin==='directive'?'directive':(e2.origin==='schedule'?'schedule':'task');
-        var chipLabel=e2.redacted?((e2.to?e2.to+' · ':'')+(e2.time?e2.time+' ':'')+'외부일정'):((e2.to?e2.to+' · ':'')+e2.title);
+        var chipLabel=e2.redacted?((e2.to?e2.to+' · ':'')+(e2.time?e2.time+' ':'')+(e2.kind==='내부'?'내부일정':'외부일정')):((e2.to?e2.to+' · ':'')+e2.title);
         chips+='<div class="calx-chip '+oc+'">'+escapeHtml(chipLabel)+'</div>';
       }
       if(dd.length>3)chips+='<div class="calx-more">+'+(dd.length-3)+'건</div>';
@@ -4917,21 +4919,25 @@ var CalTab={
       if((e.due_date||e.issued_date)!==ds)return;
       if(e.redacted){   // 타인 비공개 일정 (2026-08-10) — 딱지만
         if(e.origin!=='schedule')return;
+        var rkk=e.kind||'';
+        if(rkk!=='외부'&&rkk!=='내부')return;   // 업무·근태성은 딱지도 X (2026-08-10 스펙)
         var rtm=self._timeOf(e.time||'');
         var rname=e.to||'';if(!rname)return;
         var rb=(byName[rname]=byName[rname]||{});
-        var rkey=(rtm!==null)?('t'+rtm):'xredacted';
+        var rkey=((rtm!==null)?('t'+rtm):'xredacted')+'|'+rkk;
         if(rb[rkey]){rb[rkey].dup++;return;}
-        rb[rkey]={id:e.id,redacted:true,tm:rtm,dup:1};
+        rb[rkey]={id:e.id,redacted:true,tm:rtm,kind:rkk,dup:1};
         return;
       }
+      if(e.origin!=='schedule')return;   // 할 일·지시는 일정탭 미표시 (2026-08-10 스펙: 외부·내부일정만)
+      var kk2=e.kind||'';
+      if(kk2!=='외부'&&kk2!=='내부')return;   // 업무·근태성 제외
       var tm=self._timeOf(e.title);
-      if(e.origin!=='schedule'&&tm===null)return;   // 시간 없는 할 일·지시는 제외
       var name=e.to||'';if(!name)return;
       var bucket=(byName[name]=byName[name]||{});
       var key=(tm!==null)?('t'+tm):('x'+String(e.title||'').replace(/[\s·,\.\-–—()\[\]\/:;'"~]/g,'').toLowerCase().substring(0,30));
       if(bucket[key]){bucket[key].dup++;return;}
-      bucket[key]={id:e.id,title:String(e.title||''),tm:tm,pj:e.pj_code||'',dup:1};
+      bucket[key]={id:e.id,title:String(e.title||''),tm:tm,pj:e.pj_code||'',kind:kk2,dup:1};
     });
     function itemsOf(name){
       var b=byName[name];if(!b)return [];
@@ -4954,7 +4960,7 @@ var CalTab={
       var rb=(RANK[b.role]!==undefined)?RANK[b.role]:99;
       return ra!==rb?ra-rb:a._i-b._i;
     });
-    var html='<div class="cd-head">📅 '+ds+' — 직원별 외부·시간 일정 <span style="font-weight:400;color:#a99a86;font-size:12px">(줄을 누르면 상세)</span></div>';
+    var html='<div class="cd-head">📅 '+ds+' — 직원별 일정 (외부·내부) <span style="font-weight:400;color:#a99a86;font-size:12px">(줄을 누르면 상세)</span></div>';
     roster.forEach(function(s,i){
       var arr=itemsOf(s.name);
       if(!arr.length){
@@ -4970,15 +4976,19 @@ var CalTab={
         '<span style="float:right;color:#b09a80">▼</span>'+
         '<div id="'+bodyId+'" style="display:none;margin-top:6px;border-top:1px dashed rgba(0,0,0,.08);padding-top:6px" onclick="event.stopPropagation()">'+
         arr.map(function(a){
+          var klabel=(a.kind==='내부')?'내부일정':'외부일정';
           if(a.redacted){
             return '<div style="margin-bottom:3px;color:#8a7a63">'+
-              (a.tm!==null?'⏰ <b style="color:#5a7ac0">'+fmt(a.tm)+'</b> 외부일정 있음':'시간 미정인 외부일정 있음')+
+              (a.tm!==null?'⏰ <b style="color:#5a7ac0">'+fmt(a.tm)+'</b> '+klabel+' 있음':'시간 미정인 '+klabel+' 있음')+
               (a.dup>1?' ('+a.dup+'건)':'')+'</div>';
           }
+          var ktag=(a.kind==='내부')
+            ?'<span style="font-size:10.5px;background:#e9f0e3;color:#5c7a4b;border-radius:4px;padding:1px 5px;margin-right:4px">내부</span>'
+            :'<span style="font-size:10.5px;background:#e4ebf7;color:#5a7ac0;border-radius:4px;padding:1px 5px;margin-right:4px">외부</span>';
           var mine=(typeof profile!=='undefined'&&profile&&profile.name===s.name);
           var btns=mine?(' <button type="button" class="calx-mini" onclick="event.stopPropagation();calxEditMine(\x27'+a.id+'\x27,\x27'+ds+'\x27,\x27'+(a.tm===null?'':a.tm)+'\x27,\x27'+encodeURIComponent(a.title)+'\x27)">수정</button>'+
             '<button type="button" class="calx-mini" style="color:#c05a5a" onclick="event.stopPropagation();calxDeleteMine(\x27'+a.id+'\x27)">삭제</button>'):'';
-          return '<div style="margin-bottom:3px">'+(a.tm!==null?'<b style="color:#5a7ac0">'+fmt(a.tm)+'</b> ':'')+escapeHtml(a.title)+
+          return '<div style="margin-bottom:3px">'+ktag+(a.tm!==null?'<b style="color:#5a7ac0">'+fmt(a.tm)+'</b> ':'')+escapeHtml(a.title)+
             (a.pj?' <span style="color:#8a7a63;font-size:11.5px">· '+escapeHtml(a.pj)+'</span>':'')+
             (a.dup>1?' <span style="color:#b09a80;font-size:11px">(중복 '+a.dup+'벌 접힘)</span>':'')+btns+'</div>';
         }).join('')+

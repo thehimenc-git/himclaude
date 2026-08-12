@@ -2827,6 +2827,76 @@ var STAFF=[];
 var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbzmZxOy4mzgudsmdFrdBMvlkw5WpPse5zE0IRM1jS9x8RGWMaKBoWx2MPdCc7pBZuE/exec';
 var APPS_SCRIPT_TOKEN='thehim2026';
 
+// ── GAS 간헐 응답 실패 방어 (2026-08-13 신설) ───────────────────────────────
+//   증상: /exec 이 302 로 넘기는 콘텐츠 URL 이 드물게 404 HTML 을 돌려준다(실측 ~8%).
+//         호출부가 r.json() 을 그대로 부르면 "Unexpected token '<'" 로 화면이 죽는다.
+//   대응: APPS_SCRIPT_URL 요청만 가로채서
+//         · 읽기 전용 액션(GAS_RETRY_SAFE) = 최대 3회 재시도 → 사용자는 실패를 못 느낌
+//         · 그 외(부작용·과금 있는 GET + 모든 POST) = 재시도 금지.
+//           대신 HTML 쓰레기를 깔끔한 JSON 오류로 바꿔 호출부가 정상 실패 처리를 하게 한다.
+//   ★재시도 금지 목록이 핵심★ otp_request 는 인증메일을 보내고, chat_send·query·
+//     analyze_query 는 Claude API 를 호출한다. GET 이라고 무조건 재시도하면
+//     인증메일 3통 발송 + API 비용 3배가 된다. 액션 추가 시 이 목록부터 확인할 것.
+(function(){
+  if (typeof window === 'undefined' || !window.fetch || !window.Response) return;
+  var _rawFetch = window.fetch.bind(window);
+
+  // 읽기 전용 = 몇 번을 불러도 서버 상태가 안 변하는 액션만 나열
+  var GAS_RETRY_SAFE = [
+    'get_staff','get_context','get_yesterday_raw','get_today_raw','get_range',
+    'get_schedule','get_schedule_all','load_draft','get_candidate_pool',
+    'get_my_sheet_url','chat_load','get_pending_confirmations',
+    'get_pending_person_reviews','get_pending_pj_registrations'
+  ];
+  var GAS_RETRY_DELAY_MS = [250, 700];   // 1차 재시도 250ms 후, 2차 700ms 후
+
+  function isGasUrl(u){
+    try { return String(u).indexOf(APPS_SCRIPT_URL) === 0; } catch(e){ return false; }
+  }
+  function actionOf(u){
+    var m = /[?&]action=([A-Za-z_]+)/.exec(String(u));
+    return m ? m[1] : '';
+  }
+  function looksJson(t){
+    var s = String(t == null ? '' : t).trim();
+    return s.charAt(0) === '{' || s.charAt(0) === '[';
+  }
+  function jsonResponse(text){
+    return new Response(text, { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  window.fetch = function(input, init){
+    var url = (input && input.url) ? input.url : input;
+    if (!isGasUrl(url)) return _rawFetch(input, init);
+
+    var method   = String((init && init.method) || 'GET').toUpperCase();
+    var retryable = (method === 'GET') && GAS_RETRY_SAFE.indexOf(actionOf(url)) !== -1;
+    var maxTry   = retryable ? 3 : 1;
+
+    function attempt(n){
+      return _rawFetch(input, init).then(function(r){
+        return r.text().then(function(t){
+          if (!r.ok || !looksJson(t)) throw new Error('GAS 응답 이상 (HTTP ' + r.status + ')');
+          JSON.parse(t);              // 파싱까지 되는지 여기서 검증 — 호출부에서 터지지 않게
+          return jsonResponse(t);
+        });
+      }).catch(function(err){
+        if (n + 1 < maxTry) {
+          return new Promise(function(res){ setTimeout(res, GAS_RETRY_DELAY_MS[n] || 700); })
+            .then(function(){ return attempt(n + 1); });
+        }
+        if (retryable) throw err;     // 조회 실패 = 기존 .catch 흐름 그대로 (재시도 다 쓴 뒤)
+        // 부작용 가능 요청: 서버에 이미 반영됐을 수 있으므로 "다시 누르세요"라고 하지 않는다.
+        return jsonResponse(JSON.stringify({
+          ok: false, error: 'GAS_TRANSIENT',
+          message: '통신이 일시적으로 끊겼습니다. 이미 처리됐을 수 있으니, 다시 시도하기 전에 새로고침해서 반영 여부를 먼저 확인해주세요.'
+        }));
+      });
+    }
+    return attempt(0);
+  };
+})();
+
 // ─── Google OAuth + Gmail API (2026-05-22 PM 신설) ─────────────────────────
 // 직원 본인 Gmail 로 보고 발송 → 본인 Sent 폴더에 기록 축적 (대표님 요청).
 // GCP project `him-claude`, OAuth client `힘클로드 test` (test·prod 공유).
@@ -3417,7 +3487,12 @@ function initP1(){
   // 반환값: true = p2 로 자동 복원됨 (호출자는 goPage('p1') 호출 X), false = 일반 흐름
   try {
     var d = loadDraft();
-    if (d && d.stage === 'p2' && d.structured && savedMode === 'report' && !d.manualP1){
+    // 2026-08-13 — 알맹이 없는 p2 초안(예: "00" 한 글자 입력 → AI 가 빈 구조 반환)은
+    //   자동 복원하지 않는다. 복원하면 그릴 게 없어 본문이 백지가 되는데, 자동 복원은
+    //   배너("새로 시작" 버튼)를 숨겨버려서 사용자가 빠져나갈 길이 안 보인다.
+    //   → 배너를 띄워 "이어서 / 새로 시작"을 직접 고르게 한다.
+    if (d && d.stage === 'p2' && d.structured && savedMode === 'report' && !d.manualP1
+        && draftHasBody_(d.structured)){
       restoreDraft(true);  // silent — 자동 복원이라 toast 생략
       return true;
     }
@@ -5670,9 +5745,30 @@ function useLocalDraft(){
   if (d) saveDraftToServer(d);
   showLocalDraftBanner_();
 }
+// 2026-08-13 — p2 초안에 실제로 복원할 알맹이가 있는지 판정.
+//   projects 가 비고 meeting/issue/dir/schedule 도 전부 비면 화면에 그릴 게 없다.
+//   common.content 는 판정에서 뺀다 — AI 가 입력이 부실할 때 "보고 내용이 명확하지
+//   않아…" 같은 안내문을 여기 채워 넣기 때문에, 이걸 알맹이로 치면 빈 초안을
+//   걸러내지 못한다(실제 사고 원인).
+function draftHasBody_(s){
+  if(!s) return false;
+  if(s.projects && s.projects.length) return true;
+  var c=s.common||{};
+  return ['meeting','issue','dir','schedule'].some(function(k){
+    return String(c[k]||'').trim() !== '';
+  });
+}
 function restoreDraft(silent){
   var d=loadDraft();
   if(!d){hideDraftBanner();return;}
+  // 알맹이 없는 p2 초안을 복원하면 백지 화면에 갇힌다 → 복원 대신 p1 으로 되돌리고 폐기.
+  if(d.stage==='p2' && d.structured && !draftHasBody_(d.structured)){
+    clearDraft();
+    hideDraftBanner();
+    goPage('p1');
+    toast('정리된 내용이 비어 있어 새로 시작합니다');
+    return;
+  }
   // 사용자가 배너 "이어서" 클릭 시 manualP1 flag 자동 reset (의지 변경)
   if (d.manualP1){
     delete d.manualP1;

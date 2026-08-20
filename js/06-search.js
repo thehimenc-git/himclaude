@@ -26,6 +26,7 @@ function doAnalyze(){
     body:JSON.stringify({
       token:APPS_SCRIPT_TOKEN,
       action:'structure_report',
+      email:(profile&&profile.email)||'',   // 개인 확정 사전 조회용 (2026-08-20)
       raw:txt
     })
   })
@@ -803,6 +804,7 @@ var ReportChat = {
       body: JSON.stringify({
         token:       APPS_SCRIPT_TOKEN,
         action:      'chat_disambiguate',
+        email:       (profile && profile.email) || '',   // 개인 확정 사전 조회·저장용 (2026-08-20)
         raw:         currentRawText || '',
         structured:  currentStructured,
         history:     self.history,
@@ -1564,6 +1566,7 @@ function doReanalyze(onSuccess){
     body:JSON.stringify({
       token:APPS_SCRIPT_TOKEN,
       action:'structure_report',
+      email:(profile&&profile.email)||'',   // 개인 확정 사전 조회용 (2026-08-20)
       raw:combined
     })
   })

@@ -645,6 +645,7 @@ html::-webkit-scrollbar-button,
 .mode-tab.tab-search  { --tab-color: #6B84A1;  --tab-tint: rgba(107,132,161,.18); }   /* 블루-그레이 계열 (임시) */
 .mode-tab.tab-himclova { --tab-color: #7C5BC8;  --tab-tint: rgba(124,91,200,.14); }    /* 보라 계열 */
 .mode-tab.tab-calendar { --tab-color: #B8860B;  --tab-tint: rgba(184,134,11,.12); }    /* 앰버 계열 (일정 탭, 2026-08-09) */
+.mode-tab.tab-master   { --tab-color: #8A6D3B;  --tab-tint: rgba(138,109,59,.12); }    /* 브라운 계열 (마스터 승격 탭, 오너 전용, 2026-08-25) */
 
 /* hover (비활성) & active 동일 색상 — font-weight 만 차이로 구분 */
 .mode-tab:not(.on):hover,
@@ -665,6 +666,7 @@ html::-webkit-scrollbar-button,
 #p1[data-mode="himclova"] .mode-content.mode-himclova,
 #p1[data-mode="himclova"] .bottom-fixed.bottom-himclova {display:block}
 #p1[data-mode="calendar"] .mode-content.mode-calendar {display:block}
+#p1[data-mode="master"]  .mode-content.mode-master   {display:block}
 /* 검색 모드는 하단 고정 버튼 없음 — 검색 패널 자체에 검색 버튼 포함 (Phase 2 이식 예정) */
 
 /* 힘클로바 모드: user-bar 우측 배치 + 이니셜 원 보라 톤
@@ -2336,6 +2338,7 @@ body.search-mode-active{
       <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 업무 인사이트</button>
       <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ AI 회의록</button>
       <button class="mode-tab tab-calendar"   data-mode="calendar" onclick="onTabClick('calendar')">📅 일정</button>
+      <button class="mode-tab tab-master" id="tab-master-btn" data-mode="master" style="display:none" onclick="onTabClick('master')">🗂️ 마스터 <span class="rep-toggle" id="tab-master-count"></span></button>
     </div>
   </div>
 
@@ -2757,6 +2760,14 @@ body.search-mode-active{
 
   </div>
 
+  <!-- ── 마스터 승격 모드 (오너 전용, 2026-08-25) — 렌더/게이트는 js/08-master.js ── -->
+  <div class="mode-content mode-master">
+    <div class="ctx-card" style="margin-top:12px">
+      <div class="ctx-head">🗂️ <span>프로젝트 마스터 승격</span></div>
+      <div class="ctx-body" id="mode-master-body"><div class="ctx-loading-inline">🌿 불러오는 중...</div></div>
+    </div>
+  </div>
+
   <div class="bottom-fixed bottom-report">
     <!-- INPUT sub-page 시 표시 -->
     <button class="send-btn" id="report-send-btn" onclick="doAnalyze()">
@@ -2827,6 +2838,7 @@ body.search-mode-active{
 <script src="js/05-calendar.js"></script>  <!-- 지시·요청 입력칸 · 일정 탭 -->
 <script src="js/06-search.js"></script>  <!-- 분석→P2 · 브리핑 검색 · 드래프트 · 챗 -->
 <script src="js/07-send-setup.js"></script>  <!-- 저장·발송 · Report 네임스페이스 · 셋업 모달 -->
+<script src="js/08-master.js"></script>  <!-- 프로젝트 마스터 승격 탭 (오너 전용, 2026-08-25) -->
 
 
 <!-- ===== 음성 후처리 셋업 (2026-05-29) — vp-* JS. csTryCopy/csMsg/APPS_SCRIPT_URL 재사용 ===== -->

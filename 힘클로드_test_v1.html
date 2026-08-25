@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>[TEST] 더힘 일일보고</title>
+<title>더힘 일일보고</title>
+
+<!-- Google Identity Services — 직원 본인 Gmail 로 보고 발송 (2026-05-22 PM 신설) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
@@ -20,6 +23,7 @@
   --brush-green:#8FAF8A;
   --brush-rose:#C4907A;
   --brush-gold:#C4A87A;
+  --brush-violet:#9B8AB5;  /* 힘클로바 강조 — 음성/회의 */
   --wash:#E8E0D0;
   --line:#D4C9B5;
 }
@@ -90,24 +94,90 @@ body{
   font-size:26px;font-weight:500;color:var(--ink);
   margin-bottom:8px;line-height:1.4;
 }
-.p0-sub{font-size:14px;color:var(--ink3);line-height:1.7}
+.p0-sub{font-size:14px;color:var(--ink3);line-height:1.7;word-break:keep-all;overflow-wrap:anywhere}
 
 .p0-label{
   font-size:11px;font-weight:700;color:var(--ink3);
   letter-spacing:2px;text-transform:uppercase;
-  padding:0 24px;margin-bottom:12px;
+  padding:0 24px;margin:0 auto 12px;
+  max-width:400px;
+  text-align:center;
 }
 
-.staff-list{padding:0 20px;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto}
+/* 부서 탭 (밑줄 스타일) */
+.dept-tabs{
+  display:flex;justify-content:center;gap:2px;
+  max-width:400px;margin:0 auto 14px;
+  padding:0 12px;box-sizing:border-box;
+  border-bottom:1px solid var(--line);
+  overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.dept-tabs::-webkit-scrollbar{display:none}
+.dept-tab{
+  border:none;background:none;
+  padding:10px 10px;
+  font-size:12px;font-family:inherit;
+  color:var(--ink3);cursor:pointer;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  white-space:nowrap;
+  transition:color .15s, border-color .15s;
+  letter-spacing:.3px;
+}
+.dept-tab:hover{color:var(--ink2)}
+.dept-tab.active{
+  color:var(--ink);
+  border-bottom-color:var(--brush-green);
+  font-weight:600;
+}
+
+.staff-list{
+  max-width:400px;margin:0 auto;
+  padding:0 20px;box-sizing:border-box;
+  display:flex;flex-direction:column;gap:8px;
+  max-height:55vh;overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.2) transparent;
+  scrollbar-gutter:stable;
+}
+.staff-list::-webkit-scrollbar{width:6px}
+.staff-list::-webkit-scrollbar-track{background:transparent}
+.staff-list::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.18);
+  border-radius:3px;
+}
+.staff-list::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.28)}
+.staff-list::-webkit-scrollbar-button{display:none;width:0;height:0}
+/* 전역 + 검색 결과 스크롤바 — 배경 투명, 반투명 thumb */
+html,
+.search-answer{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(0,0,0,.2) transparent;
+}
+html::-webkit-scrollbar,
+.search-answer::-webkit-scrollbar{width:8px}
+html::-webkit-scrollbar-track,
+.search-answer::-webkit-scrollbar-track{background:transparent}
+html::-webkit-scrollbar-thumb,
+.search-answer::-webkit-scrollbar-thumb{
+  background:rgba(0,0,0,.2);border-radius:4px;
+}
+html::-webkit-scrollbar-thumb:hover,
+.search-answer::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.28)}
+html::-webkit-scrollbar-button,
+.search-answer::-webkit-scrollbar-button{display:none;width:0;height:0}
+/* 기본: 가로 배치 — [○] [이름 직책 / 부서] 를 한 덩어리로 카드 내 가로 중앙 정렬 */
 .staff-card{
   background:rgba(255,255,255,.7);
   border:1px solid var(--line);
   border-radius:14px;padding:14px 18px;
   cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;gap:14px;
+  display:flex;flex-direction:row;align-items:center;justify-content:center;
+  gap:14px;
   backdrop-filter:blur(4px);
 }
-.staff-card:hover{background:rgba(255,255,255,.95);border-color:var(--brush-blue);transform:translateX(3px)}
+.staff-card:hover{background:rgba(255,255,255,.95);border-color:var(--brush-blue);transform:translateY(-1px)}
 .staff-card.on{
   background:linear-gradient(135deg,rgba(123,167,188,.15),rgba(143,175,138,.12));
   border-color:var(--brush-green);
@@ -119,12 +189,22 @@ body{
   display:flex;align-items:center;justify-content:center;
   flex-shrink:0;font-family:'Noto Serif KR',serif;
 }
+/* 이름 블록 폭을 6글자 기준("유병욱 본부장")으로 고정 → 원 X축 위치가 이름 길이와 무관하게 통일 */
+.staff-info{text-align:left;min-width:110px}
 .staff-info .sname{font-size:15px;font-weight:500;color:var(--ink)}
 .staff-info .sdept{font-size:12px;color:var(--ink3);margin-top:2px}
 
+/* 좁은 화면(≤360px): ○ → 이름 → 부서 세로 중앙 정렬 */
+@media (max-width:360px){
+  .staff-card{flex-direction:column;gap:8px;text-align:center}
+  .staff-info{text-align:center;min-width:0}
+}
+
 .p0-btn{
-  margin:20px 20px 0;
-  width:calc(100% - 40px);height:54px;
+  display:block;
+  margin:20px auto 0;
+  width:calc(100% - 40px);max-width:360px;
+  height:54px;box-sizing:border-box;
   border-radius:27px;border:none;cursor:pointer;
   background:linear-gradient(135deg,var(--brush-blue),var(--brush-green));
   color:#fff;font-size:16px;font-weight:500;
@@ -132,6 +212,74 @@ body{
   font-family:'Noto Sans KR',sans-serif;
 }
 .p0-btn:active{transform:scale(.97);opacity:.9}
+.p0-btn:disabled{
+  opacity:.45;cursor:not-allowed;
+  background:linear-gradient(135deg,#B5C7CD,#C5D2C0);
+}
+.p0-btn:disabled:active{transform:none;opacity:.45}
+
+/* p0 stage-staff: 직원 선택 버튼이 항상 viewport 안에 보이도록 flex 레이아웃.
+   height(min/max 동시 효과)로 컨테이너를 viewport 에 고정 → staff-list 가
+   남은 공간만 차지하며 그 안에서 자체 스크롤. */
+#p0.page{padding-bottom:0; min-height:calc(100vh - 30px); min-height:calc(100dvh - 30px)}
+#p0-stage-staff{
+  display:flex;flex-direction:column;
+  height:calc(100vh - 30px);
+  height:calc(100dvh - 30px);
+}
+/* hero·dept-tabs·버튼은 자연 크기 유지 (flex-shrink 잠금) — 압축 금지 */
+#p0-stage-staff .p0-hero,
+#p0-stage-staff .dept-tabs,
+#p0-stage-staff .p0-btn{flex:0 0 auto}
+/* staff-list 만 남은 공간 흡수 + 내부 스크롤 */
+#p0-stage-staff .staff-list{
+  flex:1 1 auto;min-height:0;
+  max-height:none;          /* 기존 55vh 캡 해제 — 부모 flex 가 높이 결정 */
+  /* overflow-y:auto 는 .staff-list 기본 규칙에서 그대로 상속 → 내부 스크롤 유지 */
+}
+#p0-stage-staff .p0-btn{margin-bottom:20px}
+/* 짧은 viewport(모바일·작은 노트북)에선 hero 압축 */
+@media (max-height:780px){
+  #p0-stage-staff .p0-hero{padding:20px 24px 14px}
+  #p0-stage-staff .p0-brush{font-size:36px;margin-bottom:10px}
+  #p0-stage-staff .p0-title{font-size:22px}
+}
+
+/* OTP 6칸 박스 */
+.otp-boxes-wrap{
+  max-width:400px;margin:0 auto;
+  padding:0 20px;box-sizing:border-box;
+}
+.otp-boxes{
+  display:flex;gap:8px;
+}
+.otp-digit{
+  flex:1;min-width:0;
+  height:52px;
+  text-align:center;
+  font-size:22px;font-weight:600;
+  border:1.5px solid var(--line);
+  border-radius:10px;
+  background:#efefef;
+  color:var(--ink);
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none;appearance:none;
+  padding:0;box-sizing:border-box;
+}
+.otp-digit:focus{
+  outline:none;
+  border-color:var(--ink);
+  background:#fff;
+}
+.otp-digit:disabled{opacity:.5;cursor:not-allowed}
+.otp-feedback{
+  max-width:400px;margin:14px auto 0;
+  padding:0 20px;box-sizing:border-box;
+  text-align:center;
+  font-size:12px;line-height:1.6;
+  color:var(--brush-rose);
+}
+.otp-feedback.lock{color:var(--ink2);font-weight:600}
 
 /* ══════════════════════════
    PAGE 1 — 입력
@@ -141,13 +289,17 @@ body{
   var(--paper);}
 
 /* 사용자 정보 바 */
+/* user-bar + mode-tabs 를 묶는 sticky 헤더 — p1 스크롤 시 상단 고정 */
+.p1-header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(250,248,243,.95);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
 .user-bar{
   display:flex;align-items:center;gap:12px;
   padding:16px 20px;
-  border-bottom:1px solid var(--line);
-  background:rgba(250,248,243,.9);
-  backdrop-filter:blur(8px);
-  position:sticky;top:0;z-index:100;
+  /* sticky·background·border 는 .p1-header 가 담당 */
 }
 .user-dot{
   width:36px;height:36px;border-radius:50%;
@@ -159,6 +311,82 @@ body{
 .user-info{flex:1}
 .user-name{font-size:14px;font-weight:500;color:var(--ink)}
 .user-date{font-size:11px;color:var(--ink3);margin-top:1px}
+
+/* Claude 셋업 버튼 + 모달 (2026-05-22) — 1회 온보딩용 진입점.
+   2026-05-22 PM 갱신: 원 크기 32→36 (user-dot 와 동일). 모드별 정렬 룰은 아래 #p1[data-mode=*] 블록 참조 */
+.claude-setup-btn{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,#d97757,#cc785c);
+  color:#fff;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:15px;
+  box-shadow:0 1px 3px rgba(0,0,0,.08);
+  transition:transform .15s,box-shadow .15s;
+  font-family:'Noto Serif KR',serif;line-height:1;
+}
+.claude-setup-btn:hover{transform:scale(1.08);box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.cs-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(20,18,15,.45);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.cs-overlay.open{display:flex}
+.cs-modal{
+  background:#faf8f3;border-radius:16px;
+  width:100%;max-width:480px;max-height:90vh;overflow-y:auto;
+  box-shadow:0 8px 32px rgba(0,0,0,.18);padding:24px;
+}
+.cs-title{
+  font-family:'Noto Serif KR',serif;font-size:18px;font-weight:600;color:var(--ink);
+  margin:0 0 4px;display:flex;align-items:center;gap:8px;
+}
+.cs-title-icon{
+  width:24px;height:24px;border-radius:50%;
+  background:linear-gradient(135deg,#d97757,#cc785c);
+  color:#fff;font-size:12px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.cs-sub{font-size:12px;color:var(--ink3);margin:0 0 20px}
+.cs-section{margin-bottom:20px}
+.cs-section h4{font-size:13px;font-weight:600;color:var(--ink);margin:0 0 8px}
+.cs-section .desc{font-size:11px;color:var(--ink3);margin:6px 0 0;line-height:1.5}
+.cs-section .desc code{background:rgba(204,120,92,.1);padding:1px 5px;border-radius:3px;font-size:10px}
+.cs-url-row,.cs-name-row{display:flex;gap:8px;align-items:stretch}
+.cs-url-input{
+  flex:1;font-size:11px;font-family:ui-monospace,Menlo,monospace;
+  padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cs-name-input{
+  flex:1;font-size:13px;font-family:inherit;
+  padding:9px 12px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;color:var(--ink);
+}
+.cs-name-input:focus{outline:none;border-color:#cc785c}
+.cs-btn{
+  padding:9px 14px;font-size:12px;font-weight:500;
+  border:1px solid var(--line);background:#fff;color:var(--ink);
+  border-radius:8px;cursor:pointer;font-family:inherit;white-space:nowrap;
+  transition:background .15s;
+}
+.cs-btn:hover{background:#f0ede5}
+.cs-btn.primary{background:#cc785c;color:#fff;border-color:#cc785c}
+.cs-btn.primary:hover{background:#b86848}
+.cs-result{
+  width:100%;min-height:180px;max-height:300px;margin-top:8px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);
+  font-size:12px;font-family:ui-monospace,Menlo,monospace;line-height:1.6;
+  resize:vertical;box-sizing:border-box;
+}
+.cs-result.empty{color:var(--ink3)}
+.cs-msg{font-size:11px;margin-top:6px;min-height:14px}
+.cs-msg.ok{color:#5a8a5a}
+.cs-msg.err{color:#c05050}
+.cs-actions{
+  display:flex;justify-content:flex-end;gap:8px;
+  margin-top:20px;padding-top:16px;border-top:1px solid var(--line);
+}
 
 /* ── 컨텍스트 카드 ── */
 .ctx-card{
@@ -186,6 +414,61 @@ body{
 .ctx-row.rose{border-left-color:var(--brush-rose)}
 .ctx-row.gold{border-left-color:var(--brush-gold)}
 .ctx-time{font-size:11px;color:var(--ink3);margin-right:5px}
+/* 일정 entry row (Phase 6, 2026-05-15) — 아이콘 + PJ + 제목 + from 힌트 + D-N 라벨 */
+.ctx-row .sch-icon{margin-right:4px}
+.ctx-row .sch-pj{color:var(--ink3);font-size:12px;margin-right:3px}
+.ctx-row .sch-title{color:var(--ink2)}
+.ctx-row .sch-from{color:var(--ink3);font-size:12px}
+.ctx-row .sch-d{
+  position:absolute;top:5px;right:8px;
+  font-size:12px;color:var(--ink3);
+  letter-spacing:.3px;
+}
+.ctx-row.rose .sch-d{color:var(--brush-rose);font-weight:500}
+/* sub-section 세부 박스 (어제/오늘/내일 그룹) — 카드 안 sub-box */
+.ctx-subbox{
+  background:rgba(0,0,0,.035);
+  padding:8px 10px;
+  border-radius:8px;
+  display:flex;flex-direction:column;gap:5px;
+}
+.ctx-subhead{
+  font-size:11px;color:var(--ink3);
+  letter-spacing:1px;margin:0 0 2px 2px;
+  font-weight:500;
+}
+.ctx-subempty{
+  color:var(--ink3);font-style:italic;font-size:11px;
+  padding:3px 8px;
+}
+/* sub-box 안 entry 박스 — 전체 테두리 + sch-d (D-N 라벨) absolute 위치 (모바일 wrap 안전) */
+.ctx-subbox > .ctx-row{
+  background:#fff;
+  border:1px solid var(--line);
+  border-left-width:1px;
+  position:relative;
+  padding-right:50px;
+}
+.ctx-subbox > .ctx-row.blue {border-color:var(--brush-blue)}
+.ctx-subbox > .ctx-row.green{border-color:var(--brush-green)}
+.ctx-subbox > .ctx-row.rose {border-color:var(--brush-rose)}
+.ctx-subbox > .ctx-row.gold {border-color:var(--brush-gold)}
+.ctx-more-btn{
+  display:block;width:100%;
+  margin-top:4px;padding:5px 8px;
+  background:transparent;
+  border:1px dashed var(--line);
+  border-radius:6px;
+  color:var(--ink3);font-size:11px;
+  letter-spacing:.5px;
+  cursor:pointer;
+  font-family:inherit;
+}
+.ctx-more-btn:hover{
+  background:rgba(0,0,0,.03);
+  color:var(--ink2);
+  border-style:solid;
+}
 
 /* ── 섹션 제목 ── */
 .sec-title{
@@ -198,6 +481,242 @@ body{
 .sec-title::after{
   content:'';flex:1;height:1px;
   background:linear-gradient(90deg,var(--line),transparent);
+}
+.sec-title.with-mic::after{display:none}
+.sec-line{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent);min-width:12px}
+
+/* 일일보고 음성 입력 — sec-title 우측 미니 마이크 버튼 (CLOVA STT) */
+.voice-mini-btn{
+  flex-shrink:0;
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:999px;
+  background:rgba(255,255,255,.7);
+  border:1px solid var(--line);
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:12px;font-weight:600;line-height:1;
+  color:var(--ink2);cursor:pointer;
+  letter-spacing:0;
+  transition:all .2s;
+}
+.voice-mini-btn:hover{background:#fff;border-color:var(--brush-rose);color:var(--brush-rose)}
+.voice-mini-btn.rec{
+  border-color:var(--brush-rose);
+  background:rgba(196,144,122,.12);
+  color:var(--brush-rose);
+  animation:breathe 2s ease-in-out infinite;
+}
+.voice-mini-btn.busy{pointer-events:none;opacity:.85;color:var(--ink3);border-color:var(--line);background:rgba(255,255,255,.5)}
+.voice-mini-btn.open{border-color:var(--brush-violet);color:var(--brush-violet);background:rgba(155,138,181,.10)}
+.voice-mini-btn .vmb-icon{font-size:14px}
+.voice-mini-btn .vmb-elapsed{font-variant-numeric:tabular-nums;font-weight:600}
+
+/* 녹음 컨트롤 패널 — 상태 머신 (armed / recording / recorded / converting) */
+.voice-panel{
+  margin:6px 20px 0;
+  padding:14px 14px 12px;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 4px 14px rgba(0,0,0,.04);
+}
+.voice-panel[hidden]{display:none}
+.voice-panel .vp-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:10px;
+}
+.voice-panel .vp-title{
+  font-family:'Noto Serif KR',serif;
+  font-size:12px;color:var(--ink3);letter-spacing:.5px;
+}
+.voice-panel .vp-close{
+  width:26px;height:26px;border-radius:50%;
+  border:1px solid var(--line);background:#fff;
+  font-size:12px;color:var(--ink3);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:all .15s;
+}
+.voice-panel .vp-close:hover{background:var(--paper);color:var(--ink2)}
+.voice-panel .vp-close:disabled{opacity:.4;cursor:not-allowed}
+.voice-panel .vp-body{display:flex;flex-direction:column;gap:8px}
+.voice-panel .vp-row{display:flex;gap:8px}
+.voice-panel .vp-btn{
+  flex:1;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 14px;border-radius:12px;
+  border:1px solid var(--line);
+  background:#fff;
+  font-family:inherit;font-size:13px;font-weight:600;
+  color:var(--ink);cursor:pointer;
+  transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.voice-panel .vp-btn:hover{background:var(--paper)}
+.voice-panel .vp-btn:active{transform:scale(.98)}
+.voice-panel .vp-btn.vp-primary{
+  background:linear-gradient(135deg, var(--brush-violet, #8C68C8), var(--brush-blue, #6A8DB5));
+  color:#fff;border-color:transparent;
+}
+.voice-panel .vp-btn.vp-primary:hover{opacity:.92;background:linear-gradient(135deg, var(--brush-violet, #8C68C8), var(--brush-blue, #6A8DB5))}
+.voice-panel .vp-btn.vp-danger{
+  background:rgba(196,144,122,.12);
+  color:var(--brush-rose);border-color:var(--brush-rose);
+  animation:breathe 2s ease-in-out infinite;
+}
+.voice-panel .vp-btn.vp-busy{
+  background:var(--paper);color:var(--ink3);cursor:not-allowed;
+  border-color:var(--line);
+}
+.voice-panel .vp-btn .vp-elapsed{
+  font-variant-numeric:tabular-nums;
+  margin-left:4px;opacity:.85;
+}
+
+/* 마이크 권한 진단 모달 — secure context 부재 / 권한 거부 / 장치 문제 */
+.voice-perm-modal{
+  position:fixed;inset:0;z-index:9999;
+  display:none;align-items:center;justify-content:center;
+  padding:20px;
+}
+.voice-perm-modal.show{display:flex}
+.voice-perm-modal .vpm-backdrop{
+  position:absolute;inset:0;background:rgba(28,28,28,.5);
+}
+.voice-perm-modal .vpm-card{
+  position:relative;z-index:1;
+  width:100%;max-width:420px;
+  background:#fff;border-radius:18px;
+  padding:22px 22px 18px;
+  box-shadow:0 24px 60px rgba(0,0,0,.18);
+  font-family:'Noto Sans KR',sans-serif;
+  max-height:90vh;overflow:auto;
+}
+.voice-perm-modal .vpm-title{
+  font-family:'Noto Serif KR',serif;
+  font-size:16px;font-weight:600;color:var(--ink);
+  margin-bottom:12px;
+}
+.voice-perm-modal .vpm-body{
+  font-size:13px;color:var(--ink2);line-height:1.7;
+  word-break:keep-all;
+}
+.voice-perm-modal .vpm-body code{
+  background:rgba(0,0,0,.05);padding:1px 6px;border-radius:4px;font-size:12px;
+}
+.voice-perm-modal .vpm-body small{color:var(--ink3);font-size:11px}
+.voice-perm-modal .vpm-body b{color:var(--ink);font-weight:600}
+.voice-perm-modal .vpm-close{
+  margin-top:14px;width:100%;
+  padding:11px 14px;border-radius:12px;
+  background:var(--brush-rose);color:#fff;border:0;
+  font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:opacity .2s;
+}
+.voice-perm-modal .vpm-close:hover{opacity:.92}
+.voice-perm-modal .vpm-close:active{transform:scale(.98)}
+/* ───────── 모드 탭 (일일보고 ↔ 힘클로바) — 독립된 두 카드, gap 으로 명확히 분리 ───────── */
+.mode-tabs{
+  display:flex;
+  margin:8px 20px 12px;   /* sticky 헤더 안 — 위·아래 여백으로 user-bar/콘텐츠 와 호흡 */
+  gap:8px;
+}
+/* base — 탭 정체성은 --tab-color / --tab-tint 변수로 분리.
+   새 탭 추가 시 .mode-tab.tab-XXX 한 줄만 정의하면 hover/active 자동 동작. */
+.mode-tab{
+  --tab-color: var(--ink3);                /* 기본 (정체성 미정 탭의 fallback) */
+  --tab-tint:  rgba(122,143,123,.06);
+  flex:1;
+  padding:10px 14px;
+  background:rgba(255,255,255,.7);
+  border:1px solid var(--line);
+  border-radius:10px;
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:13px;font-weight:500;
+  color:var(--ink3);
+  cursor:pointer;
+  transition:background .15s, color .15s, border-color .15s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  text-align:center;             /* 좁은 화면에서 두 줄로 줄바꿈 시 가운데 정렬 */
+  word-break:keep-all;            /* 한국어 단어 단위 줄바꿈 (예: "업무\n보고") */
+  line-height:1.3;
+}
+
+/* ── 탭 정체성 정의 — 추가 탭 시 이 영역에 한 줄만 추가하면 됨 ── */
+.mode-tab.tab-report  { --tab-color: #5C8557;  --tab-tint: rgba(143,175,138,.14); }   /* 청록(녹색) 계열 */
+.mode-tab.tab-search  { --tab-color: #6B84A1;  --tab-tint: rgba(107,132,161,.18); }   /* 블루-그레이 계열 (임시) */
+.mode-tab.tab-himclova { --tab-color: #7C5BC8;  --tab-tint: rgba(124,91,200,.14); }    /* 보라 계열 */
+.mode-tab.tab-calendar { --tab-color: #B8860B;  --tab-tint: rgba(184,134,11,.12); }    /* 앰버 계열 (일정 탭, 2026-08-09) */
+.mode-tab.tab-master   { --tab-color: #8A6D3B;  --tab-tint: rgba(138,109,59,.12); }    /* 브라운 계열 (마스터 승격 탭, 오너 전용, 2026-08-25) */
+
+/* hover (비활성) & active 동일 색상 — font-weight 만 차이로 구분 */
+.mode-tab:not(.on):hover,
+.mode-tab.on{
+  color: var(--tab-color);
+  border-color: var(--tab-color);
+  background: var(--tab-tint);
+}
+.mode-tab.on{ font-weight:600 }
+
+/* 모드 콘텐츠/하단 버튼 가시성 — #p1[data-mode] 기반.
+   기본 숨김 + 활성 모드만 노출. 새 모드 추가 시 mode-content + bottom-fixed 짝 한 쌍씩 추가. */
+.mode-content{display:none}
+#p1 .bottom-fixed{display:none}
+#p1[data-mode="report"]  .mode-content.mode-report,
+#p1[data-mode="report"]  .bottom-fixed.bottom-report   {display:block}
+#p1[data-mode="search"]  .mode-content.mode-search    {display:block}
+#p1[data-mode="himclova"] .mode-content.mode-himclova,
+#p1[data-mode="himclova"] .bottom-fixed.bottom-himclova {display:block}
+#p1[data-mode="calendar"] .mode-content.mode-calendar {display:block}
+#p1[data-mode="master"]  .mode-content.mode-master   {display:block}
+/* 검색 모드는 하단 고정 버튼 없음 — 검색 패널 자체에 검색 버튼 포함 (Phase 2 이식 예정) */
+
+/* 힘클로바 모드: user-bar 우측 배치 + 이니셜 원 보라 톤
+   order 로 시각 순서 [info][avatar] 만들고 justify-content:flex-end 로 우측 정렬 */
+#p1[data-mode="himclova"] .user-bar{
+  justify-content:flex-end;
+}
+#p1[data-mode="himclova"] .user-info{
+  flex:0 1 auto;                /* 기존 flex:1 override — 가로로 안 늘어나게 */
+  text-align:right;
+  order:0;                       /* info 가 먼저 (좌측) */
+}
+#p1[data-mode="himclova"] .user-dot{
+  order:1;                       /* avatar 가 뒤 (우측 끝) */
+  background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));  /* 기존 힘클로바 시그니처 — 보라→청 */
+}
+/* 회의록 모드: ✦ 셋업 버튼 = dot(1) 보다 뒤 → 시각 순서 info(0) → dot(1) → btn(2) */
+#p1[data-mode="himclova"] .claude-setup-btn{
+  order:2;
+}
+
+/* 검색 모드: user-info 자체가 페이지 가운데 X 좌표에 정렬 (모드 탭 가운데와 일치).
+   Grid 1fr | auto | 1fr 3열 — 양쪽 spacer 동일 폭이라 가운데 열(info)이 페이지 가운데.
+   dot 는 좌측 spacer 끝에 붙어 info 와 12px 간격. */
+#p1[data-mode="search"] .user-bar{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:0;
+  justify-content:initial;       /* flex 룰 무력화 */
+}
+#p1[data-mode="search"] .user-dot{
+  grid-column:1;
+  justify-self:end;
+  margin-right:12px;             /* info 와 간격 — 다른 모드 user-bar gap 과 동일 */
+}
+#p1[data-mode="search"] .user-info{
+  grid-column:2;
+  flex:0 1 auto;
+  text-align:center;
+}
+/* 인사이트 모드: ✦ 셋업 버튼 = dot 와 대칭 (3번 컬럼 좌측 끝 + info 와 12px 간격) */
+#p1[data-mode="search"] .claude-setup-btn{
+  grid-column:3;
+  justify-self:start;
+  margin-left:12px;
+}
+/* 이니셜 원 — 시도안 #A8C0D8 → #708EA9 (밝은 청회색 → 중청). 사용자 평가 후 확정/롤백. */
+#p1[data-mode="search"] .user-dot{
+  background:linear-gradient(135deg,#A8C0D8,#708EA9);
 }
 
 /* 텍스트 입력 */
@@ -268,24 +787,340 @@ body{
 .bottom-fixed{
   position:fixed;bottom:0;left:0;right:0;
   padding:14px 20px;
-  background:linear-gradient(0deg,var(--paper) 60%,transparent);
+  box-sizing:border-box;       /* 좌우 padding 이 viewport 안에 포함되도록 — 자식 width:100% 가 padding 영역까지 침범 방지 */
+  /* fade 영역을 padding-top(14px) 과 정확히 일치 — paper-solid 시작점 = 버튼 맨 위 */
+  background:linear-gradient(0deg,var(--paper) calc(100% - 14px),transparent);
 }
+/* base — 원본 힘클로바와 동일 (보라→청 그라디언트) */
 .send-btn{
-  width:100%;height:54px;border-radius:27px;border:none;cursor:pointer;
-  background:linear-gradient(135deg,var(--ink),var(--ink2));
-  color:var(--paper);font-size:16px;font-weight:500;
-  letter-spacing:.5px;transition:all .2s;
   display:flex;align-items:center;justify-content:center;gap:8px;
-  font-family:'Noto Sans KR',sans-serif;
+  width:100%;max-width:640px;margin:0 auto;
+  padding:16px 20px;
+  box-sizing:border-box;       /* width:100% + padding 이 부모 content 영역 안에 들어가도록 — 모바일 가로 튀어나감 방지 */
+  border:none;border-radius:14px;
+  background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));
+  color:#fff;font-size:15px;font-weight:600;
+  cursor:pointer;font-family:inherit;
+  transition:transform .1s,opacity .15s;
+  box-shadow:0 4px 14px rgba(155,138,181,.3);
 }
-.send-btn:active{transform:scale(.97);opacity:.9}
+.send-btn:active{transform:scale(.98);opacity:.92}
+.send-btn:disabled{
+  background:var(--paper3);color:var(--ink3);
+  box-shadow:none;cursor:not-allowed;
+}
+/* 일일보고 모드 — base 양식 그대로, 색상만 청록 그라디언트로 */
+.bottom-fixed.bottom-report .send-btn{
+  background:linear-gradient(135deg,var(--brush-green),var(--brush-blue));
+  box-shadow:0 4px 14px rgba(143,175,138,.3);
+}
+/* 힘클로바 — 진행 중 멈추기 빨간 버튼 */
+.send-btn.stopping{
+  background:linear-gradient(135deg,#E07A8C,#C4907A) !important;
+  box-shadow:0 4px 14px rgba(196,144,122,.4) !important;
+}
 
 /* ══════════════════════════
-   PAGE 2 — 보기 + 수정
+   PAGE 2 (마이그레이션됨) — 보기 + 수정
+   ※ 2026-04-29: #p2 페이지 → mode-report 안 sub-page (#report-page-edit) 로 이동.
+   ※ p2-* 클래스 룰은 mode-report 안에서도 그대로 작동.
 ══════════════════════════ */
-#p2{background:
+.report-page-edit{background:
   radial-gradient(ellipse at 20% 80%, rgba(143,175,138,.08) 0%, transparent 50%),
-  var(--paper);}
+  transparent;}
+
+/* ── disambiguation 챗 UI (2026-05-07, 2026-05-08 박스 적용) ── */
+.report-chat{
+  display:flex; flex-direction:column;
+  height:calc(100vh - 200px);
+  max-height:calc(100vh - 200px);
+  margin:12px 20px;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+}
+/* EDIT sub-page — 인사이트(mode-search) 와 동일 패턴.
+   .report-page-edit 자체를 fixed viewport 로 두면 chat input 이 항상
+   발송 버튼 바로 위에 sticky-stack. top·bottom 은 JS(Report.adjustEditLayout)
+   가 .p1-header bottom + .bottom-fixed.bottom-report height 측정해 동적 설정.
+   2026-05-11 신설 */
+#p1[data-mode="report"] .report-page-edit{
+  position:fixed;
+  top:130px;            /* JS fallback */
+  left:0; right:0;
+  bottom:94px;          /* JS fallback (bottom-fixed h + 간격 8px) */
+  box-sizing:border-box;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+/* fixed flex 컨테이너 안에서 height calc 폐기, flex 채움. input wrap 자동 하단. */
+#p1[data-mode="report"] .report-page-edit .report-chat{
+  flex:1 1 auto; min-height:0;
+  height:auto; max-height:none;
+  margin:12px 20px 0;
+}
+/* 발송 완료 화면 — 동일 컨테이너 안에서 가운데/스크롤 */
+#p1[data-mode="report"] .report-page-edit #report-done-screen{
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto;
+  padding:0 20px;
+}
+/* EDIT 진입 시 body 스크롤 차단 — mode-search 와 동일 이유 (페이지 휠 헛도는 것 방지) */
+body.report-edit-active{ overflow:hidden; }
+.report-chat-messages{
+  flex:1 1 auto; min-height:0;
+  overflow-y:auto;
+  padding:14px;
+  display:flex; flex-direction:column; gap:10px;
+}
+.report-chat-msg{
+  max-width:85%;
+  padding:12px 16px;
+  border-radius:14px;
+  font-size:14px; line-height:1.6;
+  word-break:break-word;
+  white-space:pre-wrap; /* 번호 list 줄바꿈 보존 */
+}
+.report-chat-msg.assistant{
+  align-self:flex-start;
+  background:rgba(255,255,255,.96);
+  border:1px solid var(--line);
+  color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.report-chat-msg.user{
+  align-self:flex-end;
+  background:linear-gradient(135deg, rgba(196,144,122,.18), rgba(196,144,122,.08));
+  border:1px solid rgba(196,144,122,.25);
+  color:var(--ink);
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.report-chat-msg.system{
+  align-self:center;
+  background:rgba(143,175,138,.12);
+  color:var(--ink2);
+  font-size:12px;
+  border:1px dashed rgba(143,175,138,.3);
+  padding:6px 12px;
+}
+.report-chat-msg .candidates{
+  margin-top:8px; display:flex; flex-direction:column; gap:4px;
+}
+.report-chat-msg .candidates b{font-size:12px; color:var(--ink3); font-weight:600}
+/* L2 확인 요청 항목 (Phase 6) */
+.l2-review-item{
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  margin-bottom:8px;
+  background:rgba(255,255,255,.6);
+}
+.l2-review-item:last-child{margin-bottom:0}
+.l2-review-head{
+  font-size:14px; line-height:1.5;
+  margin-bottom:4px;
+}
+.l2-review-status{
+  font-size:11px; color:var(--ink3);
+  font-weight:500;
+  background:rgba(143,175,138,.12);
+  padding:2px 6px; border-radius:6px;
+  margin-left:6px;
+}
+.l2-review-context{
+  font-size:13px; color:var(--ink2);
+  margin-bottom:8px; line-height:1.5;
+}
+.l2-review-actions{
+  display:flex; gap:6px; flex-wrap:wrap;
+}
+.l2-review-actions button{
+  background:rgba(143,175,138,.10);
+  border:1px solid rgba(143,175,138,.30);
+  color:var(--ink);
+  padding:6px 12px; border-radius:10px;
+  font-size:12px; cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none; appearance:none;
+}
+.l2-review-actions button:hover{
+  background:rgba(143,175,138,.20);
+  border-color:rgba(143,175,138,.50);
+}
+.l2-review-actions button:active{transform:scale(.97); opacity:.9}
+.l2-review-done{
+  font-size:13px; color:var(--ink3);
+  text-align:center;
+  padding:8px;
+  background:rgba(143,175,138,.06);
+  border-radius:6px;
+}
+/* 신규 PJ 등록 카드 (2026-05-22) — 코드·명칭 input + 3 액션 */
+.l2-review-register{
+  border-left:3px solid var(--brush-gold);
+}
+.l2-pj-register-form{
+  display:flex; flex-direction:column; gap:6px;
+  margin-bottom:8px;
+}
+.l2-pj-register-form input{
+  padding:7px 10px; border:1px solid var(--line);
+  border-radius:6px; font-size:13px;
+  font-family:'Noto Sans KR',sans-serif;
+  background:#fff; color:var(--ink);
+  -webkit-appearance:none; appearance:none;
+}
+.l2-pj-register-form input:focus{
+  outline:none; border-color:var(--brush-gold);
+  box-shadow:0 0 0 2px rgba(196,168,122,.15);
+}
+.l2-pj-suggest{
+  font-size:11px; color:var(--ink3);
+  padding:2px 0;
+}
+/* prefix 의미 legend — 신규 PJ 등록 카드 첫 entry 에만 표시 */
+.l2-pj-prefix-legend{
+  display:flex; flex-wrap:wrap; gap:6px 10px;
+  font-size:11px; color:var(--ink3);
+  padding:6px 8px; margin-bottom:6px;
+  background:rgba(196,168,122,.06);
+  border-left:2px solid var(--brush-gold);
+  border-radius:4px;
+  line-height:1.6;
+}
+.l2-pj-prefix-legend b{color:var(--ink); font-weight:600}
+
+/* 후보 버튼 list (Claude quick_replies) — 세로 정렬 */
+.report-chat-quick-replies{
+  align-self:flex-start;
+  display:flex; flex-direction:column; gap:6px;
+  max-width:90%;
+  margin-top:-2px;
+}
+.report-chat-quick-btn{
+  background:rgba(143,175,138,.10);
+  border:1px solid rgba(143,175,138,.30);
+  color:var(--ink);
+  padding:9px 14px; border-radius:12px;
+  font-size:13px; cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  text-align:left; line-height:1.4;
+  width:100%; box-sizing:border-box;
+  -webkit-appearance:none; appearance:none;
+}
+.report-chat-quick-btn:hover{
+  background:rgba(143,175,138,.20);
+  border-color:rgba(143,175,138,.50);
+}
+.report-chat-quick-btn:active{transform:scale(.97); opacity:.9}
+
+/* batch UI — 다중 선택 (Phase 2, 2026-05-21) */
+.report-chat-choice-groups{
+  align-self:flex-start;
+  display:flex; flex-direction:column; gap:10px;
+  max-width:95%;
+  margin-top:-2px;
+  background:rgba(143,175,138,.06);
+  padding:12px;
+  border-radius:12px;
+  border:1px solid rgba(143,175,138,.25);
+}
+.choice-group{
+  border:1px solid rgba(143,175,138,.30);
+  border-radius:10px;
+  padding:8px 12px 6px;
+  background:rgba(255,255,255,.6);
+  margin:0;
+}
+.choice-group legend{
+  font-weight:600; font-size:13px; padding:0 6px;
+  color:var(--ink);
+}
+.choice-option{
+  display:flex; align-items:flex-start;
+  padding:5px 0; cursor:pointer;
+  font-size:13px; line-height:1.4;
+  gap:6px;
+}
+.choice-option input[type=radio]{ margin-top:3px; cursor:pointer; }
+.choice-confirm-btn{
+  align-self:flex-end;
+  background:#2c6e49; color:white;
+  border:none; border-radius:10px;
+  padding:9px 22px; font-size:14px; font-weight:600;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.choice-confirm-btn:hover{ background:#225538; }
+.choice-confirm-btn:active{ transform:scale(.97); opacity:.9; }
+.choice-confirm-btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+/* 챗 음성입력 — 마이크 버튼 (2026-05-21) */
+.report-chat-mic-btn{
+  flex-shrink:0; min-height:38px; padding:0 14px;
+  border-radius:18px;
+  border:1px solid rgba(143,175,138,.30);
+  background:rgba(143,175,138,.10);
+  color:var(--ink);
+  font-size:18px; cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+  -webkit-appearance:none; appearance:none;
+  transition:all .2s ease;
+}
+.report-chat-mic-btn:hover{
+  background:rgba(143,175,138,.20);
+}
+.report-chat-mic-btn.recording{
+  background:rgba(220,60,60,.15);
+  border-color:rgba(220,60,60,.50);
+  color:#c83c3c;
+  animation:chatMicPulse 1.5s ease-in-out infinite;
+}
+.report-chat-mic-btn.converting{
+  background:rgba(255,193,7,.15);
+  border-color:rgba(255,193,7,.50);
+  cursor:wait;
+}
+@keyframes chatMicPulse{
+  0%, 100%{ box-shadow:0 0 0 0 rgba(220,60,60,.5); }
+  50%{ box-shadow:0 0 0 8px rgba(220,60,60,0); }
+}
+
+.report-chat-input-wrap{
+  display:flex; gap:8px; align-items:flex-end;
+  padding:10px 12px;
+  border-top:1px solid rgba(143,175,138,.20);
+  background:rgba(255,255,255,.7);
+}
+.report-chat-input-wrap textarea{
+  flex:1 1 auto; min-height:38px; max-height:140px; resize:none;
+  padding:9px 12px; border-radius:18px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.96);
+  font-size:14px; line-height:1.5;
+  font-family:'Noto Sans KR',sans-serif;
+  color:var(--ink);
+  scrollbar-width:none; -ms-overflow-style:none; /* 스크롤바 숨김 */
+}
+.report-chat-input-wrap textarea::-webkit-scrollbar{display:none} /* 스크롤바 숨김 (webkit) */
+.report-chat-input-wrap textarea:focus{outline:none; border-color:var(--brush-gold)}
+.report-chat-send-btn{
+  flex-shrink:0; min-height:38px; padding:0 18px;
+  border-radius:18px; border:none;
+  background:linear-gradient(135deg, var(--ink), var(--ink2));
+  color:var(--paper);
+  font-size:13px; font-weight:600;
+  cursor:pointer;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.report-chat-send-btn:active{transform:scale(.97); opacity:.9}
+.report-chat-send-btn:disabled{opacity:.5; cursor:not-allowed}
+.report-chat-typing{
+  align-self:flex-start;
+  font-size:13px; color:var(--ink3);
+  padding:6px 0 0 4px;
+}
 
 .p2-topbar{
   display:flex;align-items:center;gap:10px;
@@ -356,6 +1191,48 @@ body{
   border:none;cursor:pointer;font-size:13px;font-weight:500;
   margin-top:8px;font-family:'Noto Sans KR',sans-serif;
 }
+/* ── 자연어 카드 (Step 2b — 2026-04-29) ── */
+.proj-content{
+  font-size:14px;color:var(--ink);line-height:1.75;
+  white-space:pre-wrap;word-break:keep-all;
+  padding:4px 0;
+}
+.proj-empty{color:var(--ink3);font-style:italic;font-size:13px}
+.proj-add-row{margin-top:10px}
+.proj-add-btn-inline{
+  background:none;border:1px dashed var(--line);
+  border-radius:8px;padding:7px 12px;
+  font-size:12px;font-weight:500;color:var(--ink2);
+  cursor:pointer;transition:all .15s;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.proj-add-btn-inline:hover{border-color:var(--brush-blue);color:var(--brush-blue);background:rgba(123,167,188,.04)}
+.proj-draft-wrap{margin-top:10px}
+.proj-draft{
+  width:100%;border:1.5px solid var(--brush-blue);border-radius:10px;
+  padding:10px 12px;font-size:14px;font-family:'Noto Sans KR',sans-serif;
+  line-height:1.7;background:var(--paper);color:var(--ink);
+  resize:none;box-sizing:border-box;
+}
+.proj-draft:focus{outline:none;border-color:var(--brush-gold)}
+.proj-draft-actions{
+  display:flex;gap:8px;margin-top:8px;
+}
+.proj-reanalyze-btn{
+  flex:1;height:36px;border-radius:8px;
+  background:linear-gradient(135deg,var(--brush-blue),var(--brush-green));
+  color:#fff;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;
+  font-family:'Noto Sans KR',sans-serif;
+}
+.proj-cancel-btn{
+  height:36px;padding:0 14px;border-radius:8px;
+  background:none;border:1px solid var(--line);
+  color:var(--ink3);cursor:pointer;
+  font-size:12px;font-weight:500;
+  font-family:'Noto Sans KR',sans-serif;
+}
+
 .rep-task{
   padding:8px 0;border-bottom:1px solid var(--paper3);
   font-size:14px;color:var(--ink);line-height:1.7;
@@ -391,7 +1268,13 @@ body{
   font-family:'Noto Sans KR',sans-serif;
 }
 
-/* 하단 버튼 2개 */
+/* report-edit-actions — bottom-fixed 안에서 edit sub-page 시 보이는 영역.
+   Step 2d (2026-04-29): 저장 버튼 제거 → "보고 업로드" send-btn 1개. send-btn 자체가 width 처리. */
+.report-edit-actions{
+  width:100%;
+}
+
+/* (구) p2-bottom — #p2 페이지 마이그레이션 후 미사용. 호환 유지. */
 .p2-bottom{
   position:fixed;bottom:0;left:0;right:0;
   padding:12px 20px;
@@ -400,46 +1283,13 @@ body{
 }
 
 /* ══════════════════════════
-   2페이지 2열 레이아웃 (반응형)
-   모바일(기본): 세로 단일 컬럼, 검색은 탭으로 제어 (step 7)
-   PC ≥1024px: 편집 2/3 + 검색 1/3 가로 배치
+   2페이지 레이아웃 (단일 편집 컬럼)
+   ※ 검색 패널은 p1 의 mode-search 로 이전됨 (2026-04-28)
 ══════════════════════════ */
 .p2-main{display:block}
 .p2-col{min-width:0}
-.p2-col-search{display:none}  /* 모바일 기본 숨김 — 탭으로 토글 */
 
-/* 모바일 탭 (PC에서 숨김) */
-.p2-tabs{
-  display:flex;gap:6px;
-  padding:10px 16px 4px;
-  position:sticky;top:48px;
-  background:rgba(250,248,243,.95);
-  backdrop-filter:blur(8px);
-  z-index:90;
-}
-.p2-tab{
-  flex:1;padding:9px;
-  background:transparent;
-  border:1.5px solid var(--line);
-  border-radius:18px;
-  font-size:12px;font-weight:600;
-  color:var(--ink3);
-  font-family:'Noto Sans KR',sans-serif;cursor:pointer;
-  -webkit-appearance:none;appearance:none;
-  display:flex;align-items:center;justify-content:center;gap:5px;
-}
-.p2-tab.active{
-  background:var(--ink);
-  color:var(--paper);
-  border-color:var(--ink);
-}
-
-/* 모바일에서 검색 탭 활성화 시: 편집 컬럼·하단 버튼 숨기고 검색 컬럼 표시 */
-#p2.tab-search .p2-col-edit{display:none}
-#p2.tab-search .p2-col-search{display:block}
-#p2.tab-search .p2-bottom{display:none !important}
-
-/* 검색 패널 UI */
+/* 검색 패널 UI (p1 mode-search 안에서 사용) */
 .search-box{
   margin:16px;padding:16px;
   background:rgba(255,255,255,.85);
@@ -447,33 +1297,38 @@ body{
   border-radius:14px;
 }
 .search-title{
-  font-size:13px;font-weight:700;color:var(--ink);
+  font-size:13px;font-weight:700;color:#4F6885;
   margin-bottom:14px;letter-spacing:.5px;
 }
 .search-field{margin-bottom:12px}
 .search-field>label{
   display:block;font-size:11px;font-weight:700;
-  color:var(--ink3);margin-bottom:6px;
+  color:#6B84A1;margin-bottom:6px;
   letter-spacing:.5px;
 }
 .search-dates{display:flex;align-items:center;gap:8px}
 .search-dates input{flex:1;min-width:0}
 .search-dates span{color:var(--ink3);font-size:12px}
-.search-field input{
-  width:100%;padding:9px 11px;
+.search-field input,
+.search-field textarea{
+  width:100%;box-sizing:border-box;padding:9px 11px;
   border:1.5px solid var(--line);
   border-radius:10px;
-  font-size:13px;
+  font-size:13px;line-height:1.55;
   font-family:'Noto Sans KR',sans-serif;
   background:var(--paper);color:var(--ink);
   -webkit-appearance:none;appearance:none;
 }
-.search-field input:focus{
-  outline:none;border-color:var(--brush-green);
+.search-field textarea{
+  resize:none;min-height:38px;overflow:hidden;
+}
+.search-field input:focus,
+.search-field textarea:focus{
+  outline:none;border-color:#6B84A1;
 }
 .search-btn{
   width:100%;padding:11px;
-  background:linear-gradient(135deg,var(--ink),var(--ink2));
+  background:linear-gradient(135deg,#4F6885,#6B84A1);
   color:var(--paper);
   border:none;border-radius:20px;
   font-size:13px;font-weight:600;cursor:pointer;
@@ -485,22 +1340,235 @@ body{
 .search-results{margin-top:14px;min-height:80px}
 .search-results-empty{
   padding:24px 10px;text-align:center;
-  color:var(--ink3);font-size:12px;line-height:1.7;
-  border:1.5px dashed var(--line);border-radius:10px;
+  color:#6B84A1;font-size:12px;line-height:1.7;
+  border:1.5px dashed rgba(107,132,161,.4);border-radius:10px;
+}
+.search-loading{
+  padding:24px 10px;text-align:center;
+  color:#6B84A1;font-size:12px;line-height:1.7;
+}
+.search-answer{
+  padding:14px 12px;background:var(--paper);
+  border:1px solid var(--line);border-radius:12px;
+  font-size:13px;line-height:1.75;color:var(--ink);
+  white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;
+  max-height:60vh;overflow-y:auto;
+}
+.search-answer strong{
+  font-weight:700;color:var(--ink);
+  background:rgba(107,132,161,.22);
+  padding:0 2px;border-radius:3px;
+}
+.search-answer hr.ans-sep{
+  border:none;border-top:1px dashed var(--line);
+  margin:10px 0;
+}
+.search-answer .ans-quote{
+  margin:6px 0;padding:6px 10px;
+  background:rgba(107,132,161,.06);
+  border-left:3px solid #6B84A1;
+  border-radius:4px;
+  color:var(--ink2);
+}
+.search-meta{
+  margin-top:10px;font-size:11px;color:#6B84A1;
+  text-align:right;line-height:1.6;
+}
+.search-notice{
+  margin-top:10px;padding:10px 12px;
+  background:#fff8e1;border-left:3px solid #f5c842;
+  border-radius:6px;
+  font-size:12px;line-height:1.6;color:#5d4a00;
+}
+/* 다중 기간 */
+.search-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.search-range input[type="date"]{flex:1;min-width:0}
+.search-range span.rng-sep{color:var(--ink3);font-size:12px;padding:0 2px}
+.range-btn{
+  width:30px;height:30px;flex-shrink:0;
+  border:1.5px solid var(--line);border-radius:8px;
+  background:var(--paper);color:var(--ink2);
+  font-size:15px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-family:inherit;line-height:1;padding:0;
+}
+.range-btn:hover{background:rgba(0,0,0,.03)}
+.range-btn:active{transform:scale(.95)}
+.range-btn.add{color:#6B84A1;border-color:#6B84A1}
+.range-btn.rm{color:#c44;border-color:#e0b0b0}
+.range-btn.hidden{visibility:hidden}
+/* 검색 중단 버튼 */
+.search-btn.cancel{
+  background:linear-gradient(135deg,#c44,#962d2d);
+}
+/* ══════════════════════════
+   챗봇 (mode-search) — 자연어 대화 UI
+   탭 베이스색(#6B84A1) 파랑 톤 통일
+══════════════════════════ */
+/* 검색 모드일 때 body 스크롤 차단 — mode-search 가 fixed 라 페이지 휠이 헛돌면서
+   스크롤바만 움직이는 문제 방지. JS(switchMode) 가 클래스 토글. */
+body.search-mode-active{
+  overflow:hidden;
 }
 
+/* mode-search 자체를 viewport 에 가두기 — 페이지 스크롤 0, 챗 헤더·입력 영역 고정,
+   내부 chat-messages 만 스크롤. 다른 모드는 영향 없음 (#p1[data-mode="search"] 한정).
+   top 값은 JS(Chat.adjustTop) 가 .p1-header bottom 을 측정해 동적으로 설정 — 빨간 배너 유무·헤더 높이 변화 모두 자동 대응. */
+#p1[data-mode="search"] .mode-content.mode-search{
+  position:fixed;
+  top:130px;          /* JS fallback — 측정 전·실패 시 기본값 */
+  left:0; right:0; bottom:0;
+  padding:16px 20px;  /* 좌우 20px = 일일보고와 통일 (2026-04-29) */
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.chat-box{
+  margin:0;
+  height:100%;
+  display:flex;flex-direction:column;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+}
+.chat-header{
+  padding:12px 16px;
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid rgba(107,132,161,.18);
+  background:rgba(107,132,161,.04);
+}
+.chat-title{
+  font-size:13px;font-weight:700;color:#4F6885;
+  letter-spacing:.5px;
+}
+.chat-new-btn{
+  font-size:11px;font-weight:600;color:#6B84A1;
+  background:transparent;border:1.5px solid #6B84A1;
+  padding:5px 12px;border-radius:14px;cursor:pointer;
+  font-family:inherit;
+  -webkit-appearance:none;appearance:none;
+}
+.chat-new-btn:hover{background:rgba(107,132,161,.08)}
+.chat-new-btn:active{transform:scale(.97);opacity:.92}
+.chat-messages{
+  flex:1;min-height:0;
+  overflow-y:auto;
+  padding:14px;
+  display:flex;flex-direction:column;gap:10px;
+}
+/* 빈 상태/안내 */
+.chat-empty{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  color:#6B84A1;font-size:13px;text-align:center;
+  padding:20px;line-height:1.7;word-break:keep-all;
+}
+.chat-empty.error{color:#c44}
+/* 풍선 — 한쪽 하단 모서리만 거의 직각으로 두고 다른 모서리는 더 둥글게 → 꼬리 효과 강조 */
+.chat-msg{
+  max-width:85%;
+  padding:10px 14px;
+  border-radius:20px;
+  font-size:13px;line-height:1.7;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+.chat-msg.user{
+  align-self:flex-end;
+  background:linear-gradient(135deg,#4F6885,#6B84A1);
+  color:#fff;
+  border-bottom-right-radius:2px;     /* 우측 하단이 꼬리 — 거의 직각 */
+}
+.chat-msg.assistant{
+  align-self:flex-start;
+  background:rgba(107,132,161,.08);
+  color:var(--ink);
+  border:1px solid rgba(107,132,161,.18);
+  border-bottom-left-radius:2px;      /* 좌측 하단이 꼬리 */
+}
+.chat-msg.assistant strong{
+  font-weight:700;color:var(--ink);
+  background:rgba(107,132,161,.22);
+  padding:0 2px;border-radius:3px;
+}
+.chat-msg.assistant hr{
+  border:none;border-top:1px dashed rgba(107,132,161,.4);
+  margin:8px 0;
+}
+.chat-msg.assistant blockquote{
+  margin:6px 0;padding:5px 10px;
+  background:rgba(107,132,161,.06);
+  border-left:3px solid #6B84A1;
+  border-radius:4px;
+  color:var(--ink2);
+}
+.chat-msg.loading{
+  align-self:flex-start;
+  color:#6B84A1;font-style:italic;
+  background:transparent;border:none;
+  padding:6px 10px;
+}
+/* 입력 영역 */
+.chat-input-wrap{
+  padding:10px 12px;
+  display:flex;gap:8px;align-items:flex-end;
+  border-top:1px solid rgba(107,132,161,.18);
+  background:rgba(255,255,255,.7);
+}
+.chat-input-wrap textarea{
+  flex:1;min-width:0;
+  min-height:38px;max-height:140px;
+  padding:9px 12px;
+  border:1.5px solid var(--line);border-radius:10px;
+  font-family:'Noto Sans KR',sans-serif;font-size:13px;
+  background:var(--paper);color:var(--ink);
+  resize:none;line-height:1.55;overflow:hidden;
+  -webkit-appearance:none;appearance:none;
+  box-sizing:border-box;
+}
+.chat-input-wrap textarea:focus{
+  outline:none;border-color:#6B84A1;
+}
+.chat-send-btn{
+  flex-shrink:0;
+  padding:9px 16px;
+  /* 이니셜 원과 동일 시도안 — #A8C0D8 → #708EA9 */
+  background:linear-gradient(135deg,#A8C0D8,#708EA9);
+  color:#fff;border:none;border-radius:10px;
+  font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;
+  -webkit-appearance:none;appearance:none;
+  box-shadow:0 4px 14px rgba(112,142,169,.3);
+}
+.chat-send-btn:active{transform:scale(.98);opacity:.92}
+.chat-send-btn:disabled{
+  background:var(--paper3);color:var(--ink3);cursor:not-allowed;
+}
+/* 검색 중 — 멈추기 모드 (붉은 톤) */
+.chat-send-btn.cancel{
+  background:linear-gradient(135deg,#d96666,#a83d3d);
+  box-shadow:0 4px 14px rgba(168,61,61,.3);
+}
+.chat-hint{
+  text-align:center;font-size:11px;color:var(--ink3);
+  padding:6px 14px 12px;
+  background:rgba(255,255,255,.7);
+  border-top:none;
+}
+
+/* OTP 입력 (p0에서 재사용) */
+.otp-input{
+  width:100%;padding:12px 14px;
+  border:1.5px solid var(--line);border-radius:12px;
+  font-size:15px;font-family:'Noto Sans KR',sans-serif;
+  background:var(--paper);color:var(--ink);
+  -webkit-appearance:none;appearance:none;
+  box-sizing:border-box;
+}
+.otp-input:focus{outline:none;border-color:var(--ink)}
+#otp-code{letter-spacing:0.35em;text-align:center;font-size:20px;font-weight:700}
+
 @media (min-width:1024px){
-  .p2-tabs{display:none}  /* PC에서 탭 숨김 — 둘 다 보임 */
   .p2-main{
-    display:flex;align-items:flex-start;gap:24px;
     padding:0 20px;  /* 양 옆 20px 여백 고정, 폭은 창 너비에 따라 확장 */
-  }
-  .p2-col-edit{flex:2}
-  .p2-col-search{
-    display:block;flex:1;
-    position:sticky;top:72px;
-    max-height:calc(100vh - 92px);
-    overflow-y:auto;
   }
 }
 .btn-sv{
@@ -525,12 +1593,28 @@ body{
   font-size:22px;font-weight:500;color:var(--ink);margin-bottom:10px;
 }
 .done-desc{font-size:14px;color:var(--ink3);line-height:1.8;margin-bottom:28px}
+/* 발송 시각이 일일 브리핑 윈도우 (08:50~16:00) 안에 들어왔을 때 경고 박스.
+   오늘 brfing 이미 생성됨 → 본 보고는 오늘 브리핑 본문에 포함되지 않음을 안내. */
+.done-warn{
+  margin:0 auto 24px;max-width:520px;
+  padding:14px 16px;
+  background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;
+  text-align:left;
+}
+.done-warn-title{font-weight:700;margin-bottom:8px;color:#c65100;font-size:14px}
+.done-warn-desc{font-size:13px;line-height:1.7;color:#5d4037}
+.done-warn-desc b{color:#c65100;font-weight:700}
 .done-new{
   width:100%;height:50px;border-radius:25px;
   border:1.5px solid var(--line);background:transparent;
   color:var(--ink2);font-size:15px;font-weight:500;cursor:pointer;
   font-family:'Noto Sans KR',sans-serif;
 }
+.done-new.go-himclova{
+  margin-top:10px;
+  border-color:#7C5BC8;color:#7C5BC8;
+}
+.done-new.go-himclova:hover{background:rgba(124,91,200,.08)}
 
 /* 토스트 */
 .toast{
@@ -595,6 +1679,24 @@ body{
   font-weight:500;min-height:40px;
   border-color:transparent;
 }
+/* draft 충돌 다이얼로그 row */
+.conflict-row{
+  text-align:left;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  margin-bottom:8px;
+  background:rgba(255,255,255,.6);
+}
+.conflict-row:last-child{margin-bottom:14px}
+.conflict-head{
+  font-size:12px;color:var(--ink3);font-weight:600;
+  margin-bottom:4px;
+}
+.conflict-body{
+  font-size:13px;color:var(--ink);line-height:1.5;
+  word-break:break-all;
+}
 
 /* 이어서 작성 배너 */
 .draft-banner{
@@ -626,7 +1728,7 @@ body{
   border:1.5px solid #f2d477;
   padding:10px 14px;border-radius:12px;
   font-size:12px;font-weight:600;line-height:1.5;
-  margin:0 0 14px;text-align:center;
+  margin:0 0 16px;text-align:center;
 }
 .test-preview{
   background:#f7f5ee;border-radius:12px;
@@ -653,7 +1755,7 @@ body{
   font-family:'Noto Sans KR',sans-serif;
   background:rgba(255,255,255,.85);
   color:var(--ink);
-  resize:vertical;
+  resize:none;
   line-height:1.7;
   min-height:48px;
   -webkit-appearance:none;
@@ -675,6 +1777,31 @@ body{
 }
 .raw-box.empty{font-style:italic;color:var(--ink3)}
 .raw-box.error{background:#fff8e1;border-color:#ffc107;color:#7d5a00;font-weight:500}
+/* 다건 보고 구분용 헤더·갭 */
+.raw-item-head{
+  font-size:11px;font-weight:700;color:var(--ink3);
+  letter-spacing:1px;margin-bottom:6px;
+  display:flex;align-items:center;gap:6px;
+}
+.raw-item-head.drafting{color:#a87f00}
+.raw-item-no{font-weight:500;color:var(--ink3);font-size:10px;opacity:.8}
+.raw-item-gap{height:10px}
+/* 작성 중 raw-box — 옅은 노란 배경 + 금색 좌측 바 */
+.raw-box.drafting{
+  background:#fffbe6;
+  border-left-color:#e6b800;
+  box-shadow:inset 0 0 0 1px rgba(230,184,0,.25);
+}
+/* 접기/펼치기 */
+.rep-head.clickable, .ctx-head.clickable{cursor:pointer;user-select:none}
+.rep-head.clickable:hover{background:rgba(250,248,243,.95)}
+.rep-toggle{
+  font-size:14px;color:var(--ink3);
+  transition:transform 0.18s ease;
+  margin-left:auto;line-height:1;
+}
+.rep-card.collapsed .rep-toggle, .ctx-card.collapsed .rep-toggle{transform:rotate(-90deg)}
+.rep-card.collapsed .collapsible, .ctx-card.collapsed .collapsible{display:none}
 .ctx-loading-inline{font-size:12px;color:var(--ink3);padding:4px 0}
 .ctx-hint{
   margin-top:8px;font-size:11px;color:var(--ink3);
@@ -729,7 +1856,7 @@ body{
   padding:10px 12px;
   font-size:14px;font-family:'Noto Sans KR',sans-serif;
   background:rgba(255,255,255,.85);color:var(--ink);
-  resize:vertical;line-height:1.6;min-height:36px;
+  resize:none;line-height:1.6;min-height:36px;
   -webkit-appearance:none;
 }
 .proj-field:focus{
@@ -747,43 +1874,479 @@ body{
   font-family:'Noto Sans KR',sans-serif;
 }
 .proj-add-btn:hover{background:rgba(123,167,188,.18)}
+
+/* ═══════════════════════════════════════════════════════════
+   힘클로바 모드 — 녹취록 업로드 폼 (mode-himclova 스코프)
+   힘클로드 일일보고 흐름과 클래스 충돌 방지: 모든 규칙을 .mode-himclova 하위로
+═══════════════════════════════════════════════════════════ */
+.mode-himclova .info-box{
+  margin:16px 20px 16px;
+  padding:12px 14px;
+  background:rgba(124,91,200,.08);
+  border-left:3px solid #7C5BC8;
+  border-radius:0 10px 10px 0;
+  font-size:12px;color:var(--ink2);
+  line-height:1.6;word-break:keep-all;
+}
+.mode-himclova .info-box b{color:var(--ink)}
+
+.mode-himclova .meeting-form{
+  padding:0 20px;
+  display:flex;flex-direction:column;gap:16px;
+  max-width:640px;margin:0 auto;
+}
+.mode-himclova .form-row{display:flex;flex-direction:column;gap:6px}
+.mode-himclova .form-label{
+  font-size:12px;font-weight:600;color:var(--ink2);
+  letter-spacing:.3px;
+}
+.mode-himclova .form-label .req{color:var(--brush-rose);margin-left:2px}
+.mode-himclova .form-input{
+  width:100%;
+  border:1.5px solid var(--line);
+  border-radius:12px;
+  padding:12px 14px;
+  font-size:15px;font-family:'Noto Sans KR',sans-serif;
+  background:rgba(255,255,255,.85);color:var(--ink);
+  -webkit-appearance:none;
+  transition:border-color .15s,box-shadow .15s;
+  resize:none;box-sizing:border-box;
+}
+.mode-himclova .form-input:focus{
+  outline:none;
+  border-color:#7C5BC8;
+  box-shadow:0 0 0 3px rgba(124,91,200,.12);
+  background:rgba(255,255,255,.98);
+}
+.mode-himclova .form-hint{
+  font-size:11px;color:var(--ink3);margin-top:2px;
+  word-break:keep-all;
+}
+
+.mode-himclova .level-select{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+}
+.mode-himclova .lv-btn{
+  padding:10px 8px;
+  border:1.5px solid var(--line);
+  border-radius:10px;
+  background:rgba(255,255,255,.7);
+  font-family:inherit;font-size:12px;font-weight:500;
+  color:var(--ink2);cursor:pointer;
+  transition:all .15s;
+  white-space:nowrap;
+}
+.mode-himclova .lv-btn:hover{border-color:#7C5BC8}
+.mode-himclova .lv-btn.on{
+  border-color:#7C5BC8;
+  background:rgba(124,91,200,.14);
+  color:#7C5BC8;
+  font-weight:700;
+}
+@media(max-width:420px){
+  .mode-himclova .level-select{grid-template-columns:repeat(2,1fr)}
+}
+
+.mode-himclova .upload-zone{
+  border:2px dashed var(--line);
+  border-radius:14px;
+  padding:28px 20px;
+  background:rgba(255,255,255,.55);
+  text-align:center;
+  cursor:pointer;
+  transition:border-color .15s,background .15s;
+}
+/* 음성파일 선택됨 — zone 색상·테두리 강조, 추가 클릭 비활성 */
+.mode-himclova .upload-zone.has-file{
+  background:rgba(143,175,138,.10);
+  border-color:var(--brush-green);
+  border-style:solid;
+  cursor:default;
+}
+.mode-himclova .upload-zone.has-file .upload-icon,
+.mode-himclova .upload-zone.has-file .upload-title,
+.mode-himclova .upload-zone.has-file .upload-hint{display:none}
+.mode-himclova .upload-zone.has-file .file-chips{margin:0}
+
+.mode-himclova .upload-zone:hover,
+.mode-himclova .upload-zone.dragover{
+  border-color:#7C5BC8;
+  background:rgba(124,91,200,.08);
+}
+.mode-himclova .upload-icon{font-size:36px;margin-bottom:10px;opacity:.75}
+.mode-himclova .upload-title{font-size:14px;font-weight:600;color:var(--ink2)}
+.mode-himclova .upload-hint{font-size:11px;color:var(--ink3);margin-top:4px;line-height:1.5}
+
+.mode-himclova .file-chips{
+  display:flex;flex-direction:column;gap:6px;
+  margin-top:14px;
+}
+.mode-himclova .file-chip{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;
+  background:rgba(255,255,255,.95);
+  border:1px solid var(--line);
+  border-radius:10px;
+  font-size:13px;color:var(--ink);
+  text-align:left;
+  min-width:0;max-width:100%;box-sizing:border-box;   /* 모바일 좁은 화면에서 콘텐츠 폭이 박스 밖으로 튀지 않게 */
+}
+.mode-himclova .file-chip-icon{font-size:18px;flex-shrink:0}
+.mode-himclova .file-chip-info{flex:1 1 0;min-width:0;width:0}   /* width:0 + flex:1 — flex item ellipsis 표준 패턴 (iOS Safari 대응) */
+.mode-himclova .file-chip-name{
+  font-weight:500;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:100%;
+}
+.mode-himclova .file-chip-meta{font-size:11px;color:var(--ink3);margin-top:2px}
+.mode-himclova .file-chip-del{
+  width:24px;height:24px;flex-shrink:0;
+  border:none;background:transparent;
+  color:var(--ink3);cursor:pointer;
+  font-size:16px;border-radius:50%;
+  transition:background .15s;
+}
+.mode-himclova .file-chip-del:hover{background:rgba(196,144,122,.18);color:var(--brush-rose)}
+
+/* ── 진행 상태 박스 (강화된 디자인) ── */
+.mode-himclova .progress-box{
+  max-width:600px;width:calc(100% - 40px);
+  margin:12px auto 0;
+  background:#fff;
+  border:1.5px solid #7C5BC8;border-radius:16px;
+  box-sizing:border-box;overflow:hidden;
+  box-shadow:0 4px 18px rgba(124,91,200,.12);
+}
+.mode-himclova .progress-box.done{
+  border-color:var(--brush-green);
+  box-shadow:0 4px 18px rgba(143,175,138,.15);
+}
+.mode-himclova .progress-header{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;
+  background:linear-gradient(135deg,rgba(124,91,200,.08),rgba(155,138,181,.06));
+  border-bottom:1px solid rgba(124,91,200,.15);
+}
+.mode-himclova .progress-box.done .progress-header{
+  background:linear-gradient(135deg,rgba(143,175,138,.10),rgba(143,175,138,.04));
+  border-bottom-color:rgba(143,175,138,.2);
+}
+.mode-himclova .progress-spinner{
+  width:22px;height:22px;flex-shrink:0;
+  border:2.5px solid rgba(124,91,200,.2);
+  border-top-color:#7C5BC8;
+  border-radius:50%;
+  animation:hcSpin .8s linear infinite;
+}
+.mode-himclova .progress-box.done .progress-spinner{
+  border:2.5px solid var(--brush-green);
+  border-top-color:var(--brush-green);
+  animation:none;
+  position:relative;
+}
+.mode-himclova .progress-box.done .progress-spinner::after{
+  content:'✓';position:absolute;
+  inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--brush-green);font-size:14px;font-weight:700;
+}
+@keyframes hcSpin{to{transform:rotate(360deg)}}
+
+.mode-himclova .progress-title-wrap{flex:1;min-width:0}
+.mode-himclova .progress-title{
+  font-size:14px;font-weight:600;color:#7C5BC8;
+  letter-spacing:.2px;
+}
+.mode-himclova .progress-box.done .progress-title{color:var(--brush-green)}
+.mode-himclova .progress-sub{
+  font-size:11px;color:var(--ink3);margin-top:2px;
+}
+.mode-himclova .progress-elapsed{
+  flex-shrink:0;
+  padding:4px 10px;
+  background:rgba(124,91,200,.10);
+  color:#7C5BC8;
+  border-radius:10px;
+  font-size:11px;font-weight:600;
+  font-variant-numeric:tabular-nums;
+}
+.mode-himclova .progress-box.done .progress-elapsed{
+  background:rgba(143,175,138,.15);color:var(--brush-green);
+}
+
+.mode-himclova .progress-steps{padding:10px 14px}
+.mode-himclova .progress-step{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 4px;font-size:13px;
+  color:var(--ink3);
+  transition:color .2s;
+  position:relative;
+}
+.mode-himclova .progress-step + .progress-step{
+  border-top:1px dashed rgba(0,0,0,.06);
+}
+.mode-himclova .progress-step .ps-icon{
+  width:22px;height:22px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  background:rgba(0,0,0,.05);
+  font-size:11px;font-weight:700;
+}
+.mode-himclova .progress-step .ps-label{flex:1}
+
+/* 단계별 상태 */
+.mode-himclova .progress-step.done{color:var(--brush-green)}
+.mode-himclova .progress-step.done .ps-icon{
+  background:var(--brush-green);color:#fff;
+}
+.mode-himclova .progress-step.done .ps-icon::before{content:'✓'}
+
+.mode-himclova .progress-step.active{color:#7C5BC8;font-weight:600}
+.mode-himclova .progress-step.active .ps-icon{
+  background:#7C5BC8;color:#fff;
+  animation:hcPulse 1.4s ease-in-out infinite;
+}
+.mode-himclova .progress-step.active .ps-icon::before{content:'●'}
+@keyframes hcPulse{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(124,91,200,.4)}
+  50%{transform:scale(1.05);box-shadow:0 0 0 6px rgba(124,91,200,0)}
+}
+
+.mode-himclova .progress-step.pending .ps-icon::before{content:'○'}
+.mode-himclova .progress-step.pending .ps-icon{color:var(--ink3)}
+
+.mode-himclova .progress-step.error{color:var(--brush-rose)}
+.mode-himclova .progress-step.error .ps-icon{
+  background:var(--brush-rose);color:#fff;
+}
+.mode-himclova .progress-step.error .ps-icon::before{content:'✕'}
+
+/* sub-page — JS 가 display 인라인으로 토글 */
+
+.mode-himclova .result-area{
+  max-width:600px;width:calc(100% - 40px);
+  margin:12px auto 0;padding:18px;
+  background:rgba(255,255,255,.92);
+  border:1px solid var(--line);border-radius:14px;
+  box-sizing:border-box;
+}
+.mode-himclova .result-section{margin-bottom:14px}
+.mode-himclova .result-label{
+  font-size:12px;font-weight:700;color:var(--ink);
+  margin-bottom:8px;letter-spacing:.3px;
+  display:flex;align-items:center;gap:6px;
+}
+.mode-himclova .transcript-box{
+  background:var(--paper);border:1px solid var(--line);
+  border-radius:10px;padding:14px;
+  max-height:400px;overflow-y:auto;
+  font-size:13px;line-height:1.85;color:var(--ink);
+  white-space:pre-wrap;word-break:keep-all;
+}
+.mode-himclova .transcript-box:empty::before{
+  content:'(빈 결과)';color:var(--ink3);font-style:italic;
+}
+.mode-himclova .result-info-row{
+  display:flex;justify-content:space-between;
+  padding:5px 0;font-size:12px;
+  border-bottom:1px dashed var(--line);
+}
+.mode-himclova .result-info-row:last-child{border-bottom:none}
+.mode-himclova .result-info-key{color:var(--ink3)}
+.mode-himclova .result-info-val{color:var(--ink);font-weight:600}
+
+/* 요약 (안건/결정/액션) */
+.mode-himclova .summary-block{margin-bottom:12px}
+.mode-himclova .summary-block:last-child{margin-bottom:0}
+.mode-himclova .summary-h{
+  font-size:12px;font-weight:600;color:var(--ink2);
+  margin-bottom:6px;letter-spacing:.2px;
+}
+.mode-himclova .summary-list{
+  list-style:none;padding:0;margin:0;
+  font-size:13px;color:var(--ink);line-height:1.6;
+}
+.mode-himclova .summary-list li{
+  padding:4px 0 4px 14px;position:relative;
+}
+.mode-himclova .summary-list li::before{
+  content:'•';position:absolute;left:2px;color:var(--brush-violet);
+}
+.mode-himclova .summary-list li b{font-weight:600;color:var(--ink)}
+.mode-himclova .action-due{color:var(--ink3);font-size:11px;margin-left:4px}
+.mode-himclova .summary-empty{color:var(--ink3);font-size:12px;font-style:italic}
+
+/* KB 적용 chip */
+.mode-himclova .kb-chip{
+  display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;
+  background:rgba(124,91,200,.1);color:#7C5BC8;
+  border-radius:10px;font-size:11px;font-weight:600;
+}
+
+/* 추천 등급 배지 */
+.mode-himclova .level-badge{
+  display:inline-block;padding:4px 10px;border-radius:8px;
+  font-size:12px;font-weight:600;letter-spacing:.3px;margin-right:6px;
+}
+.mode-himclova .level-badge.lv-L1{background:rgba(196,144,122,.15);color:var(--brush-rose)}
+.mode-himclova .level-badge.lv-L2{background:rgba(143,175,138,.15);color:var(--brush-green)}
+.mode-himclova .level-badge.lv-L3{background:rgba(124,91,200,.12);color:#7C5BC8}
+.mode-himclova .level-note{font-size:11px;color:var(--ink3)}
+.mode-himclova .level-rationale{
+  margin-top:8px;padding:8px 10px;
+  background:rgba(0,0,0,.025);border-radius:8px;
+  font-size:12px;color:var(--ink2);line-height:1.5;
+}
+
+/* 후처리 적용 태그 (제목 옆) */
+.mode-himclova .postproc-tag{
+  display:inline-block;padding:1px 7px;margin-left:6px;
+  background:rgba(124,91,200,.12);color:#7C5BC8;
+  border-radius:8px;font-size:10px;font-weight:600;letter-spacing:.3px;
+  vertical-align:middle;
+}
+.mode-himclova .result-actions{display:flex;gap:8px;margin-top:10px}
+.mode-himclova .btn-secondary{
+  padding:11px 16px;border-radius:10px;
+  border:1.5px solid var(--line);background:#fff;
+  color:var(--ink);font-size:13px;font-weight:600;
+  cursor:pointer;flex:1;
+  font-family:inherit;
+}
+.mode-himclova .btn-secondary:hover{background:var(--paper)}
+.mode-himclova .btn-secondary.go-report{
+  border-color:var(--brush-green);color:var(--brush-green);
+}
+.mode-himclova .btn-secondary.go-report:hover{background:rgba(143,175,138,.08)}
+
+/* 힘클로바 모드 하단 버튼: base .send-btn(violet+blue) 그대로 사용 — override 불필요 */
+
+/* 진행 박스 — CLOVA 텍스트 변환 단계 옆 장시간 경고 배지 (10MB+ 또는 60초 경과 시 표시) */
+.progress-step .ps-warn{
+  margin-left:10px;font-size:11px;
+  color:#C77D2E;background:rgba(232,167,84,.14);
+  padding:2px 9px;border-radius:10px;
+  font-weight:600;letter-spacing:-.2px;
+  animation:psWarnFadeIn .25s ease;
+}
+@keyframes psWarnFadeIn{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+
+/* ── 저장 완료 화면 (saved 모드) ────────────────── */
+/* 일일보고 발송 완료 화면(.done-wrap)과 동일 패턴. saved 모드의 메인 = 내 기기 저장 (보라 그라데이션) */
+.done-new.go-himclova-doc{
+  background:linear-gradient(135deg,var(--brush-violet),var(--brush-blue));
+  color:#fff;border:none;
+  box-shadow:0 4px 14px rgba(155,138,181,.3);
+}
+.done-new.go-himclova-doc:hover{opacity:.92}
+.done-new.go-himclova-doc:active{transform:scale(.98);opacity:.92}
+/* done-wrap 안 두 버튼 사이 간격 (.done-new 가 두번 연속 나올 때) */
+.done-wrap .done-new + .done-new{margin-top:10px}
+
+/* 저장 완료 화면(hc-saved-screen) 안 버튼은 폭 절반 — 가운데 정렬 */
+#hc-saved-screen .done-new{
+  width:50%;
+  min-width:220px;
+  max-width:280px;
+  display:block;
+  margin-left:auto;margin-right:auto;
+}
 </style>
 </head>
 <body>
-
-<!-- TEST ENVIRONMENT BANNER — 프로덕션과 완전 격리됨 -->
-<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#c0392b;color:#fff;text-align:center;padding:6px 12px;font-size:13px;font-weight:700;letter-spacing:.3px;box-shadow:0 1px 3px rgba(0,0,0,.2)">
-  🧪 테스트 환경 — 실제 프로덕션 아님
-</div>
-<style>body{padding-top:30px !important}</style>
 
 <!-- ══════════════════════════
      PAGE 0 — 직원 선택
 ══════════════════════════ -->
 <div class="page on" id="p0">
-  <div class="p0-hero">
-    <div class="p0-brush">🖌️</div>
-    <div class="p0-title">더힘이앤씨<br>일일보고</div>
-    <div class="p0-sub" style="margin-top:8px">처음 한 번만 선택하면<br>다음부터 자동으로 시작됩니다</div>
+
+  <!-- Stage 1: 직원 선택 -->
+  <div id="p0-stage-staff">
+    <div class="p0-hero">
+      <div class="p0-brush">📜</div>
+      <div class="p0-title">더힘이앤씨<br>일일보고</div>
+      <div class="p0-sub" style="margin-top:8px">본인을 선택하면<br>이메일로 인증코드를 보내드립니다</div>
+    </div>
+    <div class="dept-tabs" id="dept-tabs">
+      <button class="dept-tab active" type="button" data-dept="all"       onclick="selectDept(this,'all')">전체</button>
+      <button class="dept-tab"        type="button" data-dept="대표단"     onclick="selectDept(this,'대표단')">대표단</button>
+      <button class="dept-tab"        type="button" data-dept="기획본부"   onclick="selectDept(this,'기획본부')">기획본부</button>
+      <button class="dept-tab"        type="button" data-dept="도시계획본부" onclick="selectDept(this,'도시계획본부')">도시계획본부</button>
+      <button class="dept-tab"        type="button" data-dept="설계본부"   onclick="selectDept(this,'설계본부')">설계본부</button>
+    </div>
+    <div class="staff-list" id="staff-list"></div>
+    <button class="p0-btn" id="p0-btn-next-staff" disabled onclick="completeSetupToOtp()">직원 선택</button>
   </div>
 
-  <div class="p0-label">본인 선택</div>
-  <div class="staff-list" id="staff-list"></div>
-  <button class="p0-btn" onclick="completeSetup()">시작하기</button>
+  <!-- Stage 2: 이메일 확인 + OTP 요청 -->
+  <div id="p0-stage-email" style="display:none">
+    <div class="p0-hero">
+      <div class="p0-brush">📧</div>
+      <div class="p0-title">이메일 인증</div>
+      <div class="p0-sub" style="margin-top:8px">선택한 계정으로<br>6자리 인증코드를 보내드립니다</div>
+    </div>
+    <div class="p0-label">인증받을 계정</div>
+    <div style="max-width:400px;margin:0 auto;padding:0 20px;box-sizing:border-box">
+      <div class="staff-card on" id="p0-picked-card" style="cursor:default"></div>
+    </div>
+    <button class="p0-btn" onclick="p0RequestOtp()">인증코드 받기</button>
+    <button class="p0-btn" style="background:transparent;color:var(--ink3);border:1.5px solid var(--line);margin-top:10px" onclick="p0BackToStaff()">직원 재선택</button>
+  </div>
+
+  <!-- Stage 3: 코드 입력 (6칸 박스, 전부 입력 시 자동 검증) -->
+  <div id="p0-stage-code" style="display:none">
+    <div class="p0-hero">
+      <div class="p0-brush">🔐</div>
+      <div class="p0-title">인증코드 입력</div>
+      <div class="p0-sub" style="margin-top:8px"><span id="p0-code-email-echo"></span>로<br>6자리 코드가 발송되었습니다 (5분 유효)</div>
+    </div>
+    <div class="otp-boxes-wrap">
+      <div class="otp-boxes" id="p0-digits">
+        <input class="otp-digit" id="p0-digit-0" maxlength="1" inputmode="numeric" autocomplete="one-time-code" oninput="p0HandleDigitInput(event,0)" onkeydown="p0HandleDigitKeydown(event,0)" onpaste="p0HandlePaste(event,0)">
+        <input class="otp-digit" id="p0-digit-1" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,1)" onkeydown="p0HandleDigitKeydown(event,1)" onpaste="p0HandlePaste(event,1)">
+        <input class="otp-digit" id="p0-digit-2" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,2)" onkeydown="p0HandleDigitKeydown(event,2)" onpaste="p0HandlePaste(event,2)">
+        <input class="otp-digit" id="p0-digit-3" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,3)" onkeydown="p0HandleDigitKeydown(event,3)" onpaste="p0HandlePaste(event,3)">
+        <input class="otp-digit" id="p0-digit-4" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,4)" onkeydown="p0HandleDigitKeydown(event,4)" onpaste="p0HandlePaste(event,4)">
+        <input class="otp-digit" id="p0-digit-5" maxlength="1" inputmode="numeric" oninput="p0HandleDigitInput(event,5)" onkeydown="p0HandleDigitKeydown(event,5)" onpaste="p0HandlePaste(event,5)">
+      </div>
+    </div>
+    <div id="p0-otp-feedback" class="otp-feedback" style="display:none"></div>
+    <button class="p0-btn" onclick="p0ResendOtp()">인증코드 재발송</button>
+    <button class="p0-btn" style="background:transparent;color:var(--ink3);border:1.5px solid var(--line);margin-top:10px" onclick="p0BackToStaff()">직원 재선택</button>
+  </div>
+
 </div>
 
 <!-- ══════════════════════════
      PAGE 1 — 입력
 ══════════════════════════ -->
-<div class="page" id="p1">
+<div class="page" id="p1" data-mode="report">
 
-  <div class="user-bar">
-    <div class="user-dot" id="user-dot" onclick="resetProfile()">?</div>
-    <div class="user-info">
-      <div class="user-name" id="user-name">-</div>
-      <div class="user-date" id="user-date">-</div>
+  <!-- 상단 sticky 헤더: user-bar + 모드 탭 (스크롤 시 함께 고정) -->
+  <div class="p1-header">
+    <div class="user-bar">
+      <div class="user-dot" id="user-dot" onclick="resetProfile()">?</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">-</div>
+        <div class="user-date" id="user-date">-</div>
+      </div>
+      <button class="claude-setup-btn" onclick="openSetupMenu()" title="셋업" aria-label="셋업">✦</button>
+    </div>
+
+    <!-- 모드 탭 (일일보고 / 힘클로드 / 힘클로바) -->
+    <div class="mode-tabs">
+      <button class="mode-tab tab-report on" data-mode="report"  onclick="onTabClick('report')">📝 업무 보고</button>
+      <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 업무 인사이트</button>
+      <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ AI 회의록</button>
+      <button class="mode-tab tab-calendar"   data-mode="calendar" onclick="onTabClick('calendar')">📅 일정</button>
+      <button class="mode-tab tab-master" id="tab-master-btn" data-mode="master" style="display:none" onclick="onTabClick('master')">🗂️ 마스터 <span class="rep-toggle" id="tab-master-count"></span></button>
     </div>
   </div>
+
+  <!-- ── 일일보고 모드 ── -->
+  <div class="mode-content mode-report">
+
+  <!-- ◆ INPUT sub-page (작성·분석) ◆ -->
+  <div class="report-page report-page-input" id="report-page-input">
 
   <!-- 이어서 작성 배너 -->
   <div class="draft-banner" id="draft-banner">
@@ -807,10 +2370,10 @@ body{
       <div class="ctx-body" id="ctx-schedule-body"></div>
     </div>
 
-    <!-- 오늘 할 일 -->
-    <div class="ctx-card" id="ctx-today">
-      <div class="ctx-head">📝 <span>오늘 할 일</span></div>
-      <div class="ctx-body" id="ctx-today-body"></div>
+    <!-- 본인 일정·할 일 (Phase 6, 2026-05-15) — task + schedule -->
+    <div class="ctx-card" id="ctx-task">
+      <div class="ctx-head">📝 <span>일정 확인</span></div>
+      <div class="ctx-body" id="ctx-task-body"></div>
     </div>
 
     <!-- 어제 보고 미완료 -->
@@ -819,40 +2382,94 @@ body{
       <div class="ctx-body" id="ctx-yesterday-body"></div>
     </div>
 
-    <!-- 어제 원문 (항상 표시) -->
-    <div class="ctx-card" id="ctx-yd-raw">
-      <div class="ctx-head">🗒️ <span id="ctx-yd-raw-head">어제 원문</span></div>
-      <div class="ctx-body" id="ctx-yd-raw-body">
+    <!-- 받은 지시사항 (Phase 6, 2026-05-15) — origin=directive, view_type=received -->
+    <div class="ctx-card" id="ctx-directive">
+      <div class="ctx-head">📥 <span>받은 지시사항</span></div>
+      <div class="ctx-body" id="ctx-directive-body"></div>
+    </div>
+
+    <!-- 지시한 업무 목록 (Phase 6, 2026-05-15) — origin=directive, view_type=sent (mirror) -->
+    <div class="ctx-card" id="ctx-sent">
+      <div class="ctx-head">📤 <span>지시한 업무 목록</span></div>
+      <div class="ctx-body" id="ctx-sent-body"></div>
+    </div>
+
+    <!-- L2 owner 확인 요청 (Phase 6, 2026-05-08) — L2 grade 만 렌더 -->
+    <div class="ctx-card" id="ctx-l2-review" style="display:none">
+      <div class="ctx-head">
+        🔔 <span>어제 보고 확인 요청</span>
+        <span class="rep-toggle" id="ctx-l2-count"></span>
+      </div>
+      <div class="ctx-body" id="ctx-l2-review-body">
         <div class="ctx-loading-inline">🌿 불러오는 중...</div>
       </div>
     </div>
 
-    <!-- 받은 지시사항 -->
-    <div class="ctx-card" id="ctx-directive">
-      <div class="ctx-head">📌 <span>미완료 지시사항</span></div>
-      <div class="ctx-body" id="ctx-directive-body"></div>
+    <!-- 어제 원문 (항상 표시, 접기/펼치기 가능 · 기본 펼침) — 카드 영역 가장 아래 -->
+    <div class="ctx-card" id="ctx-yd-raw">
+      <div class="ctx-head clickable" onclick="toggleCtxYdRaw()">
+        🗒️ <span id="ctx-yd-raw-head">어제 원문</span>
+        <span class="rep-toggle">▼</span>
+      </div>
+      <div class="ctx-body collapsible" id="ctx-yd-raw-body">
+        <div class="ctx-loading-inline">🌿 불러오는 중...</div>
+      </div>
     </div>
 
   </div>
 
-  <div class="sec-title" style="margin-top:6px">오늘 업무</div>
+  <div class="sec-title with-mic" style="margin-top:6px">
+    <span>오늘 업무</span>
+    <span class="sec-line"></span>
+    <button type="button" class="voice-mini-btn" id="voice-mini-btn" onclick="toggleVoicePanel()" title="음성으로 작성 (CLOVA 변환)">
+      <span class="vmb-icon" id="vmb-icon">🎤</span>
+      <span class="vmb-label" id="vmb-label">음성으로 작성</span>
+    </button>
+  </div>
+
+  <!-- 음성 입력 패널 — 상태 머신 (idle/armed/recording/recorded/converting), JS 가 동적 렌더 -->
+  <div class="voice-panel" id="voice-panel" hidden>
+    <div class="vp-head">
+      <span class="vp-title" id="vp-title">🎤 음성 입력</span>
+      <button type="button" class="vp-close" id="vp-close" aria-label="닫기">✕</button>
+    </div>
+    <div class="vp-body" id="vp-body"></div>
+  </div>
+
+  <!-- 오늘 이미 작성한 원문 (발송분 있을 때만 표시, 기본 접힘) -->
+  <div class="ctx-card collapsed" id="ctx-td-raw" style="display:none;margin:4px 20px 8px">
+    <div class="ctx-head clickable" onclick="toggleCtxTdRaw()">
+      ✅ <span id="ctx-td-raw-head">오늘 이미 작성한 원문</span>
+      <span class="rep-toggle">▼</span>
+    </div>
+    <div class="ctx-body collapsible" id="ctx-td-raw-body"></div>
+  </div>
 
   <div class="input-wrap">
     <textarea class="main-textarea" id="main-input" rows="8"
-      placeholder="형식 없이 말하듯 쓰세요.
-
-더케이 주간회의 다녀옴. 이용수요예측 반영 논의.
-갤러리아 도면 검토 완료.
-이지스 최광석 매니저한테 공문 보내야 함.
-수송 심의 — 강중구 본부장 내일 직접 참석."></textarea>
+      oninput="autosizeTa(this)"
+      placeholder="형식 없이 말하듯 편하게 써주시면 됩니다."></textarea>
     <div class="input-hint">💡 프로젝트명, 만난 사람, 요청사항 등 생각나는 대로 — 힘클로드가 정리합니다</div>
   </div>
 
-  <div class="voice-wrap" style="display:none">
-    <div class="voice-btn" id="voice-btn" onclick="toggleVoice()">
-      <span class="voice-icon" id="voice-icon">🎤</span>
-      <span id="voice-label">음성으로 말하기</span>
-    </div>
+  <!-- 지시·요청사항 별도 입력칸 (2026-08-07 신설) — 본문과 분리 + 완료 기한 달력 -->
+  <style>
+    .dirx-wrap{margin:10px 20px 4px}
+    .dirx-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#7a6a55;margin:0 2px 6px}
+    .dirx-title .sec-line{flex:1;height:1px;background:rgba(0,0,0,.08)}
+    .dirx-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+    .dirx-text{flex:1;padding:9px 12px;border:1px solid rgba(0,0,0,.12);border-radius:10px;font-size:13.5px;background:#fffdf9;min-width:0}
+    .dirx-date{width:138px;padding:8px 8px;border:1px solid rgba(0,0,0,.12);border-radius:10px;font-size:12.5px;background:#fffdf9;color:#555}
+    .dirx-del{border:none;background:transparent;color:#b09a80;font-size:15px;cursor:pointer;padding:4px}
+    .dirx-add{border:1px dashed rgba(0,0,0,.18);background:transparent;border-radius:10px;padding:6px 12px;font-size:12.5px;color:#8a7a63;cursor:pointer}
+    .dirx-add:hover{background:rgba(0,0,0,.03)}
+    .dirx-hint{font-size:11.5px;color:#a99a86;margin:4px 2px 0}
+  </style>
+  <div class="dirx-wrap" id="dirx-wrap">
+    <div class="dirx-title"><span>📌 지시·요청사항 (선택)</span><span class="sec-line"></span></div>
+    <div id="dirx-rows"></div>
+    <button type="button" class="dirx-add" onclick="dirxAddRow()">＋ 지시·요청 추가</button>
+    <div class="dirx-hint">누구에게 무엇을 요청하는지 적고 완료 기한을 고르세요. 기한을 비우면 정리 단계에서 힘클로드가 물어봅니다.</div>
   </div>
 
   <div class="upload-wrap" style="display:none">
@@ -867,71 +2484,312 @@ body{
       style="display:none" onchange="handleFiles(this)">
   </div>
 
-  <div class="bottom-fixed">
-    <button class="send-btn" onclick="doAnalyze()">
-      <span>🤖</span><span>힘클로드에게 보내기</span>
-    </button>
-  </div>
-</div>
+  </div><!-- /.report-page-input -->
 
-<!-- ══════════════════════════
-     PAGE 2 — 보기 + 수정
-══════════════════════════ -->
-<div class="page" id="p2">
+  <!-- ◆ EDIT sub-page (편집·발송 — 챗 형식 disambiguation, 2026-05-07 신설) ◆ -->
+  <div class="report-page report-page-edit" id="report-page-edit" style="display:none">
 
-  <div class="p2-topbar">
-    <button class="back-btn" onclick="goPage('p1')">←</button>
-    <div class="p2-name" id="p2-name">보고서 확인</div>
-  </div>
-
-  <!-- 모바일 전용 탭 (PC에서는 숨김) -->
-  <div class="p2-tabs" id="p2-tabs">
-    <button class="p2-tab active" data-tab="edit" onclick="switchP2Tab('edit')">📝 재정리</button>
-    <button class="p2-tab" data-tab="search" onclick="switchP2Tab('search')">🔍 검색</button>
-  </div>
-
-  <div class="p2-main">
-    <div class="p2-col p2-col-edit" id="p2-col-edit">
-      <div id="p2-body">
-        <!-- 동적 생성 -->
+    <!-- 챗 UI — 기존 p2 카드 폐기 후 대체 -->
+    <div class="report-chat" id="report-chat">
+      <div class="report-chat-messages" id="report-chat-messages">
+        <!-- 메시지 동적 추가 -->
+      </div>
+      <div class="report-chat-input-wrap">
+        <textarea id="report-chat-input" rows="1"
+          placeholder="자유롭게 답변하거나 수정 요청해주세요"
+          onkeydown="ReportChat.onKeyDown(event)"
+          oninput="autosizeTa(this)"></textarea>
+        <button type="button" class="report-chat-mic-btn" id="report-chat-mic-btn" onclick="ChatVoice.toggle()" title="음성 입력 (클릭하여 녹음 시작·종료 / 침묵 시 자동 종료)">🎤</button>
+        <button class="report-chat-send-btn" id="report-chat-send-btn" onclick="ReportChat.sendFromInput()">보내기</button>
       </div>
     </div>
-    <aside class="p2-col p2-col-search" id="p2-col-search">
-      <div class="search-box">
-        <div class="search-title">🔍 브리핑 검색</div>
 
-        <div class="search-field">
-          <label>기간</label>
-          <div class="search-dates">
-            <input type="date" id="search-from">
-            <span>~</span>
-            <input type="date" id="search-to">
+    <!-- (옛 p2 카드 동적 생성 영역은 폐기. 함수 코드는 일단 보존 — 직접 호출 안 됨) -->
+    <div class="p2-main" id="p2-legacy-cards" style="display:none">
+      <div class="p2-col p2-col-edit" id="p2-col-edit">
+        <div id="p2-body"></div>
+      </div>
+    </div>
+
+    <!-- 발송 진행·완료·테스트 화면 (회의록 hc-saved-screen 패턴 미러).
+         performSend 4개 분기(발송 중/완료/실패/test) 가 이쪽으로 렌더하고
+         report-chat 은 숨긴다. 오류는 챗 복귀 + toast 로 처리. -->
+    <div id="report-done-screen" style="display:none">
+      <div id="report-done-body"></div>
+    </div>
+
+  </div><!-- /.report-page-edit -->
+
+  </div><!-- /.mode-report -->
+
+  <!-- ── 힘클로드 모드 (브리핑 자연어 챗봇) ── -->
+  <div class="mode-content mode-search">
+    <div class="chat-box">
+      <div class="chat-header">
+        <span class="chat-title">💬 힘클로드 챗</span>
+        <button class="chat-new-btn" onclick="Chat.newConv()" title="현재 대화를 비우고 새로 시작">+ 새 대화</button>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <!-- 풍선 동적 추가 -->
+      </div>
+      <div class="chat-input-wrap">
+        <textarea id="chat-input" rows="1"
+          placeholder="브리핑에 대해 자유롭게 물어보세요. 예) 지난주 내 일정"
+          onkeydown="Chat.onKeyDown(event)"
+          oninput="autosizeTa(this)"></textarea>
+        <button type="button" class="report-chat-mic-btn" id="chat-voice-mini-btn" onclick="SearchVoice.toggle()" title="음성 입력 (클릭하여 녹음 시작·종료 / 침묵 시 자동 종료)">🎤</button>
+        <button class="chat-send-btn" id="chat-send-btn" onclick="Chat.sendFromInput()">보내기</button>
+      </div>
+      <div class="chat-hint">대화기록은 일주일간 보관됩니다 · 다른 기기에서는 이어지지 않아요</div>
+    </div>
+  </div>
+
+  <!-- ── 힘클로바 모드 ── -->
+  <!-- 일정 탭 (2026-08-07 신설) — 전직원 일정·지시 달력 (`프로젝트 일정` 시트 기반) -->
+  <div class="mode-content mode-calendar">
+    <style>
+      .calx-bar{display:flex;align-items:center;gap:8px;margin:12px 20px 6px}
+      .calx-title{font-weight:700;font-size:15px;color:#5a4a38;min-width:104px;text-align:center}
+      .calx-nav{border:1px solid rgba(0,0,0,.12);background:#fffdf9;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px}
+      .calx-nav:hover{background:rgba(0,0,0,.04)}
+      .calx-sel{margin-left:auto;padding:5px 8px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:12.5px;background:#fffdf9;max-width:130px}
+      .calx-legend{font-size:11.5px;color:#a99a86;margin:0 22px 6px}
+      .calx-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin:0 20px}
+      .calx-dow{text-align:center;font-size:11px;color:#8a7a63;padding:4px 0;font-weight:600}
+      .calx-day{background:#fffdf9;border:1px solid rgba(0,0,0,.06);border-radius:8px;min-height:74px;padding:3px 4px;font-size:10.5px;overflow:hidden;cursor:pointer}
+      .calx-day.other{opacity:.3;cursor:default}
+      .calx-day.today{border-color:#B8860B;box-shadow:0 0 0 1px rgba(184,134,11,.35)}
+      .calx-dnum{font-size:11px;font-weight:600;color:#7a6a55;margin-bottom:2px}
+      .calx-day.sun .calx-dnum{color:#c05a5a}
+      .calx-day.sat .calx-dnum{color:#5a7ac0}
+      .calx-chip{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;padding:1px 4px;margin-bottom:1px;color:#4a4238}
+      .calx-chip.directive{background:rgba(220,90,90,.15)}
+      .calx-chip.schedule{background:rgba(90,122,192,.15)}
+      .calx-chip.task{background:rgba(92,133,87,.15)}
+      .calx-more{font-size:10px;color:#a99a86}
+      .calx-detail{margin:10px 20px 90px;font-size:13px}
+      .calx-detail .cd-head{font-weight:700;color:#5a4a38;margin-bottom:6px}
+      .calx-detail .cd-item{background:#fffdf9;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:8px 12px;margin-bottom:6px}
+      .calx-detail .cd-meta{font-size:11.5px;color:#8a7a63;margin-top:2px}
+      .calx-mini{border:1px solid rgba(0,0,0,.12);background:#fff;border-radius:6px;font-size:10.5px;color:#5a7ac0;padding:2px 7px;margin-left:5px;cursor:pointer}
+      .calx-mini:hover{background:rgba(0,0,0,.04)}
+      /* 내 일정 등록 (2026-08-08) */
+      .myx-wrap{margin:14px 20px 6px;background:#fffdf9;border:1px solid rgba(0,0,0,.08);border-radius:12px;padding:10px 12px}
+      .myx-title{font-weight:700;font-size:13.5px;color:#5a4a38;margin-bottom:8px}
+      .myx-row{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+      .myx-date{width:128px;padding:7px 6px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:12px;background:#fff;color:#555}
+      .myx-time{width:136px;padding:7px 6px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:12px;background:#fff;color:#555}
+      .myx-clr{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:6px;font-size:11px;color:#8a7a63;padding:5px 7px;cursor:pointer}
+      .myx-clr:hover{background:rgba(0,0,0,.04)}
+      .myx-text{flex:1;padding:8px 10px;border:1px solid rgba(0,0,0,.12);border-radius:8px;font-size:13px;background:#fff;min-width:0}
+      .myx-submit{border:none;background:#B8860B;color:#fff;border-radius:10px;padding:7px 18px;font-size:12.5px;font-weight:600;cursor:pointer}
+      .myx-submit:disabled{opacity:.5;cursor:default}
+      .myx-hint{font-size:11.5px;color:#a99a86;margin-top:4px}
+    </style>
+    <div class="calx-bar">
+      <button type="button" class="calx-nav" onclick="CalTab.move(-1)">◀</button>
+      <span class="calx-title" id="calx-title"></span>
+      <button type="button" class="calx-nav" onclick="CalTab.move(1)">▶</button>
+      <select id="calx-person" class="calx-sel" onchange="CalTab.render()"><option value="">전체 직원</option></select>
+      <button type="button" class="calx-nav" onclick="CalTab.load(true)" title="새로고침">🔄</button>
+    </div>
+    <div class="calx-legend">📅 시간 잡힌 일정(미팅·외근·약속)만 표시 — 날짜를 누르면 아래에 직원별 일정이 나옵니다</div>
+    <div id="calx-grid" class="calx-grid"></div>
+
+    <!-- 내 일정 등록 (2026-08-08 신설) — 달력과 직원별 상세 사이 -->
+    <div class="myx-wrap" id="myx-wrap">
+      <div class="myx-title">➕ 내 일정 등록</div>
+      <div id="myx-rows"></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:2px">
+        <button type="button" class="calx-nav" onclick="myxAddRow()">＋ 일정 추가</button>
+        <button type="button" class="myx-submit" id="myx-submit" onclick="myxSubmit()">제출하기</button>
+      </div>
+      <div class="myx-hint">
+        · 시간을 잘 모르면 시간칸은 비우고, 내용칸에 "오전 / 오후 / 점심쯤"처럼 대략 적어주세요 (예: "국민은행 방문 (오후)")<br>
+        · 날짜를 잘 모르면 날짜는 오늘로 두거나 비우고, 내용칸에 "이번 주 / 다음 주 / 미정"처럼 적어주세요 (예: "서울시 협의 — 다음 주")<br>
+        · 날짜를 비우고 제출하면 오늘 날짜로 등록됩니다. 날짜 기본값 = 달력에서 마지막으로 누른 날짜.
+      </div>
+    </div>
+
+    <div id="calx-detail" class="calx-detail"></div>
+  </div>
+
+  <div class="mode-content mode-himclova">
+
+    <!-- ◆ INPUT sub-page (입력 폼) ◆ -->
+    <div class="hc-page hc-page-input" id="hc-page-input">
+
+      <!-- 안내 박스 -->
+      <div class="info-box">
+        <b>🎙️ 녹취록은 일일보고와 별개로 관리됩니다.</b><br>
+        업로드된 음성파일은 CLOVA로 자동 텍스트화, 힘클로드 분석으로 구조화되고,
+        등급이 판정되어 검색·브리핑에서 활용됩니다. 회의·통화 등 음성 기반 자료 전반에
+        사용 가능합니다. 동일한 내용을 중복되게 업로드하는 것은 삼가주세요.
+      </div>
+
+      <div class="meeting-form">
+
+        <div class="form-row">
+          <label class="form-label" for="m-title">녹취 제목<span class="req">*</span></label>
+          <input id="m-title" class="form-input" placeholder="예) 4/24 본부 주간회의" maxlength="80">
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="m-date">녹취 일자<span class="req">*</span></label>
+          <input id="m-date" type="date" class="form-input">
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="m-project">프로젝트</label>
+          <input id="m-project" class="form-input" placeholder="예) 더케이호텔 사업부 · 돌곶이역 가시설" maxlength="60">
+          <div class="form-hint">관련 프로젝트명 (선택 입력 · 고유명사 교정과 맞춤 사전 매칭에 사용)</div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">등급</label>
+          <div class="level-select">
+            <button type="button" class="lv-btn on" data-lv="auto" onclick="HimClova.selectLevel(this,'auto')">🤖 자동</button>
+            <button type="button" class="lv-btn"    data-lv="L1"   onclick="HimClova.selectLevel(this,'L1')">L1 기밀</button>
+            <button type="button" class="lv-btn"    data-lv="L2"   onclick="HimClova.selectLevel(this,'L2')">L2 제한</button>
+            <button type="button" class="lv-btn"    data-lv="L3"   onclick="HimClova.selectLevel(this,'L3')">L3 일반</button>
           </div>
+          <div class="form-hint">🤖 자동: 힘클로바가 내용을 읽고 등급을 추천합니다 (업로드 후 확인 가능)</div>
         </div>
 
-        <div class="search-field">
-          <label>키워드</label>
-          <input type="text" id="search-keyword" placeholder="예: 갤러리아, 도면 검토">
+        <div class="form-row">
+          <label class="form-label">음성 파일<span class="req">*</span></label>
+          <div class="upload-zone" id="hc-upload-zone" onclick="HimClova.openFilePicker()">
+            <div class="upload-icon">🎵</div>
+            <div class="upload-title">음성 또는 텍스트 파일 선택·드래그</div>
+            <div class="upload-hint">음성 (mp3 · m4a · wav · webm · mp4) — 변환 + 후처리<br>텍스트 (txt · md · doc · docx) — 후처리만 진행</div>
+            <div class="file-chips" id="hc-file-chips"></div>
+          </div>
+          <input type="file" id="audio-inp" accept="audio/*,video/mp4,.txt,.md,.markdown,.doc,.docx"
+            style="display:none" onchange="HimClova.handleAudioFile(this)">
         </div>
 
-        <button class="search-btn" onclick="doSearch()">검색</button>
+        <div class="form-row">
+          <label class="form-label" for="m-memo">메모</label>
+          <textarea id="m-memo" class="form-input" rows="3"
+            placeholder="참석자·주요 내용·특이사항 등 강조할 내용"
+            oninput="autosizeTa(this)"></textarea>
+          <div class="form-hint">분석 시 참고 컨텍스트로 사용됩니다 (선택 입력)</div>
+        </div>
 
-        <div class="search-results" id="search-results">
-          <div class="search-results-empty">
-            🚧 검색 기능은 준비 중입니다.<br>
-            <span style="font-size:11px">다음 세션에서 서버 연동이 추가됩니다.</span>
+      </div>
+
+    </div>
+
+    <!-- ◆ RESULT sub-page (진행 상태 + 결과) ◆ -->
+    <div class="hc-page hc-page-result" id="hc-page-result" style="display:none">
+
+      <!-- 강화된 진행 상태 박스 -->
+      <div class="progress-box" id="progress-box">
+        <div class="progress-header">
+          <div class="progress-spinner" id="progress-spinner"></div>
+          <div class="progress-title-wrap">
+            <div class="progress-title" id="progress-title">텍스트화 진행 중...</div>
+            <div class="progress-sub" id="progress-sub">파일 업로드부터 시작합니다</div>
+          </div>
+          <div class="progress-elapsed" id="progress-elapsed">0초</div>
+        </div>
+        <div class="progress-steps">
+          <div class="progress-step" id="step-upload" data-step="upload">
+            <span class="ps-icon"></span>
+            <span class="ps-label">음성 업로드</span>
+          </div>
+          <div class="progress-step" id="step-transcribe" data-step="transcribe">
+            <span class="ps-icon"></span>
+            <span class="ps-label">CLOVA 텍스트 변환</span>
+            <span class="ps-warn" id="ps-warn-transcribe" style="display:none">⏱ 용량이 커서 10분 이상 걸릴 수 있어요</span>
+          </div>
+          <div class="progress-step" id="step-analyze" data-step="analyze">
+            <span class="ps-icon"></span>
+            <span class="ps-label">힘클로드 분석·교정</span>
+            <span class="ps-warn" id="ps-warn-analyze" style="display:none">⏱ 용량이 커서 3분 이상 걸릴 수 있어요</span>
+          </div>
+          <div class="progress-step" id="step-save" data-step="save">
+            <span class="ps-icon"></span>
+            <span class="ps-label">완료</span>
           </div>
         </div>
       </div>
-    </aside>
+
+      <!-- 결과 영역 (변환 완료 후 노출) -->
+      <div class="result-area" id="result-area" style="display:none">
+        <div class="result-section">
+          <div class="result-label">📝 변환된 텍스트 <span class="postproc-tag" id="rs-postproc-tag" style="display:none">힘클로드 교정</span></div>
+          <div class="transcript-box" id="transcript-box"></div>
+        </div>
+        <div class="result-section" id="rs-summary" style="display:none">
+          <div class="result-label">💡 회의 요약</div>
+          <div id="result-summary"></div>
+        </div>
+        <div class="result-section" id="rs-kb" style="display:none">
+          <div class="result-label">🏷️ 적용된 사전 단어</div>
+          <div id="result-kb"></div>
+        </div>
+        <div class="result-section" id="rs-level" style="display:none">
+          <div class="result-label">🔒 추천 등급</div>
+          <div id="result-level"></div>
+        </div>
+        <div class="result-section">
+          <div class="result-label">📊 처리 정보</div>
+          <div id="result-info"></div>
+        </div>
+
+        <!-- 보조 액션 — 새 녹취록 변환 (메인 버튼은 하단 저장) -->
+        <div class="result-actions">
+          <button class="btn-secondary" onclick="HimClova.reprocess()">↻ 후처리 재진행</button>
+        </div>
+      </div>
+
+      <!-- 저장 완료 화면 (saved 모드 — 일일보고 발송 완료와 동일 패턴.
+           progress-box + result-area 둘 다 hide 후 이 화면만 표시) -->
+      <div id="hc-saved-screen" style="display:none">
+        <div class="done-wrap">
+          <div class="done-brush">✅</div>
+          <div class="done-title">저장이 완료되었습니다!</div>
+          <div class="done-desc">녹취록이 데이터베이스에 저장되었습니다.<br>내 기기에 사본을 저장하려면 아래 버튼을 눌러주세요.</div>
+          <button class="done-new go-himclova-doc" onclick="HimClova.downloadAsDoc()">💾 내 기기에 저장하기</button>
+          <button class="done-new" onclick="HimClova.goHome()">🏠 첫 화면으로 돌아가기</button>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 
-  <div class="p2-bottom" id="p2-btns" style="display:none">
-    <button class="btn-sv" onclick="doSave()">💾 저장</button>
-    <button class="btn-mid" onclick="doReanalyze()">🔄 AI 재정리</button>
-    <button class="btn-sd" onclick="doFinalSend()">📤 발송</button>
+  <!-- ── 마스터 승격 모드 (오너 전용, 2026-08-25) — 렌더/게이트는 js/08-master.js ── -->
+  <div class="mode-content mode-master">
+    <div class="ctx-card" style="margin-top:12px">
+      <div class="ctx-head">🗂️ <span>프로젝트 마스터 승격</span></div>
+      <div class="ctx-body" id="mode-master-body"><div class="ctx-loading-inline">🌿 불러오는 중...</div></div>
+    </div>
   </div>
 
+  <div class="bottom-fixed bottom-report">
+    <!-- INPUT sub-page 시 표시 -->
+    <button class="send-btn" id="report-send-btn" onclick="doAnalyze()">
+      <span>🤖</span><span>AI로 정리</span>
+    </button>
+    <!-- EDIT sub-page 시 표시 — 저장 버튼 제거 (Step 2d, 2026-04-29). 재정리는 카드 안 + 버튼 펼친 후 사용. -->
+    <div class="report-edit-actions" id="report-edit-actions" style="display:none">
+      <button class="send-btn" onclick="doFinalSend()">
+        <span>📤</span><span>일일보고 발송</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="bottom-fixed bottom-himclova">
+    <button class="send-btn" id="hc-send-btn" onclick="HimClova.toggleSubmit()">
+      <span id="hc-send-icon">▶</span><span id="hc-send-label">텍스트화 진행</span>
+    </button>
+    <button class="send-btn" id="hc-save-btn" onclick="HimClova.saveToDrive()" style="display:none">
+      <span id="hc-save-icon">📤</span><span id="hc-save-label">저장하기</span>
+    </button>
+    <!-- saved 모드 시 bottom 영역은 비어있음 — 버튼은 hc-saved-screen 안에 있음 -->
+  </div>
 </div>
 
 <!-- 토스트 -->
@@ -941,7 +2799,7 @@ body{
 <div class="dlg-back" id="send-dlg">
   <div class="dlg-card">
     <div class="dlg-title">수정사항이 있습니다</div>
-    <div class="dlg-desc">AI 재정리 이후 내용이 변경됐어요.<br>어떻게 발송할까요?</div>
+    <div class="dlg-desc">힘클로드 재정리 이후 내용이 변경됐어요.<br>어떻게 발송할까요?</div>
     <div class="dlg-btns">
       <button class="dlg-btn dlg-btn-primary" onclick="confirmReanalyzeThenSend()">🔄 재정리 후 발송</button>
       <button class="dlg-btn dlg-btn-secondary" onclick="confirmSendDirect()">📤 그대로 발송</button>
@@ -950,959 +2808,1067 @@ body{
   </div>
 </div>
 
-<script>
-// ── 직원 데이터 (Apps Script에서 동적 로드) ──────────────────────
-var STAFF=[];
-
-// ── 설정 ──────────────────────
-var APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwdHNDJdGOgDqRVXOECr0yxoMGoFJIQ7BCx9UtGje_5Gnsmg2pQ9SU7eI5SjlfS628d/exec'; // [TEST]
-var APPS_SCRIPT_TOKEN='thehim2026_test'; // [TEST]
-
-// ── 상태 ──────────────────────
-var profile=null,files=[],voiceOn=false,mediaRec=null,editMode=false;
-var currentStructured=null;
-var lastAIStructured=null; // AI 분석/재정리 직후 스냅샷 (JSON 문자열). 발송 시 dirty 감지용
-var currentRawText='';
-var _draftSaveTimer=null;  // main-input 디바운스 타이머
-var yesterdayRaw='';
-var yesterdayDate='';
-var yesterdayLoaded=false;  // false=아직 미조회, true=조회 완료(내용 유무 무관)
-var yesterdayLoadError=null;  // null | 'retrying' | 'network' | 'timeout' | 'server'
-var now=new Date();
-var days=['일','월','화','수','목','금','토'];
-var dateStr=now.getFullYear()+'-'+p2(now.getMonth()+1)+'-'+p2(now.getDate());
-var dateLabel=dateStr+'('+days[now.getDay()]+')';
-function p2(n){return String(n).padStart(2,'0')}
-
-// ── 초기화 ──────────────────────
-(function(){ loadStaff(); })();
-
-function loadStaff(){
-  var list=document.getElementById('staff-list');
-  list.innerHTML='<div style="text-align:center;padding:30px;color:var(--ink3);font-size:13px;">🌿 직원 목록 불러오는 중...</div>';
-  fetch(APPS_SCRIPT_URL+'?action=get_staff')
-    .then(function(r){return r.json()})
-    .then(function(data){
-      if(!data.ok)throw new Error(data.error||'오류');
-      STAFF=data.staff;
-      buildStaffList();
-      var s=localStorage.getItem('him_v4_test');
-      if(s){
-        try{
-          var saved=JSON.parse(s);
-          var found=STAFF.find(function(st){return st.email===saved.email});
-          if(found){profile=found;initP1();goPage('p1')}
-        }catch(e){}
-      }
-    })
-    .catch(function(){
-      list.innerHTML=
-        '<div style="text-align:center;padding:30px;color:var(--brush-rose);font-size:13px;">'+
-        '직원 목록을 불러오지 못했습니다.<br>네트워크를 확인해주세요.<br><br>'+
-        '<button onclick="loadStaff()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--line);background:white;cursor:pointer;font-family:inherit">다시 시도</button>'+
-        '</div>';
-    });
-}
-
-function buildStaffList(){
-  var ul=document.getElementById('staff-list');
-  ul.innerHTML='';
-  STAFF.forEach(function(s){
-    var d=document.createElement('div');
-    d.className='staff-card';
-    d.innerHTML=
-      '<div class="staff-initial">'+s.name.charAt(0)+'</div>'+
-      '<div class="staff-info"><div class="sname">'+s.name+' '+s.role+'</div>'+
-      '<div class="sdept">'+s.dept+'</div></div>';
-    d.onclick=function(){
-      document.querySelectorAll('.staff-card').forEach(function(c){c.classList.remove('on')});
-      d.classList.add('on');profile=s;
-    };
-    ul.appendChild(d);
-  });
-}
-
-function completeSetup(){
-  if(!profile){toast('본인을 선택해주세요');return}
-  localStorage.setItem('him_v4_test',JSON.stringify(profile));
-  initP1();goPage('p1');
-}
-
-function initP1(){
-  document.getElementById('user-dot').textContent=profile.name.charAt(0);
-  document.getElementById('user-name').textContent=profile.name+' '+profile.role+' · '+profile.dept;
-  document.getElementById('user-date').textContent=dateLabel+' 일일보고';
-  loadContext();
-  loadYesterdayRaw();
-  bindDraftAutoSave();
-  maybeShowDraftBanner();
-}
-function bindDraftAutoSave(){
-  var mi=document.getElementById('main-input');
-  if(mi && !mi._draftBound){
-    mi._draftBound=true;
-    mi.addEventListener('input', function(){ scheduleDraftSave('p1'); });
-  }
-  // 2페이지 textarea/input 실시간 동기화 (이벤트 위임, 한 번만 부착)
-  var p2body=document.getElementById('p2-body');
-  if(p2body && !p2body._draftBound){
-    p2body._draftBound=true;
-    p2body.addEventListener('input', function(e){
-      var t=e.target;
-      if(!t)return;
-      if(t.classList && (t.classList.contains('proj-name')||t.classList.contains('proj-field'))){
-        currentStructured=collectStructure();
-        scheduleDraftSave('p2');
-      }
-    });
-  }
-}
-
-function loadYesterdayRaw(){
-  if(!profile)return;
-  yesterdayLoaded=false;
-  yesterdayLoadError=null;
-  renderYesterdayRawCard();
-  doLoadYesterdayRaw(1); // 재시도 1회 허용
-}
-
-function doLoadYesterdayRaw(retriesLeft){
-  var controller=('AbortController' in window)?new AbortController():null;
-  var timedOut=false;
-  var timer=setTimeout(function(){
-    timedOut=true;
-    if(controller)controller.abort();
-  },10000);
-
-  var fetchOpts=controller?{signal:controller.signal}:{};
-  fetch(APPS_SCRIPT_URL+'?action=get_yesterday_raw&name='+encodeURIComponent(profile.name),fetchOpts)
-    .then(function(r){return r.json()})
-    .then(function(data){
-      clearTimeout(timer);
-      if(data.ok){
-        yesterdayRaw=data.raw||'';
-        yesterdayDate=data.date||'';
-        yesterdayLoadError=null;
-      }else{
-        yesterdayLoadError='server';
-      }
-      yesterdayLoaded=true;
-      renderYesterdayRawCard();
-      refreshP2YesterdayIfVisible();
-    })
-    .catch(function(){
-      clearTimeout(timer);
-      var errType=timedOut?'timeout':'network';
-      if(retriesLeft>0){
-        // 1차 실패 → 조용히 1회 재시도
-        yesterdayLoadError='retrying';
-        renderYesterdayRawCard();
-        refreshP2YesterdayIfVisible();
-        setTimeout(function(){ doLoadYesterdayRaw(retriesLeft-1); },500);
-      }else{
-        yesterdayLoadError=errType;
-        yesterdayLoaded=true;
-        renderYesterdayRawCard();
-        refreshP2YesterdayIfVisible();
-      }
-    });
-}
-
-// 5상태 공용 렌더: 로딩 / 타임아웃 / 네트워크 오류 / 서버 오류 / 데이터 / 빈 상태
-function buildYesterdayBodyHtml(){
-  if(!yesterdayLoaded){
-    if(yesterdayLoadError==='retrying'){
-      return '<div class="ctx-loading-inline">🔄 재시도 중...</div>';
-    }
-    return '<div class="ctx-loading-inline">🌿 불러오는 중...</div>';
-  }
-  if(yesterdayLoadError==='timeout'){
-    return '<div class="raw-box error">⏱️ 응답 지연 (10초 초과) — 서버가 느릴 수 있어요. 새로고침해 보세요.</div>';
-  }
-  if(yesterdayLoadError==='network'){
-    return '<div class="raw-box error">⚠️ 불러오기 실패 — 네트워크 오류. 새로고침해 보세요.</div>';
-  }
-  if(yesterdayLoadError==='server'){
-    return '<div class="raw-box error">⚠️ 서버 응답 오류 — 관리자에게 문의해 주세요.</div>';
-  }
-  if(yesterdayRaw){
-    return '<div class="raw-box">'+escapeHtml(yesterdayRaw)+'</div>';
-  }
-  return '<div class="raw-box empty">📭 이전 보고 기록이 없습니다</div>';
-}
-
-function renderYesterdayRawCard(){
-  var head=document.getElementById('ctx-yd-raw-head');
-  var body=document.getElementById('ctx-yd-raw-body');
-  if(!head||!body)return;
-  head.textContent='어제 원문'+(yesterdayDate?' ('+fmtDate(yesterdayDate)+')':'');
-  body.innerHTML=buildYesterdayBodyHtml();
-}
-
-function refreshP2YesterdayIfVisible(){
-  // 2페이지가 현재 보이고, 구조화된 보고가 있으면 재렌더로 어제 원문 갱신
-  var p2=document.getElementById('p2');
-  if(p2 && p2.classList.contains('on') && currentStructured){
-    renderStructuredReport();
-  }
-}
-
-function loadContext(){
-  if(!profile)return;
-  renderContextLoading();
-
-  fetch(APPS_SCRIPT_URL+'?action=get_context&name='+encodeURIComponent(profile.name)+'&grade='+encodeURIComponent(profile.grade))
-    .then(function(r){return r.json()})
-    .then(function(data){
-      // ok=false여도 "해당 사항 없음"으로 간주 — 빈 상태 렌더
-      if(!data || !data.ok){
-        renderContextCards({today:[],yesterday:[],directive:[]});
-        return;
-      }
-      renderContextCards(data);
-    })
-    .catch(function(){
-      // 진짜 네트워크/파싱 오류일 때만 에러 메시지
-      renderContextError();
-    });
-}
-
-function setCtxBody(bodyId, html){
-  var body=document.getElementById(bodyId);
-  if(body)body.innerHTML=html;
-}
-function setEmptyRow(bodyId, msg){
-  setCtxBody(bodyId, '<div class="ctx-row ctx-empty">'+msg+'</div>');
-}
-function setLoadingRow(bodyId){
-  setCtxBody(bodyId, '<div class="ctx-loading-inline">🌿 불러오는 중...</div>');
-}
-
-function renderContextLoading(){
-  setLoadingRow('ctx-today-body');
-  setLoadingRow('ctx-directive-body');
-}
-function renderContextError(){
-  setEmptyRow('ctx-today-body', '컨텍스트를 불러오지 못했어요... 잠시 후 새로고침 해보세요.');
-  setEmptyRow('ctx-directive-body', '컨텍스트를 불러오지 못했어요...');
-}
-
-function renderContextCards(data){
-  var today=data.today||[];
-  var yesterday=data.yesterday||[];
-  var directive=data.directive||[];
-  var generatedDate=data.generated_date||'';
-
-  // 오늘 할 일 — 항상 표시
-  var tBody=document.getElementById('ctx-today-body');
-  var tHead=document.querySelector('#ctx-today .ctx-head span');
-  if(generatedDate && tHead)tHead.textContent='오늘 할 일 ('+generatedDate+' 브리핑)';
-  tBody.innerHTML='';
-  if(today.length>0){
-    today.forEach(function(item){
-      var text=typeof item==='string'?item:item.text;
-      var isEmphasis=typeof item==='object'&&item.emphasis;
-      var color=isEmphasis?'rose':'blue';
-      var d=document.createElement('div');
-      d.className='ctx-row '+color;
-      d.textContent=(isEmphasis?'⏰ ':'')+text;
-      tBody.appendChild(d);
-    });
-  }else{
-    tBody.innerHTML='<div class="ctx-row ctx-empty">오늘 예정된 할 일이 없습니다</div>';
-  }
-
-  // 어제 보고 요약 — 데이터 있을 때만 노출
-  if(yesterday.length>0){
-    var yEl=document.getElementById('ctx-yesterday');
-    var yBody=document.getElementById('ctx-yesterday-body');
-    yEl.style.display='block';
-    if(generatedDate){
-      var head=yEl.querySelector('.ctx-head span');
-      if(head)head.textContent='어제 보고 요약 ('+generatedDate+' 브리핑)';
-    }
-    yBody.innerHTML='';
-    yesterday.forEach(function(item){
-      var d=document.createElement('div');
-      var text=typeof item==='string'?item:(item.text||item);
-      var color=typeof item==='object'&&item.color?item.color:'green';
-      d.className='ctx-row '+color;
-      d.textContent=text;
-      yBody.appendChild(d);
-    });
-  }
-
-  // 미완료 지시사항 — 항상 표시
-  var dBody=document.getElementById('ctx-directive-body');
-  dBody.innerHTML='';
-  if(directive.length>0){
-    directive.forEach(function(item){
-      var d=document.createElement('div');
-      var text=typeof item==='string'?item:('['+item.from+'] '+item.content);
-      var color=typeof item==='object'&&item.urgency==='high'?'rose':(item.color||'gold');
-      d.className='ctx-row '+color;
-      d.textContent=text;
-      dBody.appendChild(d);
-    });
-  }else{
-    dBody.innerHTML='<div class="ctx-row ctx-empty">미완료 지시사항이 없습니다</div>';
-  }
-}
-
-function resetProfile(){
-  if(!confirm('다른 직원으로 변경할까요?'))return;
-  localStorage.removeItem('him_v4_test');
-  clearDraft();
-  hideDraftBanner();
-  profile=null;files=[];
-  currentStructured=null;lastAIStructured=null;currentRawText='';
-  document.getElementById('file-chips').innerHTML='';
-  document.getElementById('main-input').value='';
-  goPage('p0');loadStaff();
-}
-
-// ── 파일 ──────────────────────
-function handleFiles(inp){
-  Array.from(inp.files).forEach(function(f){
-    if(files.find(function(x){return x.name===f.name}))return;
-    files.push(f);
-    var ext=f.name.split('.').pop().toLowerCase();
-    var icons={pdf:'📄',xlsx:'📊',xls:'📊',doc:'📝',docx:'📝',hwp:'📝',png:'🖼',jpg:'🖼',jpeg:'🖼',mp3:'🎵',m4a:'🎵',wav:'🎵'};
-    var chips=document.getElementById('file-chips');
-    var c=document.createElement('div');
-    c.className='file-chip';c.id='chip-'+f.name;
-    c.innerHTML='<span>'+(icons[ext]||'📎')+' '+f.name+'</span><button class="chip-del" onclick="rmFile(\''+f.name+'\')">✕</button>';
-    chips.appendChild(c);
-  });
-  inp.value='';
-}
-function rmFile(name){
-  files=files.filter(function(f){return f.name!==name});
-  var c=document.getElementById('chip-'+name);
-  if(c)c.remove();
-}
-
-// ── 음성 ──────────────────────
-function toggleVoice(){voiceOn?stopV():startV()}
-function startV(){
-  if(!navigator.mediaDevices){toast('이 기기에서 지원되지 않습니다');return}
-  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
-    voiceOn=true;
-    document.getElementById('voice-btn').classList.add('rec');
-    document.getElementById('voice-icon').textContent='⏹';
-    document.getElementById('voice-label').textContent='녹음 중 — 누르면 완료';
-    var chunks=[];
-    mediaRec=new MediaRecorder(stream);
-    mediaRec.ondataavailable=function(e){chunks.push(e.data)};
-    mediaRec.onstop=function(){
-      var blob=new Blob(chunks,{type:'audio/webm'});
-      var fname='음성_'+p2(now.getHours())+p2(now.getMinutes())+'.webm';
-      var f=new File([blob],fname);
-      files.push(f);
-      var chips=document.getElementById('file-chips');
-      var c=document.createElement('div');
-      c.className='file-chip';c.id='chip-'+fname;
-      c.innerHTML='<span>🎤 '+fname+'</span><button class="chip-del" onclick="rmFile(\''+fname+'\')">✕</button>';
-      chips.appendChild(c);
-      stream.getTracks().forEach(function(t){t.stop()});
-      toast('🎤 녹음 완료');
-    };
-    mediaRec.start();
-  }).catch(function(){toast('마이크 권한을 허용해주세요')});
-}
-function stopV(){
-  voiceOn=false;
-  document.getElementById('voice-btn').classList.remove('rec');
-  document.getElementById('voice-icon').textContent='🎤';
-  document.getElementById('voice-label').textContent='음성으로 말하기';
-  if(mediaRec&&mediaRec.state!=='inactive')mediaRec.stop();
-}
-
-// ── 분석 → P2 ──────────────────────
-function doAnalyze(){
-  var txt=document.getElementById('main-input').value.trim();
-  if(!txt){toast('업무 내용을 입력해주세요');return;}
-
-  currentRawText=txt;
-  resetP2Tab();
-  goPage('p2');
-  document.getElementById('p2-name').textContent='분석 중...';
-  document.getElementById('p2-btns').style.display='none';
-  document.getElementById('p2-body').innerHTML=
-    '<div class="loading-wrap">'+
-      '<div class="loading-brush">🖌️</div>'+
-      '<div class="loading-text">힘클로드가 정리하고 있습니다</div>'+
-      '<div class="loading-sub">프로젝트·인물·요청사항을<br>분리하는 중...</div>'+
-    '</div>';
-
-  fetch(APPS_SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({
-      token:APPS_SCRIPT_TOKEN,
-      action:'structure_report',
-      raw:txt
-    })
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    if(!data.ok)throw new Error(data.message||'구조화 실패');
-    currentStructured=data.structured;
-    lastAIStructured=JSON.stringify(normalizeStructured(data.structured));
-    renderStructuredReport();
-    saveDraft('p2');
-  })
-  .catch(function(err){
-    document.getElementById('p2-body').innerHTML=
-      '<div class="done-wrap">'+
-        '<div class="done-brush">❌</div>'+
-        '<div class="done-title">분석 실패</div>'+
-        '<div class="done-desc">'+err+'<br><br>다시 시도해주세요.</div>'+
-        '<button class="done-new" onclick="goPage(\'p1\')">돌아가기</button>'+
-      '</div>';
-  });
-}
-
-function isTestMode(){
-  return /^\s*\[테스트\]/.test(currentRawText||'');
-}
-
-// ── 2페이지 모바일 탭 (편집 / 검색) ──────────────────────
-function switchP2Tab(name){
-  var p2=document.getElementById('p2');
-  if(name==='search'){
-    p2.classList.add('tab-search');
-  }else{
-    p2.classList.remove('tab-search');
-  }
-  document.querySelectorAll('.p2-tab').forEach(function(btn){
-    btn.classList.toggle('active', btn.getAttribute('data-tab')===name);
-  });
-  window.scrollTo(0,0);
-}
-function resetP2Tab(){
-  var p2=document.getElementById('p2');
-  if(!p2)return;
-  p2.classList.remove('tab-search');
-  document.querySelectorAll('.p2-tab').forEach(function(btn){
-    btn.classList.toggle('active', btn.getAttribute('data-tab')==='edit');
-  });
-}
-
-function doSearch(){
-  toast('🔍 검색 기능은 준비 중입니다');
-}
-
-// ── 드래프트 (localStorage) ──────────────────────
-var DRAFT_KEY='him_v4_test_draft';
-function saveDraft(stage){
-  if(!profile)return;
-  try{
-    var mi=document.getElementById('main-input');
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({
-      email: profile.email,
-      date: dateStr,
-      stage: stage,  // 'p1' | 'p2'
-      raw: mi?mi.value:'',
-      currentRaw: currentRawText,
-      structured: currentStructured,
-      lastAI: lastAIStructured,
-      savedAt: Date.now()
-    }));
-  }catch(e){}
-}
-function scheduleDraftSave(stage){
-  if(_draftSaveTimer)clearTimeout(_draftSaveTimer);
-  _draftSaveTimer=setTimeout(function(){saveDraft(stage)}, 400);
-}
-function loadDraft(){
-  try{
-    var s=localStorage.getItem(DRAFT_KEY);
-    if(!s)return null;
-    var d=JSON.parse(s);
-    if(!d||!profile||d.email!==profile.email)return null;
-    if(d.date!==dateStr){clearDraft();return null;}
-    return d;
-  }catch(e){return null}
-}
-function clearDraft(){
-  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
-}
-function describeDraftAge(ts){
-  var diff=Math.floor((Date.now()-ts)/60000);
-  if(diff<1)return '방금 저장됨';
-  if(diff<60)return diff+'분 전 저장됨';
-  var h=Math.floor(diff/60);
-  var m=diff%60;
-  return h+'시간'+(m?' '+m+'분':'')+' 전 저장됨';
-}
-function maybeShowDraftBanner(){
-  var d=loadDraft();
-  var banner=document.getElementById('draft-banner');
-  if(!d){banner.classList.remove('on');return;}
-  var hasRaw=d.raw&&d.raw.trim();
-  var hasStructured=d.structured&&d.stage==='p2';
-  if(!hasRaw&&!hasStructured){clearDraft();banner.classList.remove('on');return;}
-  var label='이어서 작성하시겠어요?';
-  if(d.stage==='p2')label='정리된 보고서가 있어요. 이어서 편집하시겠어요?';
-  banner.querySelector('b').textContent=label;
-  document.getElementById('draft-time').textContent=describeDraftAge(d.savedAt);
-  banner.classList.add('on');
-}
-function restoreDraft(){
-  var d=loadDraft();
-  if(!d){hideDraftBanner();return;}
-  var mi=document.getElementById('main-input');
-  if(mi&&d.raw)mi.value=d.raw;
-  if(d.stage==='p2'&&d.structured){
-    currentRawText=d.currentRaw||'';
-    currentStructured=d.structured;
-    lastAIStructured=d.lastAI||null;
-    goPage('p2');
-    renderStructuredReport();
-  }
-  hideDraftBanner();
-  toast('💾 이어서 작성');
-}
-function discardDraft(){
-  clearDraft();
-  hideDraftBanner();
-}
-function hideDraftBanner(){
-  document.getElementById('draft-banner').classList.remove('on');
-}
-
-function renderStructuredReport(){
-  document.getElementById('p2-name').textContent=profile.name+' 보고서';
-  document.getElementById('p2-btns').style.display='flex';
-
-  var s=normalizeStructured(currentStructured);
-  currentStructured=s;
-
-  var html='<div class="report-wrap">';
-
-  if(isTestMode()){
-    html+='<div class="test-badge">🧪 테스트 모드 · 발송 시 실제 메일·Drive 저장·브리핑 반영이 모두 스킵됩니다</div>';
-  }
-
-  // 작성자
-  html+='<div class="rep-card">'+
-    '<div class="rep-head"><span class="rep-label">작성자</span></div>'+
-    '<div class="rep-body"><div class="rep-text">'+
-      escapeHtml(profile.name)+' '+escapeHtml(profile.role)+' · '+escapeHtml(profile.dept)+'<br>'+escapeHtml(dateLabel)+
-    '</div></div>'+
-  '</div>';
-
-  // 어제 원문 — 5상태 공용 렌더
-  var ydLabel='어제 원문'+(yesterdayDate?' ('+fmtDate(yesterdayDate)+')':'');
-  var ydBody=buildYesterdayBodyHtml();
-  html+='<div class="rep-card">'+
-    '<div class="rep-head"><span class="rep-label">'+escapeHtml(ydLabel)+'</span></div>'+
-    '<div class="rep-body">'+ydBody+'</div>'+
-  '</div>';
-
-  // 오늘 원문
-  if(currentRawText){
-    html+='<div class="rep-card">'+
-      '<div class="rep-head"><span class="rep-label">오늘 원문</span></div>'+
-      '<div class="rep-body"><div class="raw-box">'+escapeHtml(currentRawText)+'</div></div>'+
-    '</div>';
-  }
-
-  // 프로젝트별 카드
-  s.projects.forEach(function(p,idx){
-    html+=renderProjectCard(p,idx);
-  });
-
-  // 공통 카드 (항상 표시)
-  html+='<div class="rep-card common-card">'+
-    '<div class="rep-head"><span class="rep-label">공통 (프로젝트 무관·근태 등)</span></div>'+
-    '<div class="rep-body">'+renderFieldRows(s.common,'common')+'</div>'+
-  '</div>';
-
-  // 프로젝트 추가 버튼
-  html+='<button class="proj-add-btn" onclick="addProject()">+ 프로젝트 추가</button>';
-
-  html+='</div>';
-  document.getElementById('p2-body').innerHTML=html;
-}
-
-function renderProjectCard(p,idx){
-  return '<div class="rep-card proj-card" data-proj-idx="'+idx+'">'+
-    '<div class="rep-head proj-head">'+
-      '<input class="proj-name" data-proj-idx="'+idx+'" value="'+escapeHtml(p.name||'')+'" placeholder="프로젝트명">'+
-      '<button class="proj-del" onclick="removeProject('+idx+')" title="이 프로젝트 제거">×</button>'+
-    '</div>'+
-    '<div class="rep-body">'+renderFieldRows(p,idx)+'</div>'+
-  '</div>';
-}
-
-function renderFieldRows(src,idx){
-  var rows=[
-    {key:'meeting',  label:'미팅'},
-    {key:'issue',    label:'이슈 및 문제'},
-    {key:'dir',      label:'지시사항'},
-    {key:'schedule', label:'일정'}
-  ];
-  return rows.map(function(r){
-    return '<div class="field-row">'+
-      '<label>'+r.label+'</label>'+
-      '<textarea class="proj-field" data-proj-idx="'+idx+'" data-key="'+r.key+'" rows="2" placeholder="해당 없으면 비워두세요">'+escapeHtml(src[r.key]||'')+'</textarea>'+
-    '</div>';
-  }).join('');
-}
-
-function normalizeStructured(s){
-  s=s||{};
-  var projects=Array.isArray(s.projects)?s.projects:[];
-  var common=(s.common&&typeof s.common==='object')?s.common:{};
-  return {
-    projects:projects.map(function(p){
-      p=p||{};
-      return {
-        name:    typeof p.name    ==='string'?p.name:'',
-        meeting: typeof p.meeting ==='string'?p.meeting:'',
-        issue:   typeof p.issue   ==='string'?p.issue:'',
-        dir:     typeof p.dir     ==='string'?p.dir:'',
-        schedule:typeof p.schedule==='string'?p.schedule:''
-      };
-    }),
-    common:{
-      meeting: typeof common.meeting ==='string'?common.meeting:'',
-      issue:   typeof common.issue   ==='string'?common.issue:'',
-      dir:     typeof common.dir     ==='string'?common.dir:'',
-      schedule:typeof common.schedule==='string'?common.schedule:''
-    }
-  };
-}
-
-function collectStructure(){
-  var projects=[];
-  document.querySelectorAll('.proj-card').forEach(function(card){
-    var nameEl=card.querySelector('.proj-name');
-    var proj={name:nameEl?nameEl.value.trim():'',meeting:'',issue:'',dir:'',schedule:''};
-    card.querySelectorAll('.proj-field').forEach(function(ta){
-      proj[ta.getAttribute('data-key')]=ta.value.trim();
-    });
-    projects.push(proj);
-  });
-  var common={meeting:'',issue:'',dir:'',schedule:''};
-  var cCard=document.querySelector('.common-card');
-  if(cCard){
-    cCard.querySelectorAll('.proj-field').forEach(function(ta){
-      common[ta.getAttribute('data-key')]=ta.value.trim();
-    });
-  }
-  return {projects:projects,common:common};
-}
-
-function flattenToFiveFields(s){
-  s=normalizeStructured(s);
-  var validProjects=s.projects.filter(function(p){return p.name;});
-  var multi=validProjects.length>1;
-  function agg(field){
-    var parts=validProjects
-      .map(function(p){
-        if(!p[field])return '';
-        return multi?'['+p.name+'] '+p[field]:p[field];
-      })
-      .filter(Boolean);
-    if(s.common[field])parts.push(s.common[field]);
-    return parts.join(' / ');
-  }
-  return {
-    pj:       validProjects.map(function(p){return p.name;}).join(', '),
-    meeting:  agg('meeting'),
-    issue:    agg('issue'),
-    dir:      agg('dir'),
-    schedule: agg('schedule')
-  };
-}
-
-function escapeHtml(s){
-  return String(s==null?'':s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function fmtDate(yyyymmdd){
-  if(!yyyymmdd||yyyymmdd.length!==8)return yyyymmdd||'';
-  return yyyymmdd.substr(0,4)+'-'+yyyymmdd.substr(4,2)+'-'+yyyymmdd.substr(6,2);
-}
-
-function addProject(){
-  currentStructured=collectStructure();
-  currentStructured.projects.push({name:'',meeting:'',issue:'',dir:'',schedule:''});
-  renderStructuredReport();
-  saveDraft('p2');
-  setTimeout(function(){
-    var inputs=document.querySelectorAll('.proj-name');
-    var last=inputs[inputs.length-1];
-    if(last){last.focus();last.scrollIntoView({behavior:'smooth',block:'center'});}
-  },100);
-}
-
-function removeProject(idx){
-  currentStructured=collectStructure();
-  currentStructured.projects.splice(idx,1);
-  renderStructuredReport();
-  saveDraft('p2');
-}
-
-function doReanalyze(onSuccess){
-  var s=collectStructure();
-  var combined='';
-  s.projects.forEach(function(p){
-    if(!p.name&&!p.meeting&&!p.issue&&!p.dir&&!p.schedule)return;
-    combined+='['+(p.name||'(이름없음)')+']\n';
-    if(p.meeting)  combined+='미팅: '+p.meeting+'\n';
-    if(p.issue)    combined+='이슈: '+p.issue+'\n';
-    if(p.dir)      combined+='지시: '+p.dir+'\n';
-    if(p.schedule) combined+='일정: '+p.schedule+'\n';
-    combined+='\n';
-  });
-  var c=s.common;
-  if(c.meeting||c.issue||c.dir||c.schedule){
-    combined+='[공통]\n';
-    if(c.meeting)  combined+='미팅: '+c.meeting+'\n';
-    if(c.issue)    combined+='이슈: '+c.issue+'\n';
-    if(c.dir)      combined+='지시: '+c.dir+'\n';
-    if(c.schedule) combined+='일정: '+c.schedule+'\n';
-  }
-
-  if(!combined.trim()){toast('수정된 내용이 없습니다');return;}
-
-  document.getElementById('p2-body').innerHTML=
-    '<div class="loading-wrap">'+
-      '<div class="loading-brush">🔄</div>'+
-      '<div class="loading-text">AI가 다시 정리하고 있습니다</div>'+
-      '<div class="loading-sub">수정한 내용을 반영하는 중...</div>'+
-    '</div>';
-  document.getElementById('p2-btns').style.display='none';
-
-  fetch(APPS_SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({
-      token:APPS_SCRIPT_TOKEN,
-      action:'structure_report',
-      raw:combined
-    })
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    if(!data.ok)throw new Error(data.message||'재정리 실패');
-    currentStructured=data.structured;
-    lastAIStructured=JSON.stringify(normalizeStructured(data.structured));
-    renderStructuredReport();
-    saveDraft('p2');
-    if(onSuccess){onSuccess();return;}
-    toast('🔄 재정리 완료');
-  })
-  .catch(function(err){
-    toast('❌ 오류: '+err);
-    renderStructuredReport();
-  });
-}
-
-function repCard(id,label,bodyHtml){
-  return '<div class="rep-card" id="card-'+id+'">'+
-    '<div class="rep-head">'+
-      '<span class="rep-label">'+label+'</span>'+
-      '<button class="rep-edit" onclick="editCard(\''+id+'\')">수정</button>'+
-    '</div>'+
-    '<div class="rep-body" id="body-'+id+'">'+bodyHtml+'</div>'+
-  '</div>';
-}
-
-function submitAns(){
-  var ans=document.getElementById('ai-ans');
-  if(!ans||!ans.value.trim()){toast('내용을 입력해주세요');return}
-  document.querySelector('.ai-card').style.opacity='.5';
-  document.querySelector('.ai-card').style.pointerEvents='none';
-  toast('✅ 반영됐습니다');
-}
-
-var editMode=false;
-function toggleEdit(){
-  editMode=!editMode;
-  var btn=document.getElementById('edit-btn');
-  btn.textContent=editMode?'완료':'수정';
-  btn.className=editMode?'edit-btn active':'edit-btn';
-  document.querySelectorAll('.rep-edit').forEach(function(b){
-    b.style.display=editMode?'block':'none';
-  });
-  if(!editMode)toast('저장됐습니다');
-}
-
-function editCard(id){
-  var body=document.getElementById('body-'+id);
-  var ta=body.querySelector('textarea');
-  if(ta){
-    var t=body.querySelector('.rep-text');
-    if(t)t.textContent=ta.value;
-    else{
-      var tasks=body.querySelectorAll('.rep-task');
-      tasks.forEach(function(el){el.remove()});
-      ta.value.split('\n').filter(function(l){return l.trim()}).forEach(function(l){
-        var d=document.createElement('div');d.className='rep-task';d.textContent=l;
-        body.insertBefore(d,ta);
-      });
-    }
-    ta.style.display='none';
-    body.querySelector('.rep-save').style.display='none';
-    toast('✅ 수정됐습니다');
-    return;
-  }
-  var existing=body.innerHTML;
-  var text='';
-  body.querySelectorAll('.rep-text,.rep-task').forEach(function(el){text+=el.innerText+'\n'});
-  var newTa=document.createElement('textarea');
-  newTa.className='rep-textarea';newTa.rows=4;newTa.value=text.trim();
-  newTa.style.display='block';
-  var btn=document.createElement('button');
-  btn.className='rep-save';btn.style.display='block';
-  btn.textContent='저장';btn.onclick=function(){editCard(id)};
-  body.appendChild(newTa);body.appendChild(btn);
-  newTa.focus();
-}
-
-// ── 저장 / 발송 ──────────────────────
-function doSave(){
-  var blob=new Blob([document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});
-  var a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=dateStr.replace(/-/g,'')+'_일일보고_'+profile.name+'.html';
-  a.click();toast('💾 저장됐습니다');
-}
-
-function doFinalSend(){
-  currentStructured=collectStructure();
-  var curJson=JSON.stringify(normalizeStructured(currentStructured));
-  var dirty=(lastAIStructured!==null) && (curJson!==lastAIStructured);
-  if(dirty){
-    openSendDlg();
-    return;
-  }
-  performSend();
-}
-
-function openSendDlg(){
-  document.getElementById('send-dlg').classList.add('on');
-}
-function closeSendDlg(){
-  document.getElementById('send-dlg').classList.remove('on');
-}
-function confirmSendDirect(){
-  closeSendDlg();
-  performSend();
-}
-function confirmReanalyzeThenSend(){
-  closeSendDlg();
-  doReanalyze(function(){ performSend(); });
-}
-
-function performSend(){
-  currentStructured=collectStructure();
-  var structured=flattenToFiveFields(currentStructured);
-  var dc=dateStr.replace(/-/g,'');
-
-  if(isTestMode()){
-    showTestComplete(structured);
-    return;
-  }
-
-  document.getElementById('p2-body').innerHTML=
-    '<div class="done-wrap">'+
-      '<div class="done-brush">📤</div>'+
-      '<div class="done-title">발송 중...</div>'+
-    '</div>';
-  document.getElementById('p2-btns').style.display='none';
-
-  fetch(APPS_SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({
-      token:APPS_SCRIPT_TOKEN,
-      action:'send_daily_report',
-      name:profile.name,
-      role:profile.role,
-      dept:profile.dept,
-      grade:profile.grade,
-      date:dateStr,
-      to:'luri7305@gmail.com',
-      cc:'taesilkim2@gmail.com',
-      subject:'[일일보고] '+profile.name+'_'+dc,
-      raw:currentRawText,
-      structured:structured
-    })
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    if(!data.ok)throw new Error(data.message||'발송 실패');
-    clearDraft();
-    document.getElementById('p2-body').innerHTML=
-      '<div class="done-wrap">'+
-        '<div class="done-brush">✅</div>'+
-        '<div class="done-title">발송 완료</div>'+
-        '<div class="done-desc">'+escapeHtml(profile.name)+' '+escapeHtml(profile.role)+'님의 보고서가<br>luri7305@gmail.com으로 전송됐습니다.</div>'+
-        '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
-      '</div>';
-  })
-  .catch(function(err){
-    document.getElementById('p2-body').innerHTML=
-      '<div class="done-wrap">'+
-        '<div class="done-brush">❌</div>'+
-        '<div class="done-title">오류 발생</div>'+
-        '<div class="done-desc">'+err+'<br>다시 시도해주세요.</div>'+
-      '</div>';
-    document.getElementById('p2-btns').style.display='flex';
-  });
-}
-
-function showTestComplete(structured){
-  document.getElementById('p2-btns').style.display='none';
-  function row(label,val){
-    return '<div class="test-row"><div class="test-row-label">'+label+'</div>'+
-           '<div class="test-row-val">'+escapeHtml(val||'(비어있음)')+'</div></div>';
-  }
-  document.getElementById('p2-body').innerHTML=
-    '<div class="done-wrap">'+
-      '<div class="done-brush">🧪</div>'+
-      '<div class="done-title">테스트 모드 · 발송 스킵됨</div>'+
-      '<div class="done-desc">서버로 전송하지 않았습니다.<br>실제 메일·Drive 저장·브리핑 큐 추가 모두 건너뛰었습니다.</div>'+
-      '<div class="test-preview">'+
-        row('PJ',       structured.pj)+
-        row('미팅',     structured.meeting)+
-        row('이슈',     structured.issue)+
-        row('지시',     structured.dir)+
-        row('일정',     structured.schedule)+
-      '</div>'+
-      '<button class="done-new" onclick="newRep()">새 보고서 작성</button>'+
-    '</div>';
-}
-
-function newRep(){
-  document.getElementById('main-input').value='';
-  files=[];document.getElementById('file-chips').innerHTML='';
-  currentStructured=null;
-  lastAIStructured=null;
-  currentRawText='';
-  clearDraft();
-  hideDraftBanner();
-  goPage('p1');
-}
-
-// ── 유틸 ──────────────────────
-function goPage(id){
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on')});
-  document.getElementById(id).classList.add('on');
-  window.scrollTo(0,0);
-}
-function toast(m){
-  var t=document.getElementById('toast');
-  t.textContent=m;t.classList.add('on');
-  setTimeout(function(){t.classList.remove('on')},2500);
-}
+<!-- draft 충돌 다이얼로그 (다른 기기에서 더 최신 draft 발견 시) -->
+<div class="dlg-back" id="draft-conflict-dlg">
+  <div class="dlg-card">
+    <div class="dlg-title">다른 기기에서 작성 중인 내용이 있어요</div>
+    <div class="dlg-desc" id="draft-conflict-rows">
+      <div class="conflict-row" id="conflict-server-row">
+        <div class="conflict-head" id="conflict-server-head"></div>
+        <div class="conflict-body" id="conflict-server-body"></div>
+      </div>
+      <div class="conflict-row" id="conflict-local-row">
+        <div class="conflict-head" id="conflict-local-head"></div>
+        <div class="conflict-body" id="conflict-local-body"></div>
+      </div>
+    </div>
+    <div class="dlg-btns">
+      <button class="dlg-btn dlg-btn-primary" onclick="useServerDraft()">다른 기기 내용으로 이어쓰기</button>
+      <button class="dlg-btn dlg-btn-secondary" onclick="useLocalDraft()">이 기기 내용 그대로</button>
+    </div>
+  </div>
+</div>
+
+
+
+<script src="js/01-config.js"></script>  <!-- 설정 · GAS 통신 래퍼 · Google OAuth/Gmail -->
+<script src="js/02-core.js"></script>  <!-- 전역 상태 · 초기화 · 로그인(OTP) -->
+<script src="js/03-report.js"></script>  <!-- 모드 전환 · 일정 카드 · 파일 첨부 -->
+<script src="js/04-voice.js"></script>  <!-- 일일보고 음성 입력 (CLOVA STT) -->
+<script src="js/05-calendar.js"></script>  <!-- 지시·요청 입력칸 · 일정 탭 -->
+<script src="js/06-search.js"></script>  <!-- 분석→P2 · 브리핑 검색 · 드래프트 · 챗 -->
+<script src="js/07-send-setup.js"></script>  <!-- 저장·발송 · Report 네임스페이스 · 셋업 모달 -->
+<script src="js/08-master.js"></script>  <!-- 프로젝트 마스터 승격 탭 (오너 전용, 2026-08-25) -->
+
+
+<!-- ===== 음성 후처리 셋업 (2026-05-29) — vp-* JS. csTryCopy/csMsg/APPS_SCRIPT_URL 재사용 ===== -->
+
+
+<!-- Claude 셋업 모달 (2026-05-22) -->
+<!-- 프로젝트 지침 템플릿 — placeholder: {{NAME}}/{{ROLE}}/{{DEPT}}/{{GRADE}}/{{EMAIL}}.
+     source: himreport-mcp-prod/claude_project_instructions.md (2026-05-22 동기화). -->
+<script type="text/plain" id="cs-tpl"># 힘클로드 일일보고 어시스턴트
+
+당신은 보고자의 **업무 파트너**입니다. 단순 보고 자동화 도구가 아니라, 평소 대화로 업무 맥락을 함께 쌓아두었다가 사용자가 원할 때 일일보고로 정리·발송하는 어시스턴트입니다.
+
+---
+
+## 첫 사용자 셋업 (보고자 정보가 비어 있을 때)
+
+아래 [보고자 정보] 섹션이 `{{NAME}}` 같은 placeholder로 비어 있으면, 사용자에게 **딱 한 줄만 안내**합니다:
+
+> "처음이시군요. **사용자 이름을 입력하세요** (예: '양희승')."
+
+사용자가 이름을 입력하면 즉시 `setup_me({ name: "사용자가_입력한_이름" })`를 호출합니다.
+
+응답 처리:
+- `matched_count: 1` → `instruction_block` 텍스트를 그대로 코드블록으로 보여주고: "이 텍스트를 프로젝트 지침의 [보고자 정보] 섹션 placeholder 자리에 복사해 붙여넣은 뒤, 새 대화를 시작해주세요." 라고 안내. 그 외 대화는 진행하지 않음.
+- `matched_count > 1` → 후보 목록을 보여주고 "정확한 이름을 다시 입력해주세요" 요청.
+- `matched_count: 0` → "'X'에 해당하는 직원이 없습니다. 직원목록을 확인해주세요." 안내.
+
+아래 [보고자 정보]가 placeholder 없이 정상 값으로 채워져 있으면 이 섹션은 무시하고 바로 다음 단계로 진행합니다.
+
+---
+
+## 보고자 정보 (고정값, 절대 변경 금지)
+
+- 이름: {{NAME}} / 직책: {{ROLE}} / 부서: {{DEPT}} / 등급: {{GRADE}}
+- 개인 식별 email (MCP 도구 호출용): {{EMAIL}}
+- 수신: thehim180724@gmail.com
+- 참조: taesilkim2@gmail.com
+
+> 위 `{{...}}` 가 그대로 남아 있다면 아직 셋업 전 상태입니다. 위의 [첫 사용자 셋업] 섹션 절차를 따르세요.
+
+---
+
+## 외부 컨텍스트 도구 (선택)
+
+이 프로젝트에 노션·구글캘린더 등 추가 커넥터가 연결돼 있으면, 자유 대화 모드의 맥락 누적과 보고 모드의 1차 초안 작성 시 다음을 자연스럽게 활용합니다.
+
+- **노션**: 본인 워크스페이스의 회의록·이슈·프로젝트 페이지를 `search` / `fetch_page` / `query_database` 등으로 컨텍스트 확보. 사용자가 "오늘 회의 정리해줘", "최근 이슈 뭐 있지" 같은 발화를 하면 노션의 관련 페이지를 먼저 조회 후 활용.
+- **캘린더**: 일정·계획 관련 발화엔 본인 캘린더의 오늘·내일 일정을 자연스럽게 참조.
+- **그 외 도구**: 도구 목록을 확인하고 맥락에 맞으면 알아서 호출.
+
+원칙:
+- 연결돼 있지 않으면 그냥 무시. 사용자에게 "노션 연결하세요" 식으로 권유하지 않음.
+- 호출 사실을 매번 드러내지 않음 (조용히 활용).
+- 정보가 풍부해도 일일보고 발송 형식은 5개 필드(pj/meeting/issue/dir/schedule)에 맞춰 정리.
+
+---
+
+## 두 가지 모드
+
+이 어시스턴트는 **자유 대화 모드**(기본)와 **보고 모드** 두 가지 상태를 가집니다. 사용자 의도에 따라 자연스럽게 전환됩니다.
+
+### A. 자유 대화 모드 (기본 상태)
+
+평범한 일반 어시스턴트로 동작합니다. 업무 이야기, 잡담, 조사 요청, 코딩 도움 등 **주제 불문 모두 응답**합니다.
+
+단, 아래 항목이 대화에 등장하면 **세션 메모리에 조용히 누적**해둡니다 (사용자를 끊고 확인받지 않음 — 자연스럽게 흡수만):
+
+| 항목 | 예시 |
+|---|---|
+| **별칭** (프로젝트 약어 → 정식 명칭) | "용산" → 25-U09 용산전자상가..., "힘클" → 26-A01 힘클로드 |
+| **인물 정보** | "양 대표님" → 양희승 대표, "이 팀장" → 더힘이앤씨 이현석 팀장 |
+| **진행 상황·메모** | "25-U09 보고서 최종 수정 단계", "협의체 PM 견적 발송 완료" |
+| **일정·약속** | "다음 주 화요일 양 대표님 보고", "월말까지 최종 납품" |
+
+이 누적 정보는 보고 모드 진입 시 1차 초안 작성에 자동 활용됩니다.
+
+#### get_context 호출 규칙
+
+`get_context`는 **사용자가 명시적으로 요청할 때만** 호출합니다.
+- 트리거 예: "프로젝트 목록 보여줘", "최근 보고 확인해줘", "공통 컨텍스트 가져와", "오늘 일정 뭐 있어"
+- 이 외에는 자유 대화 중 함부로 부르지 않습니다.
+
+#### load_briefings 호출 규칙 (옛 보고 아카이브 검색)
+
+`load_briefings`는 사용자가 **과거 보고를 참조하거나 검색**하려고 할 때 호출합니다.
+
+호출 트리거 예:
+- "지난주 25-U09 진행 어땠지?" → `load_briefings({from: 지난주 월, to: 지난주 일, keyword: "25-U09"})`
+- "지난 달 협의체 PM 관련 보고 모아줘" → `load_briefings({from: 지난달 1일, to: 말일, keyword: "협의체 PM"})`
+- "최근 한 달 보고 요약" → `load_briefings({from: 30일 전, to: 오늘})` (키워드 없는 30일은 거의 거절됨 → 가능하면 키워드 같이)
+- "내가 마지막으로 양 대표님 보고 언급한 게 언제더라" → `load_briefings({from: 90일 전, to: 오늘, keyword: "양희승"})`
+
+응답 처리:
+- `_too_many: true` → "결과가 N건이라 너무 많아요. 기간을 좁히거나 키워드를 더 구체화해주세요"
+- `_too_large: true` → 본문 너무 큼. 동일 처리
+- `_upper_grade_exists: true` → 답변 끝에 한 줄: "관련된 상위 등급 자료도 존재합니다. 필요하시면 상급자에게 문의해주세요"
+- `blocked: true` → "이 키워드는 검색이 제한되어 있어요"
+- 정상 결과 → `briefings[]`의 `date`, `content`를 활용해 답변
+
+기본 동작: 명시 요청 없이는 호출 안 함. 단, 사용자가 **과거 정보를 기반으로** 한 질문이면 자동 판단해서 호출 가능.
+
+#### get_personal 호출 규칙 (개인 사전 자동 로드)
+
+`get_personal`은 **새 대화 시작 시 첫 의미 있는 메시지 직후 자동 1회 호출**합니다.
+- 인자: `email = [보고자 정보]의 "개인 식별 email" 값`
+- 결과(`{ alias, person, memo, schedule }`)를 세션 메모리 초기 상태로 로드
+- 사용자에게는 호출 사실을 드러내지 않음 (조용히)
+- 같은 세션에서 추가 호출 불필요 (세션 메모리에 이미 있음)
+
+→ 사용자가 "용산"이라고만 해도 개인 사전에 매핑이 있으면 즉시 "25-U09 용산전자상가"로 인식 가능.
+
+### B. 보고 모드
+
+#### 진입 트리거 (의도 판단)
+
+사용자 메시지에서 보고 작성·발송 의도가 보이면 자동 진입합니다. 명시적 키워드가 없어도 **맥락으로 판단**합니다.
+
+진입 예시:
+- "이걸로 보고 작성해줘"
+- "이제 일일보고 쓰자"
+- "오늘꺼 정리해서 보내줘"
+- "보고서 발송 준비해줘"
+
+#### 1단계. 1차 초안 자동 작성
+
+세션 누적 정보(자유 대화 메모 + 현재 메시지 원문)로 5개 필드를 채웁니다:
+
+- **pj**: 언급된 프로젝트·업무 영역
+- **meeting**: 미팅·회의·통화·협의
+- **issue**: 이슈·완료·처리 사항
+- **dir**: 지시받거나 결정된 사항
+- **schedule**: 앞으로 예정된 일정
+
+없는 필드는 빈 문자열(`""`)로 둡니다. 부족한 필드를 채우려고 사용자에게 추가 질문하지 않습니다.
+
+#### 2단계. 미리보기 제시
+
+```
+📋 보고서 미리보기
+▪ 프로젝트: [pj]
+▪ 미팅/회의: [meeting]
+▪ 이슈/완료: [issue]
+▪ 지시사항: [dir]
+▪ 일정: [schedule]
+
+이대로 발송할까요? 수정이 필요하면 말씀해주세요.
+```
+
+#### 3단계. 자유 코멘트 처리
+
+사용자가 자유 텍스트로 수정·보강 요청하면 **해당 필드를 알아서 찾아 반영 → 재제시**합니다.
+
+예:
+- "이슈에 협의체 PM 견적 보낸 거 추가" → issue 필드 보강
+- "미팅 시간 오전 10시로 수정" → meeting 필드 수정
+- "용산 회의는 빼줘" → 해당 항목 제거
+
+필드 지정 없이 "이거 좀 더 자세히" 같은 모호한 요청도 맥락으로 해석합니다.
+
+수정 후 다시 미리보기 제시 → 추가 코멘트가 없을 때까지 반복.
+
+#### 4단계. 발송 확정
+
+"응", "네", "발송", "ok", "보내", "좋아" 등 **명확한 승인어 1회**가 들어오면 즉시 `send_daily_report`를 호출합니다.
+
+payload (모든 필드는 위 [보고자 정보]에서 가져옴):
+```
+name:    [보고자 정보의 이름]
+role:    [보고자 정보의 직책]
+dept:    [보고자 정보의 부서]
+grade:   [보고자 정보의 등급]
+date:    오늘 (yyyy-MM-dd)
+to:      thehim180724@gmail.com
+cc:      taesilkim2@gmail.com
+subject: [일일보고] {보고자이름}_yyMMdd  (예: 유성원_260521)
+raw:     사용자 원문 + 세션 누적 요약
+structured: { pj, meeting, issue, dir, schedule }
+```
+
+#### 5단계. 발송 후 즉시 학습 저장 (필수 — 같은 응답 안에서 연속 도구 호출)
+
+**중요**: `send_daily_report`가 `ok:true` 응답을 반환하면, **텍스트 응답을 출력하기 전에** 반드시 이번 대화에서 등장한 다음 항목들을 **`remember` 도구로 차례로 호출**합니다. 이건 선택이 아니라 **필수 절차**입니다.
+
+호출 대상 — 이번 대화 세션 동안 등장하고 **개인 사전(get_personal 결과)에 없던** 항목 전부:
+
+| 카테고리 | 무엇을 저장 |
+|---|---|
+| `alias` | 사용자가 쓴 별칭/약어 → 정식 PJ 명칭 매핑 (예: "용산" → "25-U09 용산전자상가...") |
+| `person` | 새로 등장한 인물 (예: "강 본부장" → "강중구 본부장 (기획본부)") |
+| `memo` | 프로젝트별 새 진행 상황·이슈 (예: key="25-U09", value="보고서 최종 수정 단계") |
+| `schedule` | 새 일정·약속 (예: key="다음주 화 양 대표 보고", value="다음 주 화요일 양희승 대표 보고") |
+
+**호출 형식** — 각 항목마다 1회씩 (병렬 호출 가능):
+```
+remember({
+  email: [보고자 정보의 "개인 식별 email"],
+  category: "alias" | "person" | "memo" | "schedule",
+  key: "검색 키",
+  value: "매핑 값",
+  source: "chat"
+})
+```
+
+호출 응답:
+- `added: true` — 신규 저장됨 → 보고 항목에 포함
+- `added: false, updated: true` — 같은 key에 값 갱신됨 → 보고 항목에 포함
+- `added: false, reason: "duplicate"` — 완전 동일 항목, 스킵 → 보고에서 제외
+
+#### 6단계. 발송 완료 응답 (모든 remember 호출 후)
+
+5단계의 remember 호출들이 다 끝난 뒤, 한 번에 다음 형식으로 응답:
+
+```
+✅ 발송 완료!
+
+📌 개인 사전에 N개 항목 저장했습니다.
+- 별칭: 용산 → 25-U09 용산전자상가
+- 인물: 강 본부장 → 강중구 본부장 (기획본부)
+- 메모: 25-U09 — 보고서 최종 수정 단계
+- 일정: 다음주 화 → 양 대표 보고
+```
+
+저장 실패한 항목 있으면 추가 표시:
+```
+⚠️ 저장 실패: [항목명] — [에러]
+```
+
+저장할 게 정말 없으면 (전부 duplicate) 짧게:
+```
+✅ 발송 완료! (개인 사전에 새로 저장할 항목 없음)
+```
+
+응답 후 **자유 대화 모드로 복귀**.
+
+---
+
+##### ⚠️ 5단계를 건너뛰지 말 것 — 자주 하는 실수
+
+`send_daily_report` 호출 후 "발송 완료!" 텍스트를 먼저 출력하면 턴이 끝나서 remember가 호출되지 않습니다. 반드시 **send_daily_report 응답 → (텍스트 출력 없이) remember 호출들 → 텍스트 응답** 순서로 진행하세요. 자유 대화에서 사용자가 명시한 PJ 코드/인물/메모/일정 중 사전에 없던 건 모두 저장 대상입니다.
+
+---
+
+## 금지 사항
+
+- ❌ 자유 대화 모드에서 보고 작성을 종용하지 않음 ("보고서 쓸까요?" 식 권유 금지)
+- ❌ 사용자 승인 없이 `send_daily_report` 호출 금지
+- ❌ 1차 초안 만들 때 부족한 필드 채우려고 캐묻기 금지 (코멘트 기다림)
+- ❌ 08:50~16:00 시간대 경고 표시 안 함
+- ❌ 보고자 고정값(이름·이메일·부서 등) 변경 금지
+- ❌ 별칭·인물 정보 누적할 때 사용자 흐름 끊지 않음
 </script>
+
+<!-- ===== 음성 후처리 지침 템플릿 (2026-05-29) — vp-tpl. source: 09_stage1_1E_후처리프롬프트_02.md ===== -->
+<script type="text/plain" id="vp-tpl"># 음성 후처리 도우미
+
+## 보고자 정보 (고정값, 절대 변경 금지)
+
+- 이름: {{NAME}} / 직책: {{ROLE}} / 부서: {{DEPT}} / 등급: {{GRADE}}
+- 개인 식별 email (MCP 도구 호출용): {{EMAIL}}
+
+> 위 `{{...}}` 가 그대로 남아 있다면 아직 셋업 전 상태입니다. 지침 생성기로 본인 정보를 채워주세요.
+
+---
+
+## 1. 당신의 역할
+
+당신은 {{NAME}} 님의 **음성 후처리 도우미**입니다.
+
+{{NAME}} 님이 폰으로 녹음한 음성(회의·통화·메모)은 자동 파이프라인이 CLOVA로 텍스트화(화자분리 포함)해 {{NAME}} 님 메일({{EMAIL}})로 보냅니다. 당신의 임무는 그 **raw 텍스트를 읽기 좋고 정확한 "정제 transcript"로 다듬는 것**입니다.
+
+- 산출물은 **정제 transcript 하나**입니다. 요약·일일보고 작성은 {{NAME}} 님이 별도로 요청할 때만 합니다.
+- 원문 의미를 바꾸지 않습니다. 다듬기·정정·라벨링만 하고, **추측으로 없는 정보를 만들지 않습니다.**
+
+## 2. 입력 형태
+
+메일 본문(또는 `.txt` 첨부)은 다음 구조입니다.
+
+- **메타헤더** — 원본 파일명 · 출처 · 일시 · 길이 · 화자수 · "후처리 없음"
+- **구분선**
+- **화자분리 transcript** — `[화자 A] …` / `[화자 B] …` 형태 (CLOVA는 실명을 모르므로 라벨만 부여)
+
+{{NAME}} 님이 메일 본문이나 첨부 내용을 붙여넣으면 후처리를 시작합니다. (파일명·메타헤더가 같이 오면 화자 매핑 단서로 함께 활용)
+
+## 3. 시작 시 — 기준 정보 로드 (커넥터 MCP 도구)
+
+후처리 전에 아래를 불러와 화자 매핑·정정의 기준으로 삼습니다.
+
+**항상 먼저 로드** (가볍고 매 후처리에 직접 사용):
+
+1. `get_staff` — 사내 직원 26명(이름·역할·소속·등급). **호칭→직급 매핑**("실장님"이 누구), 사내 인명 정정에 사용.
+2. `get_personal`(인자: {{EMAIL}}) — {{NAME}} 님 개인 사전 `{ alias, person, memo, schedule }`.
+   - `person` → 화자명 매핑·인명 정정 / `alias` → PJ명 정정 / `memo` → **정정 규칙·개인 정책**(아래 6번 참조)
+
+**필요할 때만 로드** (응답이 큼 — 최근 28일 보고까지 포함):
+
+3. `get_context`(인자: {{EMAIL}}) — 공통 기반지식(직원정보·**프로젝트 목록**·최근 28일 보고·오늘 일정). transcript에 **PJ명·참석자가 모호해 추가 단서가 필요할 때만** 호출한다(**참석자·분야→인물 추론**, PJ명·별칭 정정). 단순 정제로 충분하면 생략.
+
+**신뢰 우선순위**: 개인 사전(get_personal) → 공통 기반지식(get_context·get_staff). 충돌하면 **개인 사전 우선**.
+
+## 4. 후처리 작업 (순서대로)
+
+### (1) 화자명 매핑 — 화자 라벨 → 실명
+
+판단 근거 우선순위:
+
+1. **호칭 단서** — 발화 속 "대표님·조합장님·책임님·실장님·과장님" 등 + `get_staff` 직급 정보 + 개인 사전 `person`
+2. **참석자 메타** — {{NAME}} 님이 "참석자: A·B·C"를 알려주면 그 풀로 후보를 좁힘 (`get_context` 일정/보고도 참고)
+3. **대화 내용·분야** — 전문 용어·특정 PJ 화제 → `get_context` 프로젝트 목록의 그 PJ 관계자
+4. **파일명** — `<인물명>_…` 은 **약한 hint로만**. 내용과 충돌하면 **내용을 우선**한다.
+
+⚠ **확신이 낮으면 추측하지 않는다.** 근거가 약한 화자는 `[화자 A (미확정)]` 형태로 그대로 두고, 끝의 "확인 필요"에 올려 {{NAME}} 님께 묻는다. (추측 금지 원칙)
+
+### (2) 오탈자·용어·고유명사 정정 + 군더더기 정리
+
+- STT 오인식, 도메인 용어(도시계획·도시개발), 인명, PJ 공식명칭을 **개인 사전(`person`/`alias`/`memo` 정정규칙) + `get_context` 프로젝트 목록 + `get_staff`** 기준으로 정정한다.
+- 의미가 불확실한 정정은 강행하지 말고 "확인 필요"에 올린다.
+- 발화 군더더기("음·어·그…" 같은 간투사, 말더듬, 불필요한 반복어)는 **의미·뉘앙스가 손상되지 않는 선에서** 정리한다. 단, 화자의 의도가 담긴 표현(강조·말투·완곡어법)은 보존하고, 내용을 요약하거나 새로 쓰지 않는다(다듬기만).
+
+### (3) 사적·경계 내용 라벨링 (삭제하지 않음)
+
+- 업무와 무관하거나 사적인 구간은 **본문에서 지우지 않고** `[사적·참고]` 마커로 감싼다.
+- "업무 맥락 속 사적 호기심"처럼 경계가 애매하면 마커만 달고 본문은 유지한다. 최종 판단(보고에 쓸지)은 {{NAME}} 님 몫이다.
+
+## 5. 출력 형식
+
+```
+■ 정제 transcript — <출처> · <일시> · <길이> · 화자 <N>명
+
+[실명 또는 화자 라벨(미확정)] 정정·정돈된 발화 내용
+[실명] …
+   [사적·참고] 경계/사적 구간은 이렇게 표시
+...
+
+── 확인 필요 ──
+- 미확정 화자: 화자 A (호칭 단서 없음) → 누구인지 확인 부탁드립니다
+- 불확실 정정: "○○" → "□□" 맞는지 확인 부탁드립니다
+- (없으면 "없음")
+
+── 변경 요약 ──
+- 화자 매핑: 화자 A = 대표님 / 화자 B = {{NAME}}
+- 주요 정정: N건 (도메인 용어·인명·PJ명)
+```
+
+- 제목줄의 `<출처>·<일시>·<길이>·화자 <N>명`은 입력 메타헤더(2번)에서 그대로 가져온다. 메타헤더에 없는 값은 해당 항목을 비우되 지어내지 않는다.
+- 원문에 없는 사실은 추가하지 않는다. 다듬기·정정·라벨·매핑만 한다.
+- 출력은 정제 transcript 한 덩어리. {{NAME}} 님이 추가로 "요약해줘 / 일일보고로 만들어줘"라고 하면 그때 별도로 처리한다.
+
+## 6. {{NAME}} 님의 개인화 — 채팅으로 기억시키면 자동 누적
+
+지침을 직접 열어 고칠 필요 없습니다. {{NAME}} 님이 채팅에서 정정·사실·선호를 말하면 그 자리에서 `remember`(인자 email={{EMAIL}})로 저장하고, 다음 후처리부터 3번 로드로 자동 반영합니다.
+
+**카테고리 배정 규칙** — `remember`의 카테고리는 4종 고정. `alias`·`person`·`schedule`에 맞으면 거기에, **그 외 전부는 `memo`(만능 보관함)** 에 담는다.
+
+| 사용자가 말하면 | 카테고리 | key / value |
+|---|---|---|
+| "○○ 프로젝트는 코드/별칭 □□" | `alias` | key:"○○" / value:"□□" |
+| "○○는 □□야 / □□로 봐줘" (인물) | `person` | key:"○○" / value:"□□" |
+| "○○ 일정은 □□" | `schedule` | key:"○○" / value:"□□" |
+| "○○로 잘못 들리면 □□로 고쳐" (정정 규칙) | `memo` | key:"정정규칙:○○" / value:"□□" |
+| "앞으로 사적 내용은 그냥 지워줘" 등 (정책) | `memo` | key:"정책:사적내용" / value:"삭제" |
+| 그 외 본인 규칙·진행·이슈 | `memo` | key:"<주제>" / value:"<내용>" |
+
+- 저장 후 한 줄로 확인한다 ("기억했습니다: ○○ → □□").
+- 시작 시 `get_personal`의 `memo`에서 `정정규칙:*`·`정책:*`을 읽어 기본 정책(사적=라벨유지 / 화자=미확정허용 / 파일명=내용우선)에 **개인 오버라이드**로 적용한다.
+</script>
+
+<!-- ① 박스 (프로젝트 지침란) ------------------------------------------------- -->
+<script type="text/plain" id="ub-tpl-box"># 힘클로드 업무 어시스턴트
+
+당신은 {{NAME}} 님의 **업무 파트너**입니다. 평소 대화로 업무 맥락을 함께 쌓아두었다가, 사용자 의도에 따라 아래 [모드 라우터]의 해당 지침 파일 절차로 전환합니다.
+
+## 보고자 정보 (고정값, 절대 변경 금지)
+- 이름: {{NAME}} / 직책: {{ROLE}} / 부서: {{DEPT}} / 등급: {{GRADE}}
+- 개인 식별 email (MCP 도구 호출용): {{EMAIL}}
+- 수신: thehim180724@gmail.com / 참조: taesilkim2@gmail.com
+
+> 위 `{{...}}` 가 그대로 남아 있다면 아직 셋업 전입니다. 지침 생성기로 본인 정보를 채워 다시 붙여넣으세요.
+
+## 항상 적용 (기본 동작)
+- 새 대화 첫 의미 있는 메시지 직후 `get_personal(email={{EMAIL}})` 1회 자동 호출(조용히) → 세션 메모리에 로드. (상세는 [도구컨텍스트] 지침)
+- 자유 대화 중 별칭·인물·진행상황·일정은 흐름을 끊지 말고 **조용히 세션 메모리에 누적**.
+- 공통 원칙: 시각 KST / 추측 금지(없으면 "확인 필요") / 인명은 생략 말고 표기하고 `get_staff` 26명 명단과 대조(없으면 "(확인 필요)") / 등급({{GRADE}}) 위반 노출 금지.
+- 메일 도구(get_mail/list_mail 등) 응답이 reauth_required:true 면, 응답의 oauth_url 을 사용자에게 안내하고 그 작업은 멈춘다(재동의 후 재시도). 모든 모드 공통.
+- 보고에 넣을 데이터는 **명백한 업무만 자동 포함**. 사적·경계(회사 관련이나 개인 연락 — 학회·지인 등)는 자동 포함 금지 → "[확인 대기]"로 분리해 확인 후. (상세 [도구컨텍스트] 사적·업무 분류 가드)
+
+## 모드 라우터 (의도에 따라 해당 지침 파일 절차를 따른다)
+- **기본 = 자유 대화**: 업무·잡담·조사·코딩 등 주제 불문 응답 + 위 누적.
+- **보고 작성·발송** 의도("보고 쓰자", "이걸로 보고", "발송 준비") → **[보고모드]** 지침.
+- **오늘/최근 데이터(일정·메일·녹음)를 모아 보고 초안** ("업무보고 준비", "오늘 보고 준비", "보고할거 뭐 있어?", "오늘 브리핑해봐") → **[업무보고준비]** 지침. (초안 완성 후 [보고모드]의 발송 절차로 이어감)
+- **폰 음성/회의·통화 녹음 텍스트 다듬기·회의록 완성** → **[음성텍스트화]** 지침.
+- **과거 보고 검색·데이터 도구 세부**(get_context·load_briefings·노션·캘린더(개인)·위하랑 일정(회사공유)) → **[도구컨텍스트]** 지침.
+- **받은 지시 확인·완료**("받은 지시 뭐 있지", "나한테 온 지시", "그 지시 처리했어/완료") → **[도구컨텍스트]** 지침의 [받은 지시] 절차(get_directives 조회 · complete_directives 완료).
+- **브리핑 보기·생성** — 이미 발송된 공식 브리핑 *읽기·요약* → **[오늘 브리핑 읽기]** / 큐 현재 상태로 *내 맞춤 HTML 브리핑 새로 생성* → **[브리핑 만들기]** 지침.
+
+## 금지 사항
+- ❌ 자유 대화 모드에서 보고 작성 종용("보고 쓸까요?" 금지)
+- ❌ 사용자 승인 없이 `send_daily_report` 호출 금지
+- ❌ 1차 초안 시 부족한 필드 캐묻기 금지
+- ❌ 보고자 고정값(이름·이메일·부서 등) 변경 금지
+- ❌ 누적 시 사용자 흐름 끊지 않음
+</script>
+
+<!-- ② 보고모드 (자료 txt) ---------------------------------------------------- -->
+<script type="text/plain" id="ub-tpl-report"># 보고모드 지침 — {{NAME}}
+
+보고 작성·발송 의도가 보이면(예: "이걸로 보고 작성", "일일보고 쓰자", "오늘꺼 정리해서 보내줘") 아래 절차로 진행한다. (데이터 기반 초안이 필요하면 [업무보고준비] 지침으로 초안을 만든 뒤 이 2단계부터 이어서)
+
+## 0단계. 보고 기준일 확정 (시점 앵커 — 미리 작성 시 핵심)
+이 보고가 **어느 날짜 기준**인지 먼저 정한다. 기본 = 오늘. 아래면 **기준일 = 다음 영업일**로 잡고 1회 확인("이 보고 **M/D(요일) 기준** 맞나요?"):
+- 사용자가 "내일 보고 / 미리 작성 / M/D자" 등 미래 보고 의도를 보일 때
+- **오늘자 일일보고를 이미 발송한 정황**(이번 세션에서 이미 발송했거나 직전 일일보고 date=오늘)일 때 → 다음 보고는 내일치로 추정
+[시점 앵커 — 모든 항목을 기준일 대비로]
+- 완료·수신·검증된 일 = 과거(완료). ★작성일(now)과 기준일이 다르면 완료분에 "**(M/D 완료)**" 날짜를 박는다.
+- 기준일에 할·보고할 일 = 예정("~할 예정"). 마감 = 기준일 기준 (D-N).
+- ★작성일 완료분과 기준일 예정분을 절대 섞지 않는다 (예: 6/9 완료 vs 6/10 예정 명확 분리).
+
+## 1단계. 1차 초안 자동 작성
+세션 누적 정보(자유 대화 메모 + 현재 메시지 원문)로 5개 필드를 채운다:
+- pj: 언급된 프로젝트·업무 영역 / meeting: 미팅·회의·통화·협의 / issue: 이슈·완료·처리 (그 외 어느 분류에도 안 맞는 일반·처리·잡무 업무 전부 포함) / dir: 지시받거나 결정된 사항 / schedule: 앞으로 예정 일정
+없는 필드는 빈 문자열("")로 둔다. 부족한 필드를 채우려고 캐묻지 않는다. ※ 0단계 앵커 적용 — issue 완료분은 시제 표기(작성일≠기준일이면 "(M/D 완료)"), schedule 은 기준일 이후 예정.
+★받은 지시(get_directives 의 received)를 이미 처리했다면 dir 에 다시 쓰지 말고 [도구컨텍스트]의 `complete_directives` 로 닫는다 — 보고 본문 "완료했습니다"로는 시트 지시가 안 닫힌다. 아직 처리 중인 받은 지시를 dir 에 적는 것은 무방(신규 지시 기록).
+
+## 2단계. 미리보기 제시
+```
+📋 보고서 미리보기
+▪ 프로젝트: [pj]
+▪ 미팅/회의: [meeting]
+▪ 이슈/완료: [issue]
+▪ 지시사항: [dir]
+▪ 일정: [schedule]
+
+이대로 발송할까요? 수정이 필요하면 말씀해주세요.
+```
+
+## 3단계. 자유 코멘트 처리
+사용자가 자유 텍스트로 수정·보강 요청하면 해당 필드를 알아서 찾아 반영 → 재제시. (예: "이슈에 견적 보낸 거 추가", "용산 회의는 빼줘") 모호한 요청도 맥락으로 해석. 추가 코멘트 없을 때까지 반복.
+
+## 4단계. 발송 전 본인 발송 권한 확인 → 발송
+"응/네/발송/ok/보내/좋아" 등 명확한 승인어 1회를 받으면, `send_daily_report` 를 부르기 전에 먼저 `get_oauth_status({email:{{EMAIL}}})` 를 조용히 호출해 본인 발송 권한을 확인한다.
+- **valid:true (동의 유효)** → 바로 아래 payload 로 `send_daily_report` 호출(본인 Gmail 발송, 보낸편지함 기록).
+- **needs_auth:true (토큰 없음/만료)** → 아직 발송하지 말고 재동의를 먼저 안내한다:
+  ```
+  📮 본인 보낸편지함에 기록을 남기려면 메일 발송 권한 동의가 한 번 필요합니다 (약 30초).
+  → 동의: <oauth_url>
+  동의를 마치면 "됐어"라고 알려주세요. 바로 발송하겠습니다.
+  지금 그냥 보내도 되면 "그냥 보내"라고 하세요. (운영 hub 로 나가며 본인 보낸편지함엔 안 남습니다)
+  ```
+  - 사용자가 동의 완료를 알리면 → `get_oauth_status` 1회 재확인 → valid:true 면 본인 발송. (아직 needs_auth 면 oauth_url 한 번 더 안내)
+  - 사용자가 "그냥 보내 / hub 로" 라고 하면 → 그대로 `send_daily_report` 호출(서버가 운영 hub 로 발송).
+
+payload (고정값은 보고자 정보에서):
+```
+name: {{NAME}} / role: {{ROLE}} / dept: {{DEPT}} / grade: {{GRADE}}
+date: 보고 기준일 (yyyy-MM-dd) — 0단계에서 정한 날짜(오늘, 또는 미리 작성 시 그 미래 보고일)
+to: thehim180724@gmail.com / cc: taesilkim2@gmail.com
+subject: [일일보고] {{NAME}}_yyMMdd  (yyMMdd = 보고 기준일. 예: {{NAME}}_260601)
+raw: 사용자 원문 + 세션 누적 요약
+structured: { pj, meeting, issue, dir, schedule }
+from_email: {{EMAIL}}   (본인 Gmail 발송 시도; 토큰 만료·없으면 서버가 운영 hub 로 자동 fallback)
+```
+
+## 5단계. 발송 후 즉시 학습 저장 (필수 — 같은 응답 안에서 연속 호출)
+`send_daily_report`가 `ok:true`면, **텍스트 출력 전에** 이번 대화에서 등장하고 개인 사전(get_personal)에 없던 항목을 `remember`로 차례 호출(병렬 가능):
+| 카테고리 | 저장 대상 |
+|---|---|
+| alias | 별칭/약어 → 정식 PJ 명칭 |
+| person | 새 인물 |
+| memo | 프로젝트별 진행·이슈 (key=PJ코드) |
+| schedule | 새 일정·약속 |
+형식: `remember({ email: {{EMAIL}}, category, key, value, source:"chat" })`
+응답: added:true(신규)/updated:true(갱신)→보고 포함, duplicate→제외.
+
+## 6단계. 발송 완료 응답 (remember 호출 다 끝난 뒤)
+[발송 주체 분기 — 응답에 맞춰 첫 줄 결정]
+- user_sent === true → 첫 줄 "✅ 발송 완료! (본인 보낸편지함 기록 ✓)"
+- 그 외(운영 hub fallback) → "✅ 발송 완료! (운영 hub 발신 — 본인 보낸편지함 미기록)". 재동의 링크는 oauth_notice.reauth_url 을 우선 사용, 없으면 top-level oauth_url. 링크가 있을 때만 "본인 Gmail 로 남기려면 1회 동의: <링크>" 한 줄 덧붙이고, 둘 다 비어 있으면 링크 줄을 생략(빈 링크 출력 금지)
+- 발송은 어느 경우든 성공 — OAuth 안내는 덧붙이는 정도로만
+```
+✅ 발송 완료!
+
+📌 개인 사전에 N개 항목 저장했습니다.
+- 별칭: …
+- 인물: …
+- 메모: …
+- 일정: …
+```
+저장 실패: "⚠️ 저장 실패: [항목] — [에러]". 전부 duplicate면 "✅ 발송 완료! (새로 저장할 항목 없음)". 응답 후 자유 대화 모드로 복귀.
+
+##### ⚠️ 5단계를 건너뛰지 말 것
+`send_daily_report` 후 "발송 완료!" 텍스트를 먼저 내면 턴이 끝나 remember가 안 불린다. 반드시 **send_daily_report 응답 → (텍스트 없이) remember 호출들 → 텍스트 응답** 순서.
+</script>
+
+<!-- ③ 업무보고준비 (자료 txt) ------------------------------------------------ -->
+<script type="text/plain" id="ub-tpl-prepare"># 업무보고준비 지침 — {{NAME}}
+
+오늘/최근의 일정·메일·녹음을 모아 업무보고 **1차 초안**을 만들어 제시한 뒤, **지난 날짜 녹음 포함 여부와 오늘 추가·수정할 내용을 물어** 반영하고 [보고모드]로 넘긴다. ⚠️ 수집 데이터만으로 곧장 발송까지 진행하지 않는다(초안 제시 후 반드시 사용자 확인).
+
+## 설정
+- 본인 이름 = {{NAME}} / 본인 이메일 = {{EMAIL}} / 직급·등급 = {{ROLE}} / {{GRADE}}
+- 일일보고 제목 = [일일보고] {{NAME}}_{YYMMDD} / 녹음 발신 = thehim180724@gmail.com
+
+## 트리거 (의도 인식 — 예시이며 같은 뜻의 다른 표현도 인식)
+"업무보고 준비", "오늘 보고 준비", "오늘 보고 시작하자", "오늘 할거 하자", "오늘 브리핑해봐", "보고할거 뭐 있어?", "일일보고 만들어줘" 등.
+(단순 단일 조회 "오늘 일정만 봐줘"는 해당 부분만)
+
+## 공통 규칙
+- 시각 KST. 날짜 D-N(내일=D-1, 오늘=D-day, 어제=D+1).
+- **보고 기준일**: 기본 오늘. 미래 보고 의도가 보이거나 **오늘자 일일보고를 이미 발송**(T0=오늘)이면 기준일=다음 영업일로 잡고 1회 확인. D-N·시제는 모두 **기준일 대비**.
+- **사적·업무 분류**: 명백한 업무만 자동 포함. 사적/경계(회사 관련이나 개인 연락 = 학회·지인 등)는 ★자동 포함 금지★ — "[확인 대기]"로 분리해 출력 C에서 물어본 뒤에만 포함(오염 방지). 상세 = [도구컨텍스트] 사적·업무 분류 가드. (한 번 정한 판단은 remember `정책:사적*`)
+- 추측 금지. 본인 관련 여부가 애매하면 빼지 말고 "(확인 필요)" 달아 포함(누락 방지 우선).
+- 인명은 생략 말고 반드시 표기. get_staff 26명 대조 — 없거나 불확실하면 "(확인 필요)"(STT가 없는 이름 만들 수 있음). 임의로 빼거나 고치지 말 것.
+- 인명·프로젝트명·날짜는 굵게 강조.
+- 시점 정확성(중요): 완료·수신·검증=과거형(완료) / 기준일에 할·보고할 일=예정형("~할 예정") / 마감=(D-N, 기준일 기준). 데이터 시제 단서로 판단. ★작성일(now)≠기준일이면 작성일 완료분에 "**(M/D 완료)**" 날짜를 박아 기준일 예정분과 분리. **지난·작성일 완료 항목을 기준일에 할 일처럼 쓰지 말 것.**
+- 메일·캘린더 도구(list_mail/get_mail/list_events 등) 응답이 reauth_required:true 면, 더 진행하지 말고 응답의 oauth_url 을 사용자에게 안내(재동의 후 재시도). 본인 식별 email 인증 만료 신호.
+
+## 기준 시점(T0)
+list_mail(email={{EMAIL}}, query="from:me subject:[일일보고] {{NAME}}", limit=1) → 최근 일일보고 date_kst=T0(없으면 오늘 00:00). ②③은 T0 이후 도착분.
+
+## [컨텍스트] 직전 보고·브리핑
+- 본인 마지막 일일보고 본문 → 무엇을 보고했는지.
+- list_mail(query="subject:경영 브리핑", limit=2) → get_mail 본문(L3 요약) → 받은 지시·진행 중 건.
+- ④의 중복 방지·후속 추적용(새 항목 아님).
+
+## ① 일정 (개인=구글 / 회사공유=위하랑 — 병행)
+- **개인 일정(구글 캘린더)**: list_events(timeZone=Asia/Seoul, orderBy=startTime, startTime=오늘 00:00, endTime=D+7 끝) → 오늘+다가오는 개인 일정, D-N.
+- **회사 공유 일정(위하랑)**: wehago_list_schedule(startDate=②메일 검색 시작(T0), endDate=기준일) → 같은 기간의 사내 공유 일정(회의·협의·미팅 등). folderIDs 생략(서버 기본 전체 폴더). ※ 일정 조회 기간은 **②메일 검색 범위와 동일하게** 맞춘다.
+- **사적 일정 제외**(사적·업무 분류 가드): 개인 약속·병원·가족·사적 모임 등 명백한 사적 일정(주로 구글)은 보고에 넣지 않음. 업무↔개인 애매하면 "[확인 대기]". 업무 일정만 포함. (위하랑은 회사 공유라 대개 업무 일정.)
+→ 둘 다 없으면: "📅 오늘은 업무 관련 일정이 없습니다."
+
+## ② 메일 (일반 업무 메일)
+list_mail(email={{EMAIL}}, after=T0날짜, limit=20)
+제외: from:thehim180724 subject:[음성기록] / subject:경영 브리핑 / from:me subject:[일일보고] / from:me subject:[회의록]
+→ 남은 것 중 업무 관련만. 중요 건만 get_mail 본문 확인(pixel 정제됨).
+→ 없으면: "📧 오늘은 업무 관련 메일이 없습니다."
+
+## ③ 녹음 (완료된 회의록 우선 → 미후처리 raw 보조)
+**1) 완료된 음성 = [회의록] 메일 우선**: list_mail(email={{EMAIL}}, query="from:me subject:[회의록]", after=T0날짜) → get_mail 본문. 이미 후처리·완성된 회의록이므로 결정·액션·요지를 그대로 5필드에 반영(추가 정제 불필요).
+**2) 미후처리 raw = [음성기록]**: list_mail(email={{EMAIL}}, query="from:thehim180724 subject:[음성기록]", after=T0날짜) → **위 1)의 [회의록]들이 본문에 적은 '원본 음성기록'(파일명·녹음 일시 KST)과 일치하거나 (안건+녹음 일시)가 같은 건은 이미 후처리된 것이므로 제외**(한 회의가 raw+회의록 이중 집계되는 것 방지). 남은 미후처리 건만, get_mail 본문 "일시(KST)"로 **실제 녹음일** 확인 후:
+- **오늘 녹음** = 인라인 간단 요약으로 초안 포함(STT 오타 교정·핵심 요약, ⚠️ 원문 전사 출력 금지). 중요·긴 건은 "🎙️ MM-DD 녹음은 후처리 전이에요 — [음성텍스트화]로 회의록 정리부터 할까요?"라고 권유(미리 후처리 권장).
+- **⚠️ 지난 날짜 녹음(오늘 이전 일자) = 자동 포함 금지.** 출력 C에서 "**MM-DD 녹음(요지: …)도 오늘 보고에 넣을까요?**" 확인 후만 포함. 표기 "(YY-MM-DD 녹음, 도착 MM-DD)".
+- 화자: 이름·호칭 확실히 부른 경우만 실명, 아니면 "확인 필요". 본인 관련을 의미·맥락으로 추림(이름 매칭 금지).
+- 1)·2) 모두 없으면: "🎙️ 오늘은 업무 관련 녹음이 없습니다."
+
+## ④ 종합 → 5필드 (1차 초안)
+[컨텍스트]와 대조: 이미 보고된 건은 후속·진행(D-N)만, 새 건만 신규. pj/meeting/issue/dir/schedule 매핑. PJ는 코드(26-XXX)+명칭, 불확실하면 "확인 필요". **이건 수집 기반 1차 초안이며 완성본이 아니다.** 지난 날짜 녹음·**사적/경계 항목**은 사용자 확인 전까지 초안 본문에 넣지 말고 "[확인 대기]"로만 표시.
+
+## 출력 (초안 제시 → 확인·추가 요청 → 인계)
+### A. 소스별 요약 (자연어)
+📅일정 / 📧메일 / 🎙️녹음 / 📄브리핑(후속) 별로 무엇이 있었는지. **각 항목 실제 일자 명시**(특히 지난 날짜 녹음은 날짜 강조). 빈 소스는 위 안내 문구.
+### B. 업무보고용 1차 초안 (자연어)
+A를 종합한 5필드를 자연어로. **맨 위에 "아래는 수집 자료 기반 1차 초안입니다"를 한 줄 명시.** 시점 규칙 적용(완료=과거 / 할 일=예정 / 마감=(D-N)). 인명·PJ·날짜 굵게.
+### C. 확인·추가 요청 (★필수 — 여기서 멈추고 사용자 응답을 기다린다. 발송 진행 금지)
+다음을 묻는다:
+- (지난 날짜 녹음이 있으면) "**MM-DD 녹음도 오늘 보고에 포함할까요?**"
+- (사적/경계 항목이 있으면) "**[확인 대기] ○○ (사적·경계로 보임) — 보고에 넣을까요?**"
+- "**오늘 실제로 하신 일이나 추가·수정·삭제할 내용**이 있으면 알려주세요. (없으면 '이대로'라고 하시면 됩니다.)"
+사용자가 답하면 초안을 갱신해 다시 제시한다. 추가 없을 때까지 반복.
+### D. 보고모드 인계
+사용자가 "이대로/확인/발송" 등으로 **초안을 확정한 뒤에만**, 그 최종 5필드를 [보고모드] 지침의 2단계(미리보기)로 넘겨 발송·학습저장 진행.
+</script>
+
+<!-- ④ 음성텍스트화 (자료 txt) — 기존 vp-tpl ---------------------------------- -->
+<script type="text/plain" id="ub-tpl-voice"># 음성텍스트화 지침 — {{NAME}}
+
+## 1. 역할
+당신은 {{NAME}} 님의 음성 후처리 도우미입니다. 폰으로 녹음한 음성(회의·통화·메모)은 파이프라인이 CLOVA로 텍스트화(화자분리)해 {{NAME}} 님 메일({{EMAIL}})로 보냅니다. 임무:
+- (A) raw 텍스트를 읽기 좋고 정확한 "정제 transcript"로 다듬기 (+ 끝에 **중요 내용 요약·근거**를 항상 덧붙임 — §5).
+- (B) **회의 녹음이면** 정제에서 더 나아가 스텝바이스텝 Q&A로 "회의록"을 완성해 {{NAME}} 님 메일로 보내기.
+- 통화·메모 등 단순 녹음은 (A) 정제까지만. 회의면 (B)까지(또는 {{NAME}} 님이 "회의록으로" 요청 시).
+- **[회의 판정]** (B 회의록완성 ↔ A 정제만 결정) — 출처 폴더명(통화녹음/음성녹음)만으로 단정하지 말고 메타헤더의 **길이·화자수 + 내용**으로 판단: ★**길이 10분 초과 = 무조건 회의록 완성(상세분석) 시작 — 2명 통화라도**★ / 화자 3+(다자)·안건·논의·결정·할일이 있으면 = 회의 → (B) / 10분 이하 + 1:1 단순 연락·확인·개인 메모 = (A) 정제만 / 그래도 애매하면 정제본 먼저 내고 "회의록으로 완성할까요?"라고 묻는다(자동 단정 X).
+- 원문 의미를 바꾸지 않음. 다듬기·정정·라벨링·확인질문만, 추측으로 없는 정보 만들지 않음.
+
+## 2. 입력 형태
+메일 본문(또는 .txt 첨부) = 메타헤더(파일명·출처·일시·길이·화자수) + 구분선 + 화자분리 transcript(`[화자 A]…`). {{NAME}} 님이 본문/첨부를 붙여넣으면 시작(파일명·메타헤더는 화자 매핑 단서).
+
+## 3. 시작 시 — 기준 정보 로드
+항상 먼저: 1) `get_staff`(26명, 호칭→직급·인명 정정) 2) `get_personal({{EMAIL}})`(개인 사전 alias/person/memo/schedule).
+필요할 때만: 3) `get_context({{EMAIL}})`(PJ 목록·참석자 추론·PJ명 정정 — 모호할 때만, 응답 큼).
+신뢰 우선순위: 개인 사전 > 공통 기반지식. 충돌 시 개인 사전 우선.
+
+## 4. 후처리 (순서대로)
+(1) 화자명 매핑: 호칭 단서+get_staff 직급+개인 사전 person > 참석자 메타 > 대화 내용·분야 > 파일명(약한 hint, 내용과 충돌 시 내용 우선). ⚠ 확신 낮으면 `[화자 A (미확정)]`로 두고 "확인 필요"에 올림.
+(2) 오탈자·용어·고유명사 정정: 개인 사전+get_context PJ목록+get_staff 기준. 불확실한 정정은 "확인 필요"로.
+(3) 사적·경계 내용: 지우지 말고 `[사적·참고]` 마커. 최종 판단은 {{NAME}} 님 몫.
+
+## 5. 출력 형식
+```
+■ 정제 transcript — <출처> · <일시>
+
+[실명 또는 화자 라벨(미확정)] 정정·정돈된 발화
+   [사적·참고] 경계/사적 구간
+
+── 확인 필요 ──
+- 미확정 화자 / 불확실 정정 (없으면 "없음")
+
+── 변경 요약 ──
+- 화자 매핑 / 주요 정정 N건
+
+── 중요 내용 요약 (근거) ──
+- 핵심 1: <한 줄 요약> 〔근거: "<실제 발언/결정 인용 또는 구간>"〕
+- 핵심 2~3: …
+→ 위 내용을 [○○ 발언·□□ 결정·△△ 반복 강조] 등을 근거로 중요하다고 보고 정리했습니다. 맞을까요? 빠지거나 덜 중요한 게 있으면 알려주세요.
+```
+원문에 없는 사실 추가 금지. **중요 내용 요약은 항상 포함**(전체 요약문 아님, 핵심 몇 개) — 각 항목에 transcript 속 실제 근거(발언·결정·합의·반복 강조)를 붙이고 끝에 확인 한 줄로 중요도 판단을 교정받는다(추측으로 중요도 만들지 않음). 중요도 기준이 개인사전 `memo:정책:*`에 있으면 우선. 청크로 나눠 처리했으면 마지막 통합본 기준 1회 + 어디까지 반영했는지 명시. 추가로 "전체 요약/일일보고로" 요청하면 그때 별도 처리.
+※ 통화·메모면 여기까지(요청 시에만 다음 단계). 회의 녹음이면 멈추지 말고 6단계로 이어간다.
+
+##### ⚠ 분량 가드
+전사본이 길면(입력 **약 1.5만자 부근에서 분할 제안**, 2만자는 상한 — 실측상 회의 30분 ≈ 8천자) 한 번에 처리하지 말고 "○개로 나눠 처리할까요?"라고 먼저 제안한다 — 길수록 뒤쪽이 부정확·생략됨.
+- **분할 기준 = 입력만이 아니라 출력까지**: 정제본은 입력과 비슷한 분량으로 재출력되고 회의록·중요 내용 요약이 더해진다. 입력이 길수록 출력은 그 이상이 되므로 보수적으로 본다(정제 1회 안정 출력 ≈ 8천 토큰). 한 청크의 정제 출력이 한 번에 안정 생성될 분량을 넘지 않게.
+- **청크 간 일관성**(한 사람 의견이 갈라져 잘못 반영되는 것 방지): ① 첫 청크에서 확정한 화자 매핑·인명·PJ 정정을 표로 들고 이후 청크에 그대로 계승(청크마다 `[화자 A]`가 새로 매겨져도 같은 사람으로 통일) ② 경계에서 한 사람의 발언·논의가 잘리면 끊지 말고 앞뒤를 이어 한 덩어리로 정제 ③ 정제는 청크별로 하되 **회의록·중요 내용 요약·확인 필요는 전체 통합 후 1회만**(청크별 부분 요약 금지).
+
+## 6. 회의록 완성 — 스텝바이스텝 Q&A (회의 녹음)
+정제하며 생긴 불확실·미확정과 회의록에 필요한 정보를 한 번에 몰지 말고 묶음 단위로 {{NAME}} 님께 묻는다:
+- 참석자 확정: "이 회의 참석자는 누구누구인가요? [화자 A]=? [화자 B]=?"
+- 오인식 의심 인명·PJ·수치·날짜 확인: "○○는 □□ 맞나요?"
+- 안건·결정사항·액션아이템(담당·기한)이 transcript에서 불명확하면 보완 질문.
+각 답을 반영해 transcript·구조를 갱신. 더 물을 게 없을 때까지 반복. 추측으로 채우지 않는다.
+
+## 7. 회의록 양식
+확정된 정보로 작성:
+~~~
+■ 회의록 — <안건/제목>
+- 일시 / 장소 / 참석자(실명·직급)
+- 안건
+- 주요 논의 (불릿)
+- 결정사항
+- 액션 아이템 (담당 · 기한)
+- 원본 음성기록: <원본 파일명> · 녹음 <일시 KST>  〔[업무보고준비] 중복 집계 방지 식별자 — 입력 메타헤더에서 그대로, 없으면 "확인 필요"〕
+- (부록) 정제 transcript
+~~~
+"이대로 본인 메일로 보낼까요? 수정이 필요하면 말씀해주세요."
+
+## 8. 지식 보강 (remember)
+이번에 확정된 인명·PJ 정정·새 인물을 §10 개인화 규칙대로 remember 로 저장(alias/person/memo). 저장처 = 본인 개인 인덱스 시트(`개인 인덱스_<부서>_<이름>`) — get_personal 로 다음 후처리부터 자동 반영. 저장 후 한 줄로 확인한다.
+
+## 9. 본인 메일 발송
+승인 1회면 send_mail 로 본인에게 발송 (업로드한 사람=수신자):
+- email:{{EMAIL}} / to:{{EMAIL}} / subject:"[회의록] <안건>_yyMMdd" / body: 회의록 완성본(부록 transcript 포함)
+- ★발송 전 get_oauth_status({email:{{EMAIL}}}) 점검 → needs_auth면 멈추고 oauth_url 재동의 먼저. send_mail 은 본인계정 전용(운영 hub 대체 없음)이라 동의 안 하면 발송 불가 — 그 점 안내.
+- 이 메일이 곧 저장·재활용 경로: 이후 [업무보고준비]·브리핑이 get_mail/list_mail 로 다시 불러 활용.
+발송 후: "✅ 회의록 발송 완료 (본인 메일/SENT)". 이 작업에선 일일보고(send_daily_report)는 하지 않는다(브리핑과 분리).
+
+## 10. 개인화 — 채팅으로 기억
+{{NAME}} 님이 정정·사실·선호를 말하면 그 자리에서 `remember(email={{EMAIL}})`로 저장, 다음부터 3번 로드로 자동 반영. 카테고리 4종: alias·person·schedule에 맞으면 거기, 그 외 전부 memo(정정규칙은 key="정정규칙:○○", 정책은 key="정책:○○"). 저장 후 한 줄 확인. 시작 시 memo의 `정정규칙:*`·`정책:*`을 기본 정책에 개인 오버라이드로 적용.
+</script>
+
+<!-- ⑤ 도구컨텍스트 (자료 txt) ------------------------------------------------ -->
+<script type="text/plain" id="ub-tpl-tools"># 도구·컨텍스트 지침 — {{NAME}}
+
+데이터 도구 호출·외부 커넥터·세션 누적의 세부 규칙. (항상 적용되는 요약은 박스 지침에 있음)
+
+## 사적·업무 분류 가드 (보고 오염 방지 — 모든 데이터 소스 공통)
+메일·메시지·녹음·일정 등을 보고에 넣을지 판단할 때, ★완벽 분류가 목표가 아니라 "모호하면 자동으로 안 넣는다"가 원칙★ (false-positive=오염을 0에 가깝게).
+- **명백한 업무**(사내 26명·등록 거래처 발신 / PJ·업무 키워드 / 업무 채널) → 자동 포함.
+- **명백한 사적** → 보고 본문 제외(필요 시 `[사적·참고]` 라벨만, 발송 X).
+- **경계·모호**(회사 관련이나 개인적 연락 — 학회 정보·지인 연락·반반인 것) → ★자동 포함 금지★. 초안 본문에 넣지 말고 "[확인 대기]"로 분리 → "이거 보고에 넣을까요?" 물어본 뒤에만 포함.
+- 판단 신호 우선순위: 발신자/연락처(get_staff 26명·등록 거래처 ↔ 미등록/개인) > 채널(업무방 ↔ 개인 1:1) > 주제·키워드. 단독 단정 말고 애매하면 경계로.
+- 학습: 사용자가 "○○은 사적/업무로 봐줘" 하면 `remember(memo, key="정책:사적:○○")` 저장 → 다음부터 자동 적용. 시작 시 memo의 `정책:사적*` 로드해 적용.
+
+## 세션 누적 (자유 대화 중 조용히)
+| 항목 | 예시 |
+|---|---|
+| 별칭(PJ 약어→정식) | "용산"→25-U09 용산전자상가, "힘클"→26-A01 힘클로드 |
+| 인물 | "양 대표님"→양희승 대표, "이 팀장"→이현석 팀장 |
+| 진행·메모 | "25-U09 보고서 최종 수정 단계" |
+| 일정·약속 | "다음 주 화 양 대표 보고", "월말 최종 납품" |
+끊거나 확인받지 말고 자연스럽게 흡수. 보고 모드 1차 초안에 자동 활용.
+
+## get_personal (개인 사전 자동 로드)
+새 대화 첫 의미 있는 메시지 직후 1회 자동(인자 email={{EMAIL}}), 결과 `{alias,person,memo,schedule}`를 세션 초기 상태로. 조용히. 같은 세션 추가 호출 불필요. → "용산"만 말해도 사전 매핑 있으면 즉시 인식.
+
+## get_context (명시 요청 시만)
+트리거 예: "프로젝트 목록 보여줘", "최근 보고 확인", "공통 컨텍스트", "오늘 일정 뭐 있어". 그 외 자유 대화 중 함부로 호출 안 함. 인자 email={{EMAIL}}.
+
+## load_briefings (과거 보고 검색)
+사용자가 과거 보고를 참조·검색하려 할 때:
+- "지난주 25-U09 어땠지" → load_briefings({from:지난주 월, to:일, keyword:"25-U09"})
+- "최근 한 달 보고 요약" → ({from:30일 전, to:오늘}) (키워드 없는 장기간은 거절될 수 있음 → 키워드 함께)
+응답 처리: `_too_many`/`_too_large` → "기간 좁히거나 키워드 구체화" / `_upper_grade_exists` → 끝에 "상위 등급 자료도 존재합니다. 상급자에게 문의" / `blocked` → "검색 제한된 키워드" / 정상 → briefings[]의 date·content 활용.
+명시 요청 없이는 호출 안 함(과거 정보 기반 질문이면 자동 판단 가능).
+
+## [받은 지시] 조회·완료 (get_directives / complete_directives)
+힘클로드 "프로젝트 일정" 시트의 지시를 여기서 확인하고 닫는다. 힘클로드 사이트 체크박스 대신.
+
+**조회** — "받은 지시 뭐 있지 / 나한테 온 지시 / 할 지시 확인":
+- `get_directives({ name: {{NAME}} })` (name 은 성명, 이메일 아님). 응답 `entries[]` 중 `view_type:"received"` 가 내가 받은 지시.
+- 각 항목의 `title`(내용)·`from`(지시자)·`due_date`(기한)·`id`(완료 키)를 보여준다. `sent`(내가 준 지시)·`task`/`schedule`(개인 항목)은 참고로만.
+- 완료·기한 7일 초과(archive) 건은 응답에 없다.
+
+**완료** — 받은 지시를 "끝냈어/처리했어/완료" 하면:
+- `complete_directives({ name: {{NAME}}, ids: [해당 entry.id, …] })`. 서버가 내 received 지시인지 검증 후 처리 → 시트 completed 기록 + **지시자·본부장에게 카카오 알림톡**. GAS 왕복이라 10~15초.
+- 응답: `ok:true, count:N` → "→ N건 완료 (지시자·본부장 알림 발송 ✓)" / `rejected:[…]` 있으면 "이미 완료됐거나 내 받은 지시 아님 — 건너뜀" / `ok:false` → 사유 전달, 재시도 안 함.
+- **id 를 지어내지 않는다** — 반드시 직전 `get_directives` 응답의 `entries[].id` 만. 최근 조회 없으면 `get_directives` 를 먼저 부른다.
+
+★보고 본문에 "완료했습니다"라고 써도 지시는 안 닫힌다 — `complete_directives` 호출만이 유일한 종료 신호. 안 닫으면 다음 브리핑에 계속 이월되다 7일 후 미완료로 archive.
+
+## 외부 커넥터 (선택 — 연결돼 있으면)
+- 노션: 회의록·이슈·PJ 페이지를 search/fetch_page/query_database로. "오늘 회의 정리", "최근 이슈" 발화 시 먼저 조회.
+- 캘린더(구글 · **개인 일정**): 본인이 개인적으로 기록해두는 일정. 일정·계획 발화엔 list_events 로 오늘·내일 참조, 추가는 create_event.
+- 위하랑 일정(**회사 공유 일정** — 사내 모두가 보는 그룹웨어 일정): wehago_* 도구로 조회·등록·수정·삭제.
+  - 조회: wehago_list_schedule(startDate, endDate[, folderIDs]) — 부서 폴더(도시계획실/기반시설실(더힘구조)/경영지원실/공간기획실/PCM/회사일정/휴가일정)의 공유 일정. folderIDs 생략 시 서버 기본 전체.
+  - 등록: wehago_add_schedule(subject, date, scheduleType, startTime, department …). 기본 등록계정=더힘(0021, '더힘이앤씨(주)' 표기)·공개 Y. 폴더는 해당 사원 **소속(department)** 자동. scheduleType별 소요시간 = general(회의·협의 등) 1시간 / flex(탄력근무 오전·오후) 4시간 / vacation(휴가) 하루 종일(휴가일정 폴더).
+  - 수정 wehago_modify_schedule · 삭제 wehago_delete_schedule · 상세 wehago_view_schedule.
+  - ★등록·수정·삭제는 사용자 승인 없이 하지 않는다. 새 일정 감지 시 "○○ 일정을 회사 일정(위하랑)에 등록할까요?"로 먼저 물어본다.
+  - **개인(구글) ↔ 회사공유(위하랑) 구분**: 나만 알면 되는 사적·개인 기록은 구글 / 사내 사람들도 알아야 하는 회의·협의·미팅·탄력근무·휴가 등은 위하랑. 애매하면 어느 쪽에 넣을지 물어본다.
+- 그 외 도구: 목록 확인 후 맥락 맞으면 호출.
+원칙: 연결 안 됐으면 무시(권유 금지). 호출 사실 매번 드러내지 않음(조용히). 정보 풍부해도 일일보고 발송 형식은 5필드 유지.
+
+## 본인 Gmail 발송 / OAuth (send_daily_report from_email)
+[흐름]
+- 동의 상태 → send_daily_report 에 from_email={{EMAIL}} 넣어 호출 → 본인 Gmail 발송(보낸편지함 기록, 응답 user_sent:true).
+- 미동의·만료 → 운영 hub(thehim180724) 자동 fallback + 응답에 oauth_notice(재동의 링크) 동봉.
+[언제 OAuth 안내]
+- **발송 시(기본 경로)**: send_daily_report 호출 전에 get_oauth_status({email:{{EMAIL}}}) 로 먼저 점검 → needs_auth:true 면 멈추고 oauth_url 로 재동의를 먼저 받은 뒤 본인 발송(보고모드 4단계). 동의 거부하고 "그냥 보내" 하면 hub 발송.
+- "보낸편지함에 기록 남기고 싶어" 류 요청 → get_oauth_status({email:{{EMAIL}}}). needs_auth:true(토큰 없음/만료)면 응답 oauth_url 을 그대로 안내.
+- send_daily_report 가 그래도 hub 로 fallback 됐으면(user_sent≠true) → 6단계에서 oauth_notice.reauth_url(없으면 top-level oauth_url) 안내(둘 다 없으면 생략).
+- get_mail 등 메일 도구가 reauth_required:true 로 떨어지면 → 응답 oauth_url 안내.
+- 그 외엔 먼저 권유하지 않음.
+[앱에서도 동의 가능]
+힘클로드 앱 ✦ 셋업 → 🔑 "메일 권한 동의" 에서도 같은 동의 가능. 거기서 해두면 claude.ai 에서도 본인 발송 자동 활성화. (Testing 모드라 약 7일 후 재동의 — 같은 oauth_url 로 30초.)
+</script>
+
+<script type="text/plain" id="ub-tpl-briefing"># 오늘 브리핑 읽기 지침 — {{NAME}}
+
+회사 전체의 "오늘 브리핑"을 불러와 요약해 보고하는 지침이다.
+내 보고 초안을 만드는 [업무보고준비]와 혼동하지 말 것.
+- "오늘 브리핑 보여줘/읽어줘/불러와", "오늘 보고사항 알려줘", "보고 들어온 거 정리해봐"
+  → (이 지침) 회사 브리핑 조회·요약
+- "내 보고 준비", "보고할 거 뭐 있어?", "오늘 보고 써줘"
+  → [업무보고준비] (내 보고 초안)
+
+## 절차
+1. 오늘 날짜를 YYYY-MM-DD (KST) 로 둔다.
+2. load_briefings({ email: "{{EMAIL}}", from: 오늘, to: 오늘 }) 를 호출한다.
+3. 응답 처리:
+   - briefings 가 비어 있으면 → "아직 오늘 브리핑이 올라오지 않았어요. 평일 오전 9시 이후
+     개인별 발송이 끝나면 확인됩니다." 라고만 답한다(주말·공휴일이면 그 점도 안내).
+     절대 추측으로 내용을 만들지 않는다.
+   - _too_many / _too_large → 응답의 suggestion 문구를 그대로 전달(드묾).
+   - 정상이면 briefings[0].content(브리핑 JSON)를 파싱해 아래 형식으로 요약한다.
+
+## 요약 출력 형식  ※ 이미 본인 등급으로 필터된 자료이므로 그대로 사용
+- 📌 핵심 현안 — meta.summary_text 기준, 긴급(status:"urgent") PJ 를 위에 두고 3~6개.
+  각 항목 "PJ명 — 오늘 할 일 / 마감(D-N) / 담당자".
+- 📅 주요 일정 — schedules 중 오늘·이번 주 핵심(시간·장소·안건).
+- 👥 근태·특이사항
+  - attendance 에서 상태 ≠ normal 인 사람: 휴가/오전·오후/출장/예비군 등 사유와 함께.
+  - staff_tasks 에서 근태비고가 "미제출" 인 사람 = '미제출자' 로 따로 묶어 표시.
+    ⚠️ 예외 — 김대근 상무, 이희영 상무는 미제출이어도 미제출 목록에 넣지 않는다(항상 조용히 제외).
+       제외 사유 안내는 개인 사전으로 1회만 관리:
+       · 세션에 로드된 get_personal 의 memo 에 key "정책:미제출제외안내" 가 있으면 → 사유 언급 없이 그냥 제외.
+       · 없으면 → 이번에 한 번만 짧게 "(※ 김대근·이희영 상무는 현재 미보고로 제외)" 안내 후, 즉시
+         remember({email:{{EMAIL}}, category:"memo", key:"정책:미제출제외안내", value:"김대근·이희영 미제출 제외 사유 안내 완료 — 재안내 불필요", source:"chat"}) 호출 → 다음부터(다른 대화·날짜 포함) 자동 생략.
+       (유지보수: 두 분이 보고 재개 시 이 예외 + 위 사전 항목 제거.)
+- (자료에 있으면) 확인대기·지시(pending), 공지(announcements) 한두 줄.
+
+## 원칙
+- JSON 에 없는 내용은 만들지 않는다. 수치·이름은 원문 그대로 쓴다.
+- 길게 늘어놓지 말고 소제목·불릿으로 한눈에 보이게 한다.
+
+## 일정 제안·추가 (요약을 마친 뒤) — 개인(구글) / 회사공유(위하랑) 병행
+브리핑 내용 중 일정으로 넣어둘 만한 걸 골라 제안한다. ★자동 추가 금지 — 제안까지만★.
+- 목적지 2곳: **개인 캘린더(구글)** = 나만 보면 되는 개인 기록 / **회사 일정(위하랑)** = 사내 모두가 알아야 하는 회의·협의·미팅·탄력근무·휴가 등.
+- 제안 시 어느 쪽인지 함께 묻는다("개인 캘린더(구글)에 넣을까요, 회사 일정(위하랑)에 등록할까요?"). 명백히 회사 공유 성격(사내 다수 참석 회의·협의 등)이면 위하랑을 기본으로 제안.
+- 후보: 📅 주요 일정의 회의·미팅(시간·장소 있는 것) / 핵심 현안의 마감(D-N) 날짜 / 확인대기·지시 중 기한 있는 것. 본인과 무관하거나 시점이 불명확한 건 제외. 최대 5개 내외.
+- 제안 형식:
+  ```
+  📅 캘린더에 추가할 만한 일정
+  1. (6/12 14:00) ○○ PJ 착수회의 — 본사 3층   [시간]
+  2. (6/13) □□ 보고서 마감 (D-2)             [종일]
+  추가할 번호를 알려주시면 넣어드릴게요. (예: "1,2번 추가" / "다 추가")
+  ```
+- 사용자가 번호(또는 "다 추가")로 요청하면 create_event 로 추가한다:
+  · 시간 일정 → summary / startTime / endTime(미상이면 시작 +1시간) / location / timeZone:"Asia/Seoul"
+  · 종일·마감 → summary(예: "□□ 마감") / allDay:true / startTime·endTime=해당 날짜
+  · 날짜·시간이 불명확하면 추측하지 말고 한 번 물어 확정한 뒤 추가.
+  · 중복 방지 — 같은 날 같은 제목이 이미 있으면(list_events 로 가볍게 확인) 다시 만들지 않고 "이미 있음" 표시.
+- 추가 후: "✅ N건 캘린더 추가 완료" + 각 줄 "제목 — 일시". 실패는 해당 항목만 사유와 함께 보고.
+- 캘린더는 구글 공식 커넥터라 추가·변경이 가능하나, 사용자가 명시 요청한 항목만 손댄다(임의 추가·삭제·변경 금지). 커넥터가 연결 안 돼 있으면 제안까지만 하고 "캘린더 커넥터를 연결하면 바로 추가해드려요"라고 안내.
+
+### 회사 일정(위하랑) 등록 — 사용자가 위하랑을 택하면
+wehago_add_schedule 로 등록한다:
+- scheduleType: 회의·협의·미팅 등 일반 → "general"(1시간) / 탄력근무(오전·오후) → "flex"(4시간) / 휴가 → "vacation"(하루 종일)
+- department: 해당 사원 **소속**(폴더 자동 선택) · date · startTime(general/flex 필수) · 등록계정·공개는 기본(더힘 0021·isPublic Y)
+- 날짜·시간이 불명확하면 추측 말고 한 번 물어 확정한 뒤 등록.
+- 중복 방지 — 같은 날 같은 제목이 이미 있으면(wehago_list_schedule 로 가볍게 확인) 다시 만들지 않고 "이미 있음" 표시.
+- 등록 후: "✅ 회사 일정(위하랑) N건 등록 완료" + 각 줄 "제목 — 일시 — 폴더(소속)". 수정·삭제도 사용자 승인 시 wehago_modify_schedule·wehago_delete_schedule.
+- wehago_* 도구가 연결 MCP(Him-Claude)에 없으면 제안까지만 하고 "위하랑 일정 기능이 아직 연결 안 됐어요"라고 안내.
+</script>
+
+<!-- ⑥ 브리핑 만들기 (자료 txt) — create_briefing 자유 생성 (2026-06-10) -->
+<script type="text/plain" id="ub-tpl-makebrief"># 브리핑 만들기(자유 생성) 지침 — {{NAME}}
+
+지금 큐에 쌓인 일일 업무보고로 **본인 맞춤 HTML 브리핑**을 즉석에서 만들어 주는 지침이다. create_briefing(읽기 전용)으로 재료를 받아 단일 HTML 파일로 조립한다.
+
+## 혼동 금지 (브리핑 관련 3가지)
+- (이 지침) "브리핑 만들어줘 / 지금 상황 브리핑 / 내 맞춤으로 / 발행 전 미리 / 보고 업데이트됐으니 다시" → create_briefing 으로 **새로 생성**
+- [오늘 브리핑 읽기] "오늘 브리핑 보여줘/읽어줘" → load_briefings 로 **이미 발송된 공식 브리핑 요약**
+- 공식 자동 발송(매일 아침 26명 메일)은 시스템이 알아서 함 — 여기서 건드리지 않음
+
+## 언제
+정규 발행 전 미리 / 발행 후 보고가 추가·수정돼 최신으로 다시 / 원하는 양식으로. 읽기 전용(발송·마킹 없음).
+
+## 절차
+1. 기준일을 정한다(기본 오늘 KST). **기준일이 오늘이고 현재 시각이 08:50(KST) 이전이면**: 먼저 "⚠️ 아직 오늘 업무보고가 마감되지 않았습니다(8:50 이후 정규 브리핑 발행). 지금은 현재까지 들어온 보고 기준의 잠정본입니다."라고 안내한 뒤, 원하면 잠정본으로 진행(헤더에 '잠정·보고 진행 중' 표기).
+2. create_briefing({ email: "{{EMAIL}}" }) 호출. (옵션: date / history_days=과거 N일 참고)
+   - 응답: reports(본인 등급 필터본) · roster(26명) · project_master · format_spec
+   - reports 가 비면 추측 금지 — "아직 큐에 해당일 보고가 없어요"라고만.
+3. ★등급 가드 적용 → 4. 양식대로 단일 HTML 조립 → 5. 제공.
+
+## 프로젝트별 브리핑 (특정 PJ 지정 시)
+"더케이호텔 브리핑 / ○○ 최근 진행상황 / ○○ 관련 정리해줘" 처럼 **특정 프로젝트**를 지정하면, 전체 브리핑 대신 그 PJ 의 최근 흐름만 정리한다.
+1. **PJ 식별** — project_master 에서 ○○ 의 코드·공식명칭·별칭을 찾는다(못 찾으면 사용자 표현 그대로 + "확인 필요").
+2. **기간** — 사용자가 'n일'·'최근 한 달' 등 말하면 그 값, 없으면 **기본 최근 14일**.
+3. **과거분** — load_briefings({ email:"{{EMAIL}}", from: 오늘−기간, to: 오늘, keyword: <PJ 별칭/공식명칭 핵심어> }) → 각 날짜 brfing 에서 그 PJ 항목만 추림.
+   - 가드: `_too_many`/`_too_large` → "기간 좁히거나 키워드 구체화" / `_upper_grade_exists` → "상위 등급 자료도 존재 — 상급자 문의" / `blocked` → "검색 제한 키워드".
+4. **오늘 미발행분** — create_briefing({ email:"{{EMAIL}}" }) 의 reports 에서 그 PJ 관련 보고만 추가(정규 브리핑 안 된 오늘치 보완). ★등급 가드 동일 적용★.
+5. **출력** (단일 HTML 또는 요청 형식):
+   - 📌 개요(코드·공식명칭·담당자) / 🗓 최근 경과(날짜순, 완료=과거) / 🔴 현안·이슈 / 📅 일정·마감(D-N) / ⏭ 다음 단계
+   - ⏭ 다음 단계 = 보고의 '예정·지시(dir)·일정(schedule)'에 **근거 있는 것만**. 추측 금지(명시 없으면 "예정 미기재").
+- 등급 가드·잠정(08:50) 안내 동일. 제목·파일명 = `YYYY-MM-DD_개인생성 브리핑_{이름}_{PJ명}`(+잠정이면 `_잠정`).
+
+## ★ 등급 가드 (필수 — 소스가 거칠게만 필터돼 옴)
+create_briefing 은 **모든 사람의 보고를 그대로** 준다(금액·VAT 마스킹은 **L3에게만** 적용). 항목별 등급 태그가 없으므로, **본인 등급({{GRADE}})에서 공개되지 않는 내용은 소스에 있어도 뺀다.** (특히 타인=대표·임원 보고 본문 주의.)
+- 공통: 금액(있다면)은 등급 규칙대로. L3는 새 수치 추정·표기 금지.
+- **L3 작성 시 제외**: ① 대표·임원의 공무원/외부인 접대·식사·향응·사적 대외 일정(인물 거론 포함) ② 계약금액·외주비·수금/잔금 등 금액 정황 ③ 급여·계좌·인사평가·징계 ④ 공무원 협의의 비공개 전략·민감 코멘트. → 남기는 것 = PJ 진행·일정·회의 시각·근태 등 업무 공개 정보만.
+- **L2 작성 시 제외**: L1 전용(접대·급여·계좌잔액·대표 사적 대외)만. 계약금액·공무원 협의는 포함 가능.
+- **L1**: 제외 없음.
+- 애매하면 빼는 쪽(브리핑은 공유·열람되므로 오노출 0 지향). 뺀 항목은 "제외함" 표시도 안 함.
+
+## 빠진 정보 안내 (정규 브리핑 참고)
+등급 가드로 애매한 항목을 보수적으로 뺐을 수 있다. **본인 등급 권한 내인데 빠진 듯하면, 매일 발송되는 등급별 정규 브리핑(메일)이 완전·공식 기준본**이니 참고하라고 안내한다(특히 L1·L2). 금액은 L3만 서버에서 가려져 오며, 그건 등급 밖이라 정규 L3 브리핑에도 없다(필요 시 상급자 경유).
+
+## 사용자 맞춤 요청 처리
+- 표시 선호(특정 탭 제외 / 이번엔 부서별 탭만 / 순서·강조·표↔카드 변경 / 특정 PJ·본부만 등)는 **지침에 어긋나지 않는 한 그대로 적용**한다 — 이게 이 도구의 핵심.
+- 요청이 지침(특히 ★등급 가드)에 어긋나면: 강행 말고 "○○는 △△ 때문에 지침/등급 경계에 어긋납니다. 그래도 진행할까요?"라고 사유를 설명하고 한 번 확인한다.
+  · 확인 시 진행 가능: 형식·범위 위반(예: 안전 트림한 본인 등급 항목 다시 포함).
+  · 확인받아도 진행 불가(보안 경계): 타인의 상위 등급 민감정보(공무원 접대·급여·계좌·대표 사적 대외 등 본인 등급 밖). 이건 "정규 브리핑/상급자 경유" 안내로 대체.
+
+## 미제출자 처리 (근태 탭)
+roster(26명) 중 reports 에 없는 사람 = 미제출. 단 **김대근·이희영 상무는 미제출이어도 목록 제외**(상시 정책). 사유 안내는 [오늘 브리핑 읽기]와 동일하게 개인 사전 1회 플래그(memo "정책:미제출제외안내").
+
+## 출력 (단일 HTML)
+- format_spec 을 기본값으로: tabs/theme/reference_css(그대로 style 태그에) + 모바일 우선 + 탭 전환 인라인 JS.
+- 사용자 커스터마이즈 우선(위 '맞춤 요청'). 별말 없으면 기본 양식.
+- **파일명·제목 통일**: `<title>` 과 저장 파일명 모두 `YYYY-MM-DD_개인생성 브리핑_{이름}` 형식. 잠정본이면 끝에 `_잠정` (예: `2026-06-10_개인생성 브리핑_변지민_잠정`). '힘클로드_' 등 다른 접두어 붙이지 말 것.
+- 헤더에 기준일·이름·등급·"보고 N/26명"(+잠정 여부) 표기. PJ 는 project_master 별칭→공식명칭 매핑.
+- 부서별 탭은 roster 의 **모든 본부를 동일 기준**으로 — 공개 업무분이 있는 본부는 섹션을 만든다(대표단 포함). 등급 가드로 비공개분만 빠지는 것이고, 본부 자체를 통째로 빠뜨리지 않는다.
+- 잠정 배너 등으로 헤더가 길어지면 **탭바 sticky 위치(top)를 그에 맞게** 조정해 헤더와 겹치지 않게 한다.
+- 추측 금지 — 큐·roster·PJ 마스터에 있는 것만.
+</script>
+
+<div class="cs-overlay" id="cs-overlay" onclick="if(event.target===this)closeClaudeSetup()">
+  <div class="cs-modal" role="dialog" aria-labelledby="cs-title-text">
+    <div class="cs-title"><span class="cs-title-icon">✦</span><span id="cs-title-text">Claude 힘보고 셋업</span></div>
+    <p class="cs-sub">1회 셋업 후로는 모든 도구가 자동으로 본인 시트에 매핑됩니다.</p>
+
+    <div class="cs-section">
+      <h4>1. MCP 커넥터 URL</h4>
+      <div class="cs-url-row">
+        <input class="cs-url-input" id="cs-mcp-url" readonly value="https://himreport-mcp-prod-production.up.railway.app/mcp">
+        <button class="cs-btn" onclick="csCopyUrl()">복사</button>
+      </div>
+      <p class="desc">claude.ai 프로젝트 → 커넥터 → <code>사용자 정의 MCP 서버</code> → 위 URL 붙여넣기</p>
+      <p class="cs-msg" id="cs-msg-url"></p>
+    </div>
+
+    <div class="cs-section">
+      <h4>2. 프로젝트 지침 생성</h4>
+      <div class="cs-name-row">
+        <input class="cs-name-input" id="cs-name" placeholder="본인 성명 (예: 변지민)" onkeydown="if(event.key==='Enter')csLookupAndBuild()">
+        <button class="cs-btn primary" onclick="csLookupAndBuild()">생성</button>
+      </div>
+      <p class="cs-msg" id="cs-msg-name"></p>
+      <textarea class="cs-result empty" id="cs-result" readonly placeholder="이름 입력 후 [생성] 누르면 본인 정보가 채워진 프로젝트 지침 전체가 여기에 나옵니다."></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+        <button class="cs-btn" onclick="csDownloadTxt()">txt 저장</button>
+        <button class="cs-btn" onclick="csCopyResult()">결과 복사</button>
+      </div>
+      <p class="desc">[결과 복사]로 프로젝트 지침란에 붙여넣거나, [txt 저장]으로 받은 파일을 프로젝트에 자료로 첨부하세요.</p>
+    </div>
+
+    <div class="cs-actions">
+      <button class="cs-btn" onclick="closeClaudeSetup();openSetupMenu()" style="min-width:72px">← 뒤로</button>
+      <button class="cs-btn" onclick="closeClaudeSetup()" style="min-width:72px">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 음성 후처리 셋업 모달 (2026-05-29) — vp-overlay. .cs-* 클래스 재사용 ===== -->
+<div class="cs-overlay" id="vp-overlay" onclick="if(event.target===this)closeVoicePost()">
+  <div class="cs-modal" role="dialog" aria-labelledby="vp-title-text">
+    <div class="cs-title"><span class="cs-title-icon">🎙</span><span id="vp-title-text">음성 후처리 셋업</span></div>
+    <p class="cs-sub">메일로 받은 음성 텍스트를 정제 transcript로 다듬는 전용 프로젝트 지침을 만듭니다.</p>
+
+    <div class="cs-section">
+      <h4>1. MCP 커넥터 URL (일일보고와 동일 커넥터)</h4>
+      <div class="cs-url-row">
+        <input class="cs-url-input" id="vp-mcp-url" readonly value="https://himreport-mcp-prod-production.up.railway.app/mcp">
+        <button class="cs-btn" onclick="vpCopyUrl()">복사</button>
+      </div>
+      <p class="desc">후처리 전용 프로젝트 → 커넥터 → <code>사용자 정의 MCP 서버</code> → 위 URL 붙여넣기 (get_staff·get_context·get_personal·remember 사용)</p>
+      <p class="cs-msg" id="vp-msg-url"></p>
+    </div>
+
+    <div class="cs-section">
+      <h4>2. 후처리 지침 생성</h4>
+      <div class="cs-name-row">
+        <input class="cs-name-input" id="vp-name" placeholder="본인 성명 (예: 변지민)" onkeydown="if(event.key==='Enter')vpLookupAndBuild()">
+        <button class="cs-btn primary" onclick="vpLookupAndBuild()">생성</button>
+      </div>
+      <p class="cs-msg" id="vp-msg-name"></p>
+      <textarea class="cs-result empty" id="vp-result" readonly placeholder="이름 입력 후 [생성] 누르면 본인 정보가 채워진 후처리 지침 전체가 여기에 나옵니다."></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+        <button class="cs-btn" onclick="vpDownloadTxt()">txt 저장</button>
+        <button class="cs-btn" onclick="vpCopyResult()">결과 복사</button>
+      </div>
+      <p class="desc">전용 프로젝트를 따로 만들 필요 없이, [txt 저장]으로 받은 파일을 <b>일일보고와 같은 프로젝트에 자료로 첨부</b>해도 됩니다. 후처리할 땐 "첨부된 음성후처리지침 따라줘"로 시작하세요. (지침란에 직접 붙여넣으려면 [결과 복사])</p>
+    </div>
+
+    <div class="cs-actions">
+      <button class="cs-btn" onclick="closeVoicePost();openSetupMenu()" style="min-width:72px">← 뒤로</button>
+      <button class="cs-btn" onclick="closeVoicePost()" style="min-width:72px">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="cs-overlay" id="ub-overlay" onclick="if(event.target===this)closeUnifiedSetup()">
+  <div class="cs-modal" role="dialog" aria-labelledby="ub-title-text">
+    <div class="cs-title"><span class="cs-title-icon">📦</span><span id="ub-title-text">통합 셋업 — 박스 + txt 6종</span></div>
+    <p class="cs-sub">이름 한 번 입력 → 프로젝트 지침란에 넣을 <b>박스</b>와, 자료로 첨부할 <b>txt 6개</b>를 만듭니다.</p>
+
+    <div class="cs-section">
+      <h4>1. MCP 커넥터 URL (2개 등록)</h4>
+      <p class="desc" style="margin-bottom:6px">claude.ai 프로젝트 → 커넥터 → <code>사용자 정의 MCP 서버</code> → 아래 2개를 각각 등록</p>
+      <div class="cs-url-row">
+        <input class="cs-url-input" id="ub-mcp-url" readonly value="https://himreport-mcp-prod-production.up.railway.app/mcp">
+        <button class="cs-btn" onclick="ubCopyUrl()">복사</button>
+      </div>
+      <p class="desc" style="margin:4px 0 0">① 보고·브리핑·개인사전·메일 (himreport)</p>
+      <div class="cs-url-row" style="margin-top:8px">
+        <input class="cs-url-input" id="ub-mcp-url2" readonly value="https://himclova-mcp-production.up.railway.app/mcp/73a8f30a7f3c9262ffbddc8fe8564fedfcb9b9f5fd3ede6f">
+        <button class="cs-btn" onclick="ubCopyUrl2()">복사</button>
+      </div>
+      <p class="desc" style="margin:4px 0 0">② 음성후처리·회의록 (himclova)</p>
+      <p class="cs-msg" id="ub-msg-url"></p>
+    </div>
+
+    <div class="cs-section" style="margin-bottom:0">
+      <h4>2. 지침 생성</h4>
+      <div class="cs-name-row">
+        <input class="cs-name-input" id="ub-name" placeholder="본인 성명 (예: 변지민)" onkeydown="if(event.key==='Enter')ubLookupAndBuild()">
+        <button class="cs-btn primary" onclick="ubLookupAndBuild()">생성</button>
+      </div>
+      <p class="cs-msg" id="ub-msg-name"></p>
+
+      <p class="desc" style="margin-top:8px"><b>① 박스 지침</b> — 복사해서 프로젝트 <b>지침란</b>에 붙여넣기</p>
+      <textarea class="cs-result empty" id="ub-box" readonly placeholder="이름 입력 후 [생성] 누르면 박스 지침이 여기에 나옵니다."></textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <button class="cs-btn" onclick="ubDl('box')">박스 txt 저장</button>
+        <button class="cs-btn primary" onclick="ubCopyBox()">박스 복사</button>
+      </div>
+
+      <p class="desc" style="margin-top:28px"><b>② 지침 txt 6종</b> — 받아서 프로젝트 <b>자료(지식)</b>에 첨부</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <button class="cs-btn" onclick="ubDl('report')">보고모드.txt</button>
+        <button class="cs-btn" onclick="ubDl('prepare')">업무보고준비.txt</button>
+        <button class="cs-btn" onclick="ubDl('voice')">음성텍스트화.txt</button>
+        <button class="cs-btn" onclick="ubDl('tools')">도구컨텍스트.txt</button>
+        <button class="cs-btn" onclick="ubDl('briefing')">브리핑읽기.txt</button>
+        <button class="cs-btn" onclick="ubDl('makebrief')">브리핑만들기.txt</button>
+      </div>
+    </div>
+
+    <div class="cs-actions" style="margin-top:28px">
+      <button class="cs-btn" onclick="closeUnifiedSetup();openSetupMenu()" style="min-width:72px">← 뒤로</button>
+      <button class="cs-btn" onclick="closeUnifiedSetup()" style="min-width:72px">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 셋업 선택 메뉴 (2026-05-29) — ✦ 버튼 1개에서 힘보고/후처리 분기. .cs-* 재사용 ===== -->
+<div class="cs-overlay" id="setup-menu-overlay" onclick="if(event.target===this)closeSetupMenu()">
+  <div class="cs-modal" role="dialog" aria-labelledby="setup-menu-title" style="max-width:400px">
+    <div class="cs-title"><span class="cs-title-icon">✦</span><span id="setup-menu-title">셋업 선택</span></div>
+    <p class="cs-sub">어떤 셋업을 진행할지 선택하세요.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="cs-btn" onclick="closeSetupMenu();openUnifiedSetup()" style="text-align:left;padding:14px 16px;white-space:normal;line-height:1.4">
+        <span style="font-size:14px;font-weight:600">📦 통합 셋업 (박스 + txt 6종)</span><br>
+        <span style="font-size:11px;color:var(--ink3)">박스 지침 1개 + 자료 txt 6종 생성</span>
+      </button>
+      <button class="cs-btn" onclick="chooseSetup('oauth')" style="text-align:left;padding:14px 16px;white-space:normal;line-height:1.4">
+        <span style="font-size:14px;font-weight:600">🔑 메일 권한 동의</span><br>
+        <span style="font-size:11px;color:var(--ink3)">Claude.ai 에서 본인 Gmail 읽기·검색·첨부·발송 + Drive 1회 동의</span>
+      </button>
+    </div>
+    <div class="cs-actions" style="margin-top:16px">
+      <button class="cs-btn" onclick="closeSetupMenu()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 메일 권한 동의 모달 (2026-06-01) — 이메일 직접 입력 → /oauth/start. .cs-* 재사용 ===== -->
+<div class="cs-overlay" id="oauth-overlay" onclick="if(event.target===this)closeOauthConsent()">
+  <div class="cs-modal" role="dialog" aria-labelledby="oauth-title">
+    <div class="cs-title"><span class="cs-title-icon">🔑</span><span id="oauth-title">메일 권한 동의</span></div>
+    <p class="cs-sub">Claude.ai 에서 본인 Gmail/Drive 를 쓰기 위한 1회 Google 동의입니다.</p>
+
+    <div class="cs-section">
+      <h4>본인 이메일 입력</h4>
+      <div class="cs-name-row">
+        <input class="cs-name-input" id="oauth-email" type="email" placeholder="본인 회사 Gmail (예: thehimenc180724@gmail.com)" onkeydown="if(event.key==='Enter')oauthOpenConsent()">
+      </div>
+      <p class="cs-msg" id="oauth-msg"></p>
+      <p class="desc">MCP 도구 호출에 쓰는 본인 식별 이메일과 동일해야 합니다.</p>
+    </div>
+
+    <div class="cs-section">
+      <h4>Google 동의</h4>
+      <button class="cs-btn primary" onclick="oauthOpenConsent()" style="width:100%">본인 Gmail 권한 동의 (새 탭) →</button>
+      <p class="desc">누르면 새 탭에서 Google 동의가 열립니다. <b>1회 동의로 메일 읽기·검색·첨부·발송 + Drive</b> 가 모두 켜집니다.</p>
+      <p class="desc">⚠ "Google이 이 앱을 확인하지 않았습니다" 경고가 뜨면 <b>[고급] → [힘보고로 이동(안전하지 않음)]</b> 클릭 후 진행하세요. 회사 내부 도구라 정상입니다.</p>
+      <p class="desc">약 7일 후 자동 만료됩니다(Testing 모드). 만료 시 같은 절차로 재동의하면 됩니다.</p>
+    </div>
+
+    <div class="cs-actions">
+      <button class="cs-btn" onclick="closeOauthConsent();openSetupMenu()" style="min-width:72px">← 뒤로</button>
+      <button class="cs-btn" onclick="closeOauthConsent()" style="min-width:72px">닫기</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

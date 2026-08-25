@@ -1,7 +1,7 @@
 // ── 모드 전환 (일일보고 ↔ 힘클로바) ──────────────
 var activeMode='report'; // 'report' | 'himclova'
 
-var VALID_MODES = ['report','search','himclova','calendar'];
+var VALID_MODES = ['report','search','himclova','calendar','master'];
 
 // 모드 탭 클릭 핸들러 — 사용자 클릭 트리거에만 사용 (시스템 호출은 switchMode 직접).
 // 현재 활성 탭 재클릭 시 confirm → 예면 모드별 reset + input sub-page 복귀.
@@ -64,6 +64,8 @@ function switchMode(name){
   if(name==='search'  && typeof Chat     !== 'undefined') Chat.init();
   // 일정 탭 첫 진입 시 달력 로드 (lazy + idempotent, 2026-08-09)
   if(name==='calendar' && typeof CalTab  !== 'undefined') CalTab.init();
+  // 마스터 탭 첫 진입 시 승격 대기 로드 (lazy + idempotent, 2026-08-25). 탭 없는 폼(v1)엔 MasterTab 미정의라 무영향.
+  if(name==='master'  && typeof MasterTab !== 'undefined') MasterTab.init();
   // 검색 모드일 때만 body 스크롤 차단 — mode-search 가 fixed 라 페이지 휠 이벤트가 헛동작
   document.body.classList.toggle('search-mode-active', name === 'search');
 }
@@ -89,6 +91,7 @@ function initP1(){
   loadContext();
   loadYesterdayRaw();
   loadL2PendingReviews();
+  if (typeof MasterTab !== 'undefined') MasterTab.boot();  // 오너면 마스터 탭 노출 (2026-08-25)
   loadTodayRaw();
   bindDraftAutoSave();
   maybeShowDraftBanner();
@@ -166,7 +169,9 @@ function loadL2PendingReviews(){
   }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false, items: [] }; });
 
   // 2026-05-22 — AI 인덱스 B_학습 "PJ 약칭" → L2 즉시 등록 카드 source
-  var fetchRegister = fetch(APPS_SCRIPT_URL, {
+  // 2026-08-25 — 마스터 탭(.tab-master)이 이식된 폼에선 PJ 등록을 그 탭이 전담 → 여기선 스킵(중복 제거).
+  var _hasMasterTab = !!document.querySelector('.mode-tab.tab-master');
+  var fetchRegister = _hasMasterTab ? Promise.resolve({ ok: false, items: [] }) : fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({

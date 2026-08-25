@@ -211,7 +211,7 @@ function saveTgText(reset){
   var ta=document.getElementById('tgsel-editor-text');
   var text=reset?'':(ta?ta.value.trim():'');
   if(!reset&&!text){alert('문구를 입력하거나 [자동 문안으로 원복]을 눌러주세요.');return;}
-  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_set_text',token:'thehim2026_test',name:profile.name,pj:TGSEL_EDIT_PJ,text:text})})
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_set_text',token:APPS_SCRIPT_TOKEN,name:profile.name,pj:TGSEL_EDIT_PJ,text:text})})
     .then(function(r){return r.json()})
     .then(function(res){
       if(res&&res.ok){
@@ -292,7 +292,7 @@ function sendTgSelection(){
   TG_PENDING_ITEMS=items;
   var btn=document.getElementById('tgsel-send');
   if(btn){btn.disabled=true;btn.textContent='불러오는 중...';}
-  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:'thehim2026_test',name:profile.name,items:items,dry_run:true})})
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:APPS_SCRIPT_TOKEN,name:profile.name,items:items,dry_run:true})})
     .then(function(r){return r.json()})
     .then(function(res){
       if(btn){btn.disabled=false;btn.textContent='📨 체크한 건 보내기';}
@@ -313,7 +313,7 @@ function tgConfirmSend(){
   var dlg=document.getElementById('tg-preview-dlg');
   if(dlg)dlg.classList.remove('on');
   if(!TG_PENDING_ITEMS||!profile)return;
-  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:'thehim2026_test',name:profile.name,items:TG_PENDING_ITEMS})})
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:APPS_SCRIPT_TOKEN,name:profile.name,items:TG_PENDING_ITEMS})})
     .then(function(r){return r.json()})
     .then(function(res){
       if(res&&res.ok){

@@ -645,6 +645,7 @@ html::-webkit-scrollbar-button,
 .mode-tab.tab-search  { --tab-color: #6B84A1;  --tab-tint: rgba(107,132,161,.18); }   /* 블루-그레이 계열 (임시) */
 .mode-tab.tab-himclova { --tab-color: #7C5BC8;  --tab-tint: rgba(124,91,200,.14); }    /* 보라 계열 */
 .mode-tab.tab-calendar { --tab-color: #B8860B;  --tab-tint: rgba(184,134,11,.12); }    /* 앰버 계열 (일정 탭, 2026-08-09) */
+.mode-tab.tab-telegram { --tab-color: #2A9DD6;  --tab-tint: rgba(42,157,214,.12); }    /* 텔레그램 블루 (2026-08-10) */
 .mode-tab.tab-master   { --tab-color: #8A6D3B;  --tab-tint: rgba(138,109,59,.12); }    /* 브라운 계열 (마스터 승격 탭, 오너 전용, 2026-08-25) */
 
 /* hover (비활성) & active 동일 색상 — font-weight 만 차이로 구분 */
@@ -666,6 +667,7 @@ html::-webkit-scrollbar-button,
 #p1[data-mode="himclova"] .mode-content.mode-himclova,
 #p1[data-mode="himclova"] .bottom-fixed.bottom-himclova {display:block}
 #p1[data-mode="calendar"] .mode-content.mode-calendar {display:block}
+#p1[data-mode="telegram"] .mode-content.mode-telegram {display:block}
 #p1[data-mode="master"]  .mode-content.mode-master   {display:block}
 /* 검색 모드는 하단 고정 버튼 없음 — 검색 패널 자체에 검색 버튼 포함 (Phase 2 이식 예정) */
 
@@ -2338,6 +2340,7 @@ body.search-mode-active{
       <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 업무 인사이트</button>
       <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ AI 회의록</button>
       <button class="mode-tab tab-calendar"   data-mode="calendar" onclick="onTabClick('calendar')">📅 일정</button>
+      <button class="mode-tab tab-telegram"  data-mode="telegram" onclick="onTabClick('telegram')">📨 텔레그램</button>
       <button class="mode-tab tab-master" id="tab-master-btn" data-mode="master" style="display:none" onclick="onTabClick('master')">🗂️ 마스터 <span class="rep-toggle" id="tab-master-count"></span></button>
     </div>
   </div>
@@ -2392,6 +2395,12 @@ body.search-mode-active{
     <div class="ctx-card" id="ctx-sent">
       <div class="ctx-head">📤 <span>지시한 업무 목록</span></div>
       <div class="ctx-body" id="ctx-sent-body"></div>
+    </div>
+
+    <!-- 외부브리핑 현황 (2026-08-10) — 부서장에게만, 텔레그램 탭으로 연결되는 요약 카드 -->
+    <div class="ctx-card" id="ctx-tgstat" style="display:none">
+      <div class="ctx-head clickable" onclick="switchMode('telegram')">📨 <span>외부브리핑 (텔레그램)</span></div>
+      <div class="ctx-body" id="ctx-tgstat-body"></div>
     </div>
 
     <!-- L2 owner 확인 요청 (Phase 6, 2026-05-08) — L2 grade 만 렌더 -->
@@ -2614,6 +2623,22 @@ body.search-mode-active{
     <div id="calx-detail" class="calx-detail"></div>
   </div>
 
+  <!-- ── 텔레그램 모드 (2026-08-10) — 외부브리핑 선정·발송 (부서장 전용) ── -->
+  <div class="mode-content mode-telegram">
+    <!-- [2026-08-24] 큰 외부 모니터에서 화면 전체로 늘어지지 않도록 최대폭 제한 + 가운데 정렬.
+         max-width만 걸어서 작은 화면에선 지금처럼 그대로 줄어듦(모바일 확인 완료), 큰 화면에서만 폭이 멈춤. -->
+    <div style="padding:14px 20px 40px;max-width:700px;margin:0 auto">
+      <div class="ctx-card" id="ctx-tgsel">
+        <div class="ctx-head">📨 <span>외부브리핑 선정 (텔레그램)</span></div>
+        <div class="ctx-body" id="ctx-tgsel-body"><div class="ctx-loading-inline">🌿 불러오는 중...</div></div>
+      </div>
+      <div class="ctx-card" id="ctx-tghist">
+        <div class="ctx-head">🗂️ <span>발송 이력</span></div>
+        <div class="ctx-body" id="ctx-tghist-body"><div class="ctx-loading-inline">🌿 불러오는 중...</div></div>
+      </div>
+    </div>
+  </div><!-- /.mode-telegram -->
+
   <div class="mode-content mode-himclova">
 
     <!-- ◆ INPUT sub-page (입력 폼) ◆ -->
@@ -2810,6 +2835,20 @@ body.search-mode-active{
 </div>
 
 <!-- draft 충돌 다이얼로그 (다른 기기에서 더 최신 draft 발견 시) -->
+<!-- 텔레그램 외부브리핑 발송 전 미리보기 (2026-08-20) -->
+<div class="dlg-back" id="tg-preview-dlg">
+  <div class="dlg-card" style="max-width:480px">
+    <div class="dlg-title">📨 발송 전 미리보기</div>
+    <div id="tg-preview-targets" style="font-size:13px;color:var(--ink2);margin-bottom:10px;text-align:center;background:rgba(74,93,75,.08);border-radius:8px;padding:8px 10px"></div>
+    <pre id="tg-preview-text" style="font-size:12.5px;white-space:pre-wrap;word-break:break-all;line-height:1.6;background:rgba(0,0,0,.04);border-radius:10px;padding:14px;max-height:280px;overflow-y:auto;text-align:left;margin-bottom:16px;font-family:inherit;border:1px solid rgba(0,0,0,.06)"></pre>
+    <div class="dlg-btns">
+      <button class="dlg-btn dlg-btn-primary" onclick="tgConfirmSend()">📤 이대로 발송</button>
+      <button class="dlg-btn dlg-btn-cancel" onclick="tgCancelPreview()">취소</button>
+    </div>
+  </div>
+</div>
+
+
 <div class="dlg-back" id="draft-conflict-dlg">
   <div class="dlg-card">
     <div class="dlg-title">다른 기기에서 작성 중인 내용이 있어요</div>
@@ -2840,6 +2879,7 @@ body.search-mode-active{
 <script src="js/06-search.js"></script>  <!-- 분석→P2 · 브리핑 검색 · 드래프트 · 챗 -->
 <script src="js/07-send-setup.js"></script>  <!-- 저장·발송 · Report 네임스페이스 · 셋업 모달 -->
 <script src="js/08-master.js"></script>  <!-- 프로젝트 마스터 승격 탭 (오너 전용, 2026-08-25) -->
+<script src="js/09-telegram.js"></script>  <!-- 텔레그램 외부브리핑 탭 (2026-08-25 이관) -->
 
 
 <!-- ===== 음성 후처리 셋업 (2026-05-29) — vp-* JS. csTryCopy/csMsg/APPS_SCRIPT_URL 재사용 ===== -->

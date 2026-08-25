@@ -1,7 +1,7 @@
 // ── 모드 전환 (일일보고 ↔ 힘클로바) ──────────────
 var activeMode='report'; // 'report' | 'himclova'
 
-var VALID_MODES = ['report','search','himclova','calendar','master'];
+var VALID_MODES = ['report','search','himclova','calendar','master','telegram'];
 
 // 모드 탭 클릭 핸들러 — 사용자 클릭 트리거에만 사용 (시스템 호출은 switchMode 직접).
 // 현재 활성 탭 재클릭 시 confirm → 예면 모드별 reset + input sub-page 복귀.
@@ -64,6 +64,8 @@ function switchMode(name){
   if(name==='search'  && typeof Chat     !== 'undefined') Chat.init();
   // 일정 탭 첫 진입 시 달력 로드 (lazy + idempotent, 2026-08-09)
   if(name==='calendar' && typeof CalTab  !== 'undefined') CalTab.init();
+  // 텔레그램 탭 진입 시 선정·이력 로드 (2026-08-25 이관)
+  if(name==='telegram'){ loadTgSelection(); loadTgHistory(); }
   // 마스터 탭 첫 진입 시 승격 대기 로드 (lazy + idempotent, 2026-08-25). 탭 없는 폼(v1)엔 MasterTab 미정의라 무영향.
   if(name==='master'  && typeof MasterTab !== 'undefined') MasterTab.init();
   // 검색 모드일 때만 body 스크롤 차단 — mode-search 가 fixed 라 페이지 휠 이벤트가 헛동작
@@ -673,6 +675,7 @@ function refreshP2YesterdayIfVisible(){
 function loadContext(){
   if(!profile)return;
   renderContextLoading();
+  loadTgStatus();   // 외부브리핑 현황 요약 카드 (열람권자 전용, 2026-08-25 이관)
 
   fetch(APPS_SCRIPT_URL+'?action=get_schedule&name='+encodeURIComponent(profile.name)+'&days_before=10&days_after=30')
     .then(function(r){return r.json()})

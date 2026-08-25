@@ -24,7 +24,8 @@ var APPS_SCRIPT_TOKEN='thehim2026';
     'get_staff','get_context','get_yesterday_raw','get_today_raw','get_range',
     'get_schedule','get_schedule_all','load_draft','get_candidate_pool',
     'get_my_sheet_url','chat_load','get_pending_confirmations',
-    'get_pending_person_reviews','get_pending_pj_registrations'
+    'get_pending_person_reviews','get_pending_pj_registrations',
+    'tg_candidates','tg_history','tg_recipients'   // 텔레그램 탭 조회 3종 (읽기 전용, 2026-08-25)
   ];
   var GAS_RETRY_DELAY_MS = [250, 700];   // 1차 재시도 250ms 후, 2차 700ms 후
 

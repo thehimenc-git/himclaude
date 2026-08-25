@@ -981,7 +981,7 @@ var HimClova = {
     fd.append('meeting_date', date);
     fd.append('project', project);
     fd.append('memo', memo);
-    fd.append('level_hint', HimClova.selectedLevel);
+    fd.append('level_hint', HimClova.selectedLevel === 'P' ? 'L1' : HimClova.selectedLevel);   // P(개인)는 후처리 서버가 모르는 값 — 판정용으론 L1 취급 (2026-08-25)
     fd.append('user_email', (profile&&profile.email)||'');  // 개인 사전 조회 키
 
     // result sub-page 로 전환 + 진행 박스 활성
@@ -1098,7 +1098,7 @@ var HimClova = {
     fd.append('meeting_date', date);
     fd.append('project', project);
     fd.append('memo', memo);
-    fd.append('level_hint', HimClova.selectedLevel);
+    fd.append('level_hint', HimClova.selectedLevel === 'P' ? 'L1' : HimClova.selectedLevel);   // P(개인)는 후처리 서버가 모르는 값 — 판정용으론 L1 취급 (2026-08-25)
     fd.append('user_email', (profile&&profile.email)||'');  // 개인 사전 조회 키
 
     console.log('[힘클로바] POST '+HIMCLOVA_URL+'/postprocess (text)', {file:HimClova.audioFile.name, size:HimClova.audioFile.size, title:title});
@@ -1201,7 +1201,7 @@ var HimClova = {
         meeting_date: (p.meta && p.meta.meetingDate) || '',
         project:      (p.meta && p.meta.project) || '',
         memo:         (p.meta && p.meta.memo) || '',
-        level_hint:   p.levelAtComplete || HimClova.selectedLevel || 'auto',
+        level_hint:   (function(){ var lh = p.levelAtComplete || HimClova.selectedLevel || 'auto'; return lh === 'P' ? 'L1' : lh; })(),
         user_email:   (profile&&profile.email)||''
       }),
       signal: ctrl.signal

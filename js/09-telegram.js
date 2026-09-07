@@ -71,7 +71,7 @@ function renderTgSelection(res){
   TGSEL_ITEMS=res.items||[];
   var head=document.querySelector('#ctx-tgsel .ctx-head span');
   if(head)head.textContent='외부브리핑 선정 (텔레그램) — '+res.date+' 기준 '+res.count+'건';
-  var html='<div style="font-size:12.5px;color:#8a7a63;margin-bottom:8px">보낼 건을 체크하고 [보내기]를 누르면 공무원 텔레그램으로 발송됩니다. 체크 상태는 다음에도 유지되고, [✏️ 문안]으로 발송 문구를 직접 고칠 수 있어요.</div>';
+  var html='<div style="font-size:12.5px;color:#8a7a63;margin-bottom:8px">보낼 건을 체크하고 [보내기]를 누르면 등록된 수신자 전원에게 발송됩니다. <b>직전에 보낸 건은 미리 체크</b>돼 있으니 이번에 보낼 것만 다시 고르세요. [✏️ 문안]으로 발송 문구를 직접 고칠 수 있어요.</div>';
   html+='<div style="position:relative;margin-bottom:8px">'+
     '<input type="text" id="tgsel-search" placeholder="🔍 프로젝트 이름 검색" autocomplete="off" '+
     'style="width:100%;box-sizing:border-box;padding:8px 28px 8px 10px;font-size:13px;border:1px solid rgba(0,0,0,.15);border-radius:8px;font-family:inherit" '+
@@ -84,7 +84,14 @@ function renderTgSelection(res){
     '<button type="button" class="calx-mini" onclick="tgSelectAll(false)">전체 해제</button>'+
     '<span id="tgsel-count" style="font-size:12px;color:#C4907A;font-weight:600;margin-left:auto"></span>'+
     '</div>';
-  res.items.forEach(function(it,i){
+  // [2026-09-07] 두 구역: 이전에 보낸 건(마지막 발송일 내림차순) 위 / 아직 안 보낸 건 아래. TGSEL_ITEMS 순서도 이에 맞춤(행 index 일치)
+  var sentItems=(res.items||[]).filter(function(it){return !!it.last_sent;}).sort(function(a,b){return String(b.last_sent||'').localeCompare(String(a.last_sent||''));});
+  var newItems=(res.items||[]).filter(function(it){return !it.last_sent;});
+  TGSEL_ITEMS=sentItems.concat(newItems);
+  var secHtml=function(t){return '<div class="tgsel-sec" style="margin:10px 0 4px;padding:4px 6px;font-weight:700;color:#4a5d4b;font-size:12.5px;border-left:3px solid #8faf8a">'+t+'</div>';};
+  if(sentItems.length) html+=secHtml('📤 이전에 보낸 건 '+sentItems.length+'건 — 직전 발송분은 미리 체크됨');
+  TGSEL_ITEMS.forEach(function(it,i){
+    if(i===sentItems.length) html+=secHtml('🆕 아직 안 보낸 건 '+newItems.length+'건');
     // [2026-08-24] 체크박스 중앙 = 이름줄 중앙: 체크박스+이름(+배지)+문안버튼만 별도 flex줄로 묶어
     //   align-items:center 로 중앙정렬(폰트 leading 배분에 안 흔들리는 방식).
     //   문안 줄 들여쓰기 = 체크박스 폭(16px)만큼 투명한 여백을 앞에 똑같이 둬서, 값을 감으로 안 정하고
@@ -96,6 +103,7 @@ function renderTgSelection(res){
       '<input type="checkbox" class="tgsel-chk" data-pj="'+escapeHtml(it.pj)+'"'+(it.selected?' checked':'')+' style="flex:none;width:16px" onchange="tgUpdateSelCount();tgUpdateRowHighlight(this)">'+
       '<span class="tgsel-name" style="flex:1;cursor:pointer" onclick="var c=this.parentNode.querySelector(\x27input\x27);c.checked=!c.checked;tgUpdateSelCount();tgUpdateRowHighlight(c)"><b>'+escapeHtml(it.pj)+'</b>'+
       (it.custom_text?' <span style="font-size:10.5px;background:#e4ebf7;color:#2A6DA6;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">✏️ 수정된 문안</span>':'')+
+      (it.last_sent?' <span style="font-size:10.5px;background:#e9f1e6;color:#4a5d4b;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">📤 '+escapeHtml(String(it.last_sent).slice(5,10).replace('-','/'))+' 발송'+(it.in_last_send?' · 직전':'')+'</span>':'')+
       '</span>'+
       '<button type="button" class="calx-mini" style="flex:none" onclick="tgEditText('+i+')">✏️ 문안</button>'+
       '</div>'+
@@ -325,6 +333,7 @@ function tgConfirmSend(){
           alert('등록된 수신자가 없어 실제 발송 없이 미리보기만 표시했어요.\n(체크 상태는 저장됨)');
         }
         loadTgHistory();
+        loadTgSelection();   // [2026-09-07] 발송 직후 목록 재구성(이전 발송 구역·직전 발송 체크 갱신)
       } else {
         alert('발송 실패: '+((res&&res.message)||'알 수 없는 오류'));
       }

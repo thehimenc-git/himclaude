@@ -3247,6 +3247,34 @@ remember({
 </script>
 
 <!-- ① 박스 (프로젝트 지침란) ------------------------------------------------- -->
+<script type="text/plain" id="ub-tpl-mini"># 힘클로드 업무보고 — {{NAME}}
+
+당신은 {{NAME}} 님의 업무 도우미입니다. 핵심 기능은 ① 일일 업무보고 발송 ② 오늘 브리핑 읽기이며 아래 절차를 임의로 바꾸지 않습니다. 그 외 커넥터 도구(받은 지시 조회·완료, 어제 보고·오늘 맥락 조회, 메일 검색·읽기·발송·첨부, 개인 사전 기억, 맞춤 브리핑 생성, 위하고 메일·일정)는 사용자가 요청할 때 각 도구 설명대로 사용한다. 메일 도구가 reauth_required:true 를 돌려주면 응답의 oauth_url 을 안내하고 그 작업은 멈춘다.
+
+## 보고자 정보 (고정값, 절대 변경 금지)
+- 이름: {{NAME}} / 직책: {{ROLE}} / 부서: {{DEPT}} / 등급: {{GRADE}}
+- 개인 식별 email (도구 호출용): {{EMAIL}}
+- 수신: thehim180724@gmail.com / 참조: taesilkim2@gmail.com
+
+## ① 업무보고 발송 — "보고할 거야", "오늘 보고 보내줘", "이걸로 보고" 등
+1. 사용자가 오늘 한 일을 말하면 아래 6칸으로 정리한다(웹 보고와 같은 규격). 해당 없는 칸은 빈 문자열(""). 부족하다고 캐묻지 않는다. 원문에 없는 내용은 절대 지어내지 않는다.
+   - pj: 언급된 프로젝트명(복수면 쉼표) / content: 프로젝트별 수행 업무 내용 — "[프로젝트] 내용 / [프로젝트] 내용" 형식 / meeting: 미팅·회의·통화·협의 / issue: 이슈·문제·완료 보고 / dir: 지시받거나 결정된 사항 / schedule: 앞으로 예정된 일정
+2. 미리보기를 보여주고 딱 1번 확인한다:
+   📋 보고서 미리보기 → ▪ 프로젝트 / ▪ 업무 내용 / ▪ 미팅·회의 / ▪ 이슈·완료 / ▪ 지시사항 / ▪ 일정 → "이대로 발송할까요? 수정할 게 있으면 말씀해주세요."
+3. "응/네/발송/보내/ok" 등 승인이 오면 ★반드시 `send_daily_report` 도구★로 발송한다. ❌ 메일 도구(send_mail·Gmail 등)로 직접 메일을 보내는 것은 금지 — 시스템이 인식하지 못한다.
+   payload: name/role/dept/grade = 위 고정값 · date = 보고 기준일(yyyy-MM-dd, 기본 오늘) · to/cc = 위 수신·참조 · subject = "[일일보고] {{NAME}}_yyMMdd" · raw = 사용자 원문 · structured = { pj, content, meeting, issue, dir, schedule } · from_email = {{EMAIL}}
+4. 응답이 ok:true 면 "✅ 발송 완료!" — user_sent:true 면 "(본인 보낸편지함 기록 ✓)", 아니면 "(운영 hub 발신 — 정상 접수)". 응답에 oauth_url 이 있을 때만 "본인 Gmail 로 남기려면 1회 동의: <링크>" 한 줄을 덧붙인다(없으면 생략).
+5. 하루 1회가 원칙. 이미 오늘 발송한 정황이면 "오늘은 이미 발송했어요. 추가 내용이면 내일 보고에 넣을까요?"라고 먼저 확인한다.
+
+## ② 오늘 브리핑 읽기 — "브리핑 보여줘", "오늘 브리핑 요약해줘"
+1. `load_briefings({ email: "{{EMAIL}}", from: 오늘(yyyy-MM-dd), to: 오늘 })` 을 호출한다. 특정 날짜를 말하면 그 날짜로.
+2. 결과가 비어 있으면 "아직 오늘 브리핑이 발행되지 않았어요 (매일 아침 08:50 발행)"라고만 답한다 — 내용 추측 금지.
+3. 있으면 briefings[0].content 를 ①회사 요약 ②내 부서 ③나와 관련된 지시·일정 순으로 간결히 요약한다. 이미 본인 등급으로 걸러진 자료이니 그대로 써도 된다.
+
+## 금지
+- 승인 없이 send_daily_report 호출 금지 / 메일 도구로 보고 발송 금지 / 보고자 고정값 변경 금지 / 없는 내용 창작 금지 / 자유 대화 중에 "보고 쓸까요?" 먼저 권하지 않기
+</script>
+
 <script type="text/plain" id="ub-tpl-box"># 힘클로드 업무 어시스턴트
 
 당신은 {{NAME}} 님의 **업무 파트너**입니다. 평소 대화로 업무 맥락을 함께 쌓아두었다가, 사용자 의도에 따라 아래 [모드 라우터]의 해당 지침 파일 절차로 전환합니다.
@@ -3809,51 +3837,40 @@ roster(26명) 중 reports 에 없는 사람 = 미제출. 단 **김대근·이희
 
 <div class="cs-overlay" id="ub-overlay" onclick="if(event.target===this)closeUnifiedSetup()">
   <div class="cs-modal" role="dialog" aria-labelledby="ub-title-text">
-    <div class="cs-title"><span class="cs-title-icon">📦</span><span id="ub-title-text">통합 셋업 — 박스 + txt 6종</span></div>
-    <p class="cs-sub">이름 한 번 입력 → 프로젝트 지침란에 넣을 <b>박스</b>와, 자료로 첨부할 <b>txt 6개</b>를 만듭니다.</p>
+    <div class="cs-title"><span class="cs-title-icon">📦</span><span id="ub-title-text">내 클로드 연결 셋업</span></div>
+    <p class="cs-sub"><b>1단계</b> 커넥터 연결 → <b>2단계</b> 이름 넣고 [생성] → 나온 지침을 프로젝트 지침란에 붙여넣기. 끝. 이후 핸드폰·PC 클로드 앱 어디서든 아래 표처럼 말하면 됩니다.</p>
 
     <div class="cs-section">
-      <h4>1. MCP 커넥터 URL (2개 등록)</h4>
-      <p class="desc" style="margin-bottom:6px">claude.ai 프로젝트 → 커넥터 → <code>사용자 정의 MCP 서버</code> → 아래 2개를 각각 등록</p>
+      <h4>1단계 · 커넥터 연결</h4>
+      <p class="desc" style="margin-bottom:6px">크롬에서 claude.ai → 왼쪽 아래 <b>내 이름</b> → <b>설정</b> → <b>커넥터</b> → 오른쪽 위 <b>[+ 추가 ▾]</b> → <code>커스텀 커넥터 추가</code> → 이름 <b>힘보고</b>, 주소는 아래를 붙여넣기 → [계속] → 인증은 <b>"없음(감지됨)" 그대로</b>, 헤더 추가 없이 <b>[추가]</b>. 목록에 힘보고 ✓ 뜨면 완료.</p>
       <div class="cs-url-row">
         <input class="cs-url-input" id="ub-mcp-url" readonly value="https://himreport-mcp-prod-production.up.railway.app/mcp">
         <button class="cs-btn" onclick="ubCopyUrl()">복사</button>
       </div>
-      <p class="desc" style="margin:4px 0 0">① 보고·브리핑·개인사전·메일 (himreport)</p>
-      <div class="cs-url-row" style="margin-top:8px">
-        <input class="cs-url-input" id="ub-mcp-url2" readonly value="https://himclova-mcp-production.up.railway.app/mcp/73a8f30a7f3c9262ffbddc8fe8564fedfcb9b9f5fd3ede6f">
-        <button class="cs-btn" onclick="ubCopyUrl2()">복사</button>
-      </div>
-      <p class="desc" style="margin:4px 0 0">② 음성후처리·회의록 (himclova)</p>
+      <p class="desc" style="margin:4px 0 0">힘보고 커넥터 주소 (보고 발송·브리핑 읽기)</p>
+
       <p class="cs-msg" id="ub-msg-url"></p>
     </div>
 
     <div class="cs-section" style="margin-bottom:0">
-      <h4>2. 지침 생성</h4>
+      <h4>2단계 · 지침 만들기 — 본인 이름 입력 → [생성]</h4>
       <div class="cs-name-row">
         <input class="cs-name-input" id="ub-name" placeholder="본인 성명 (예: 변지민)" onkeydown="if(event.key==='Enter')ubLookupAndBuild()">
         <button class="cs-btn primary" onclick="ubLookupAndBuild()">생성</button>
       </div>
       <p class="cs-msg" id="ub-msg-name"></p>
 
-      <p class="desc" style="margin-top:8px"><b>① 박스 지침</b> — 복사해서 프로젝트 <b>지침란</b>에 붙여넣기</p>
-      <textarea class="cs-result empty" id="ub-box" readonly placeholder="이름 입력 후 [생성] 누르면 박스 지침이 여기에 나옵니다."></textarea>
+      <p class="desc" style="margin-top:8px"><b>지침 (1개뿐)</b> — [지침 복사] → claude.ai 왼쪽 메뉴 <b>새 프로젝트</b> → 생성 창엔 <b>이름("업무보고")만</b> 쓰고 [프로젝트 생성] → 열리는 화면 <b>오른쪽 지침(Instructions) 칸</b>에 붙여넣기 → 저장</p>
+      <p class="desc" style="color:#8a7a63">프로젝트는 <b>크롬</b>에서 만들면 됩니다 (폴더 지정 불필요). 프로젝트·지침·커넥터는 계정 단위라 <b>데스크톱·핸드폰 클로드 앱에서도 그대로</b> 보이고, 폰에서 "보고할 거야"도 됩니다.</p>
+      <textarea class="cs-result empty" id="ub-box" readonly placeholder="이름 입력 후 [생성] 누르면 본인 정보가 채워진 지침이 여기에 나옵니다."></textarea>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <button class="cs-btn" onclick="ubDl('box')">박스 txt 저장</button>
-        <button class="cs-btn primary" onclick="ubCopyBox()">박스 복사</button>
+        <button class="cs-btn" onclick="ubDl('box')">txt로 저장</button>
+        <button class="cs-btn primary" onclick="ubCopyBox()">지침 복사</button>
       </div>
 
-      <p class="desc" style="margin-top:28px"><b>② 지침 txt 6종</b> — 받아서 프로젝트 <b>자료(지식)</b>에 첨부</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <button class="cs-btn" onclick="ubDl('report')">보고모드.txt</button>
-        <button class="cs-btn" onclick="ubDl('prepare')">업무보고준비.txt</button>
-        <button class="cs-btn" onclick="ubDl('voice')">음성텍스트화.txt</button>
-        <button class="cs-btn" onclick="ubDl('tools')">도구컨텍스트.txt</button>
-        <button class="cs-btn" onclick="ubDl('briefing')">브리핑읽기.txt</button>
-        <button class="cs-btn" onclick="ubDl('makebrief')">브리핑만들기.txt</button>
-      </div>
     </div>
 
+    <div style="margin-top:12px;padding:10px 12px;background:rgba(0,0,0,.04);border-radius:8px"><div style="font-weight:600;margin-bottom:6px">이 커넥터로 할 수 있는 것 — 클로드에게 이렇게 말하면 됩니다</div><table style="width:100%;border-collapse:collapse;font-size:12.5px;line-height:1.5"><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">📝 업무보고 작성·발송</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"보고할 거야. 오늘 ○○ 도면 수정했고 내일 △△ 답사 감" → 미리보기 확인 → "응"</td></tr><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">📰 오늘 브리핑 읽기</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"오늘 브리핑 보여줘" / "어제 브리핑에서 우리 본부만 요약해줘"</td></tr><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">📌 받은 지시 확인·완료</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"내가 받은 지시 뭐 있어?" / "○○ 건 완료 처리해줘"</td></tr><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">🕘 어제 내 보고·오늘 할 일</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"어제 내가 뭐 보고했지?" / "오늘 내 일정이랑 지시 정리해줘"</td></tr><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">📧 메일 찾기·읽기·보내기</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"오늘 온 메일 중 ○○ 관련 찾아줘" / "그 메일 첨부 요약해줘" / "김OO 과장께 메일 보내줘: …" ※ 메일 기능은 처음 1회 🔑 메일 권한 동의 필요(✦ 메뉴, 30초·7일마다 재동의)</td></tr><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">🧠 내 표기 기억시키기</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"앞으로 '용산'은 25-U09 용산전자상가로 기억해" (다음 보고부터 안 물어봄)</td></tr><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">🗂 내 맞춤 브리핑 만들기</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"지금까지 들어온 보고로 내 브리핑 만들어줘" / "더케이호텔 최근 2주 정리해줘"</td></tr><tr><td style="white-space:nowrap;font-weight:600;padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:top">📅 위하고(그룹웨어) 메일·일정</td><td style="padding:5px 8px;border-bottom:1px solid rgba(0,0,0,.06);color:#444">"위하고 일정에 내일 15시 ○○ 회의 추가해줘" / "위하고 받은 메일 보여줘"</td></tr></table><div style="font-size:12px;color:#8a7a63;margin-top:6px">위 두 줄(보고·브리핑)이 기본이고 나머지는 필요할 때 쓰면 됩니다. 클로드가 도구를 알아서 고릅니다.</div></div>
     <div class="cs-actions" style="margin-top:28px">
       <button class="cs-btn" onclick="closeUnifiedSetup();openSetupMenu()" style="min-width:72px">← 뒤로</button>
       <button class="cs-btn" onclick="closeUnifiedSetup()" style="min-width:72px">닫기</button>
@@ -3868,8 +3885,8 @@ roster(26명) 중 reports 에 없는 사람 = 미제출. 단 **김대근·이희
     <p class="cs-sub">어떤 셋업을 진행할지 선택하세요.</p>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="cs-btn" onclick="closeSetupMenu();openUnifiedSetup()" style="text-align:left;padding:14px 16px;white-space:normal;line-height:1.4">
-        <span style="font-size:14px;font-weight:600">📦 통합 셋업 (박스 + txt 6종)</span><br>
-        <span style="font-size:11px;color:var(--ink3)">박스 지침 1개 + 자료 txt 6종 생성</span>
+        <span style="font-size:14px;font-weight:600">📱 내 클로드 앱에서 보고하기 — 셋업</span><br>
+        <span style="font-size:11px;color:var(--ink3)">핸드폰·컴퓨터 클로드 앱으로 보고·브리핑 · 이 창 순서대로 5분</span>
       </button>
       <button class="cs-btn" onclick="chooseSetup('oauth')" style="text-align:left;padding:14px 16px;white-space:normal;line-height:1.4">
         <span style="font-size:14px;font-weight:600">🔑 메일 권한 동의</span><br>

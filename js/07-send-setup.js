@@ -1851,7 +1851,7 @@ function ubCopyUrl2(){ var el=document.getElementById('ub-mcp-url2'); csTryCopy(
 function ubCopyBox(){
   var ta=document.getElementById('ub-box');
   if(!ta.value.trim()){ csMsg('ub-msg-name','먼저 [생성] 으로 만들기','err'); return; }
-  csTryCopy(ta.value, ta, 'ub-msg-name', '박스 복사됨 — 프로젝트 지침란에 붙여넣기');
+  csTryCopy(ta.value, ta, 'ub-msg-name', '지침 복사됨 — 프로젝트 지침란에 붙여넣기');
 }
 function ubFill(tplId, me){
   var el=document.getElementById(tplId);
@@ -1884,7 +1884,7 @@ function ubLookupAndBuild(){
       var me = matches[0];
       ubFilled = {
         name:    me.name,
-        box:     ubFill('ub-tpl-box', me),
+        box:     ubFill('ub-tpl-mini', me),   // 2026-09-07 최소 세팅(보고 발송+브리핑 읽기) — 옛 박스+txt6 는 템플릿만 보존
         report:  ubFill('ub-tpl-report', me),
         prepare: ubFill('ub-tpl-prepare', me),
         voice:   ubFill('ub-tpl-voice', me),
@@ -1893,7 +1893,7 @@ function ubLookupAndBuild(){
         makebrief: ubFill('ub-tpl-makebrief', me)
       };
       ubSetBox(ubFilled.box);
-      csMsg('ub-msg-name','생성 완료 (' + me.name + ' / ' + me.dept + ') — 박스 복사 + txt 6개 저장하세요','ok');
+      csMsg('ub-msg-name','생성 완료 (' + me.name + ' / ' + me.dept + ') — [지침 복사] 눌러 프로젝트 지침란에 붙여넣으세요','ok');
     })
     .catch(function(e){ csMsg('ub-msg-name','오류: ' + e.message,'err'); });
 }

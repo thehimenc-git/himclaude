@@ -71,7 +71,7 @@ function renderTgSelection(res){
   TGSEL_ITEMS=res.items||[];
   var head=document.querySelector('#ctx-tgsel .ctx-head span');
   if(head)head.textContent='외부브리핑 선정 (텔레그램) — '+res.date+' 기준 '+res.count+'건';
-  var html='<div style="font-size:12.5px;color:#8a7a63;margin-bottom:8px">보낼 건을 체크하고 [보내기]를 누르면 등록된 수신자 전원에게 발송됩니다. <b>직전에 보낸 건은 미리 체크</b>돼 있으니 이번에 보낼 것만 다시 고르세요. [✏️ 문안]으로 발송 문구를 직접 고칠 수 있어요.</div>';
+  var html='<div style="font-size:12.5px;color:#8a7a63;margin-bottom:8px">보낼 건을 체크하고 [보내기]를 누르면 등록된 수신자 전원에게 발송됩니다. <b>직전에 보낸 건은 미리 체크</b>돼 있으니 이번에 보낼 것만 다시 고르세요. [✏️ 문안]으로 발송 문구를 직접 고칠 수 있어요.<br>현안에 <b>“긴급”</b>이라고 적으면 목록·발송문 <b>맨 위에 🚨로 강조</b>됩니다. 문안이 없는 건은 보낼 때 AI가 <b>문제·결정사항·담당부서</b> 기준으로 초안을 만들어 저장합니다.</div>';
   html+='<div style="position:relative;margin-bottom:8px">'+
     '<input type="text" id="tgsel-search" placeholder="🔍 프로젝트 이름 검색" autocomplete="off" '+
     'style="width:100%;box-sizing:border-box;padding:8px 28px 8px 10px;font-size:13px;border:1px solid rgba(0,0,0,.15);border-radius:8px;font-family:inherit" '+
@@ -85,13 +85,16 @@ function renderTgSelection(res){
     '<span id="tgsel-count" style="font-size:12px;color:#C4907A;font-weight:600;margin-left:auto"></span>'+
     '</div>';
   // [2026-09-07] 두 구역: 이전에 보낸 건(마지막 발송일 내림차순) 위 / 아직 안 보낸 건 아래. TGSEL_ITEMS 순서도 이에 맞춤(행 index 일치)
-  var sentItems=(res.items||[]).filter(function(it){return !!it.last_sent;}).sort(function(a,b){return String(b.last_sent||'').localeCompare(String(a.last_sent||''));});
-  var newItems=(res.items||[]).filter(function(it){return !it.last_sent;});
-  TGSEL_ITEMS=sentItems.concat(newItems);
-  var secHtml=function(t){return '<div class="tgsel-sec" style="margin:10px 0 4px;padding:4px 6px;font-weight:700;color:#4a5d4b;font-size:12.5px;border-left:3px solid #8faf8a">'+t+'</div>';};
-  if(sentItems.length) html+=secHtml('📤 이전에 보낸 건 '+sentItems.length+'건 — 직전 발송분은 미리 체크됨');
+  // [2026-09-08] 세 구역: 🚨 긴급(현안에 '긴급') 맨 위 → 이전에 보낸 건 → 아직 안 보낸 건
+  var urgentItems=(res.items||[]).filter(function(it){return !!it.urgent;});
+  var sentItems=(res.items||[]).filter(function(it){return !it.urgent && !!it.last_sent;}).sort(function(a,b){return String(b.last_sent||'').localeCompare(String(a.last_sent||''));});
+  var newItems=(res.items||[]).filter(function(it){return !it.urgent && !it.last_sent;});
+  TGSEL_ITEMS=urgentItems.concat(sentItems).concat(newItems);
+  var secHtml=function(t,color){return '<div class="tgsel-sec" style="margin:10px 0 4px;padding:4px 6px;font-weight:700;color:'+(color||'#4a5d4b')+';font-size:12.5px;border-left:3px solid '+(color||'#8faf8a')+'">'+t+'</div>';};
+  if(urgentItems.length) html+=secHtml('🚨 긴급 '+urgentItems.length+'건 — 발송문 맨 위에 굵게 표시','#c05a5a');
   TGSEL_ITEMS.forEach(function(it,i){
-    if(i===sentItems.length) html+=secHtml('🆕 아직 안 보낸 건 '+newItems.length+'건');
+    if(sentItems.length && i===urgentItems.length) html+=secHtml('📤 이전에 보낸 건 '+sentItems.length+'건 — 직전 발송분은 미리 체크됨');
+    if(i===urgentItems.length+sentItems.length) html+=secHtml('🆕 아직 안 보낸 건 '+newItems.length+'건');
     // [2026-08-24] 체크박스 중앙 = 이름줄 중앙: 체크박스+이름(+배지)+문안버튼만 별도 flex줄로 묶어
     //   align-items:center 로 중앙정렬(폰트 leading 배분에 안 흔들리는 방식).
     //   문안 줄 들여쓰기 = 체크박스 폭(16px)만큼 투명한 여백을 앞에 똑같이 둬서, 값을 감으로 안 정하고
@@ -102,7 +105,8 @@ function renderTgSelection(res){
       '<div style="display:flex;align-items:center;gap:8px">'+
       '<input type="checkbox" class="tgsel-chk" data-pj="'+escapeHtml(it.pj)+'"'+(it.selected?' checked':'')+' style="flex:none;width:16px" onchange="tgUpdateSelCount();tgUpdateRowHighlight(this)">'+
       '<span class="tgsel-name" style="flex:1;cursor:pointer" onclick="var c=this.parentNode.querySelector(\x27input\x27);c.checked=!c.checked;tgUpdateSelCount();tgUpdateRowHighlight(c)"><b>'+escapeHtml(it.pj)+'</b>'+
-      (it.custom_text?' <span style="font-size:10.5px;background:#e4ebf7;color:#2A6DA6;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">✏️ 수정된 문안</span>':'')+
+      (it.urgent?' <span style="font-size:10.5px;background:#fce4e4;color:#c62828;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block;font-weight:700">🚨 긴급</span>':'')+
+      (it.custom_text?' <span style="font-size:10.5px;background:#e4ebf7;color:#2A6DA6;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">'+(it.auto_draft?'🤖 AI 초안':'✏️ 수정된 문안')+'</span>':'')+
       (it.last_sent?' <span style="font-size:10.5px;background:#e9f1e6;color:#4a5d4b;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">📤 '+escapeHtml(String(it.last_sent).slice(5,10).replace('-','/'))+' 발송'+(it.in_last_send?' · 직전':'')+'</span>':'')+
       '</span>'+
       '<button type="button" class="calx-mini" style="flex:none" onclick="tgEditText('+i+')">✏️ 문안</button>'+
@@ -116,8 +120,10 @@ function renderTgSelection(res){
   html+='<div id="tgsel-empty" class="ctx-row ctx-empty" style="display:none;margin:6px 4px">검색 결과가 없습니다.</div>';
   html+='<div id="tgsel-editor" style="display:none;margin-top:10px;padding:10px;border:1px solid rgba(42,157,214,.4);border-radius:8px;background:rgba(42,157,214,.05)">'+
     '<div style="font-weight:600;margin-bottom:6px" id="tgsel-editor-title"></div>'+
-    '<textarea id="tgsel-editor-text" style="width:100%;min-height:90px;box-sizing:border-box;font-size:13px;padding:8px;border:1px solid rgba(0,0,0,.15);border-radius:6px" placeholder="공무원에게 보낼 문구를 적어주세요 (여러 줄 가능)"></textarea>'+
+    '<textarea id="tgsel-editor-text" style="width:100%;min-height:110px;box-sizing:border-box;font-size:13px;padding:8px;border:1px solid rgba(0,0,0,.15);border-radius:6px" placeholder="현안 :\n1) 문제 또는 결정 필요 사항\n2) …\n주관부서 : 기관·담당자\n\n※ 어딘가에 “긴급”이라고 적으면 맨 위에 🚨로 올라갑니다"></textarea>'+
+    '<div id="tgsel-editor-hint" style="font-size:11.5px;color:#8a7a63;margin-top:4px">받는 사람이 알아야 할 것만: 무슨 문제인지 · 뭘 결정해야 하는지 · 어느 부서가 도와줘야 하는지. 진행 나열은 빼주세요.</div>'+
     '<div style="margin-top:6px;text-align:right;display:flex;gap:6px;justify-content:flex-end">'+
+    '<button type="button" class="calx-mini" id="tgsel-draft-btn" style="margin-right:auto" onclick="tgGenDraft()">🤖 AI 초안 (문제·결정·담당부서)</button>'+
     '<button type="button" class="calx-mini" onclick="document.getElementById(\x27tgsel-editor\x27).style.display=\x27none\x27">닫기</button>'+
     '<button type="button" class="calx-mini" style="color:#c05a5a" onclick="saveTgText(true)">자동 문안으로 원복</button>'+
     '<button type="button" class="calx-mini" style="background:#3d5a3d;color:#fff;border-radius:6px;padding:4px 12px" onclick="saveTgText(false)">문안 저장</button>'+
@@ -209,9 +215,25 @@ function tgEditText(i){
   var title=document.getElementById('tgsel-editor-title');
   if(title)title.textContent='✏️ 발송 문안 — '+it.pj;
   var ta=document.getElementById('tgsel-editor-text');
-  if(ta)ta.value=it.custom_text||it.full_note||it.note||'';   // [2026-08-21] 편집창 기본값은 전체(가림처리된) 텍스트 사용
+  if(ta)ta.value=it.custom_text||'';   // [2026-09-08] 장부 현안만. 브리핑 비고(진행 나열)는 기본값에서 제외 — 필요하면 [AI 초안]
   box.style.display='';
   box.scrollIntoView({behavior:'smooth',block:'center'});
+}
+// [2026-09-08] AI 초안 — 새 기준(문제·결정사항·담당부서)으로 현안 초안을 받아 편집칸에 채움 (저장은 [문안 저장]으로)
+function tgGenDraft(){
+  if(!TGSEL_EDIT_PJ||!profile){alert('수정할 항목을 먼저 열어주세요.');return;}
+  var btn=document.getElementById('tgsel-draft-btn');
+  if(btn){btn.disabled=true;btn.textContent='초안 만드는 중...';}
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_gen_draft',token:APPS_SCRIPT_TOKEN,name:profile.name,pj:TGSEL_EDIT_PJ})})
+    .then(function(r){return r.json()})
+    .then(function(res){
+      if(btn){btn.disabled=false;btn.textContent='🤖 AI 초안 (문제·결정·담당부서)';}
+      if(!res||!res.ok){alert('초안 실패: '+((res&&res.message)||'알 수 없는 오류'));return;}
+      var ta=document.getElementById('tgsel-editor-text');
+      if(ta){ta.value=res.issue||'';ta.focus();}
+      toast('🤖 초안을 채웠습니다 — 확인·수정 후 [문안 저장]');
+    })
+    .catch(function(e){alert('통신 오류: '+e.message);if(btn){btn.disabled=false;btn.textContent='🤖 AI 초안 (문제·결정·담당부서)';}});
 }
 function saveTgText(reset){
   if(!TGSEL_EDIT_PJ){alert('수정할 항목이 선택되지 않았습니다. 다시 열어주세요.');return;}
@@ -224,8 +246,10 @@ function saveTgText(reset){
     .then(function(res){
       if(res&&res.ok){
         var box=document.getElementById('tgsel-editor');if(box)box.style.display='none';
-        toast('✅ 문안이 저장되었습니다');   // [2026-08-20] 성공도 눈에 보이게 — 실패와 구분 안 되던 문제 개선
-        refreshTgTextsOnly();   // [2026-08-24] 전체 재로딩(loadTgSelection) 대신 문안만 갱신 — 검색·체크 상태 유지
+        toast('✅ 문안이 저장되었습니다'+(res.urgent?' · 🚨 긴급으로 맨 위에 올라갑니다':''));
+        var wasUrgent=false; for(var q=0;q<TGSEL_ITEMS.length;q++){ if(TGSEL_ITEMS[q].pj===TGSEL_EDIT_PJ){ wasUrgent=!!TGSEL_ITEMS[q].urgent; break; } }
+        if(!!res.urgent!==wasUrgent) loadTgSelection();   // [2026-09-08] 긴급 여부가 바뀌면 구역이 달라지므로 목록 재구성
+        else refreshTgTextsOnly();   // [2026-08-24] 문안만 갱신 — 검색·체크 상태 유지
       } else {
         alert('저장 실패: '+((res&&res.message)||'알 수 없는 오류'));
       }
@@ -250,7 +274,9 @@ function refreshTgTextsOnly(){
         var nameEl=row.querySelector('.tgsel-name');
         if(nameEl){
           nameEl.innerHTML='<b>'+escapeHtml(it.pj)+'</b>'+
-            (it.custom_text?' <span style="font-size:10.5px;background:#e4ebf7;color:#2A6DA6;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">✏️ 수정된 문안</span>':'');
+            (it.urgent?' <span style="font-size:10.5px;background:#fce4e4;color:#c62828;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block;font-weight:700">🚨 긴급</span>':'')+
+            (it.custom_text?' <span style="font-size:10.5px;background:#e4ebf7;color:#2A6DA6;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">'+(it.auto_draft?'🤖 AI 초안':'✏️ 수정된 문안')+'</span>':'')+
+            (it.last_sent?' <span style="font-size:10.5px;background:#e9f1e6;color:#4a5d4b;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">📤 '+escapeHtml(String(it.last_sent).slice(5,10).replace('-','/'))+' 발송'+(it.in_last_send?' · 직전':'')+'</span>':'');
         }
         var detailEl=row.querySelector('.tgsel-detail');
         var detailTextEl=row.querySelector('.tgsel-detail-text');
@@ -306,9 +332,11 @@ function sendTgSelection(){
       if(btn){btn.disabled=false;btn.textContent='📨 체크한 건 보내기';}
       if(!res||!res.ok){alert('미리보기 생성 실패: '+((res&&res.message)||'알 수 없는 오류'));return;}
       var tgt=document.getElementById('tg-preview-targets');
-      if(tgt)tgt.textContent=(res.targets&&res.targets.length)
+      if(tgt)tgt.textContent=((res.targets&&res.targets.length)
         ?('발송 대상: '+res.targets.join(', ')+' ('+res.targets.length+'명)')
-        :'⚠️ 등록된 수신자가 없습니다 — 이대로 발송해도 실제 발송은 되지 않습니다';
+        :'⚠️ 등록된 수신자가 없습니다 — 이대로 발송해도 실제 발송은 되지 않습니다')
+        +((res.urgent&&res.urgent.length)?' · 🚨 긴급 '+res.urgent.length+'건 맨 위':'')
+        +((res.auto_drafted&&res.auto_drafted.length)?' · 🤖 AI 초안 '+res.auto_drafted.length+'건(장부에 저장됨, 문안에서 수정 가능)':'');
       var pv=document.getElementById('tg-preview-text');
       if(pv)pv.textContent=res.preview||'';
       var dlg=document.getElementById('tg-preview-dlg');

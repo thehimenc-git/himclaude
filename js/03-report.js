@@ -751,7 +751,37 @@ function buildEntryRow(e){
     '<span class="sch-title">'+title+'</span>'+
     '<span class="sch-from">'+fromHint+'</span>'+
     '<span class="sch-d">'+dLabel+(dueMissing?' ⚠️':'')+'</span>';
+  attachSourceText(d, e);   // 지시 원문 펼침 (2026-09-08)
   return d;
+}
+
+// 받은/보낸 지시 줄을 누르면 지시자 보고 원문(source_text)이 펼쳐짐 (2026-09-08)
+//   원문이 없는 옛 지시(9/8 이전 등록)·한 줄 지시는 "원문 없음" 안내.
+function attachSourceText(row, e){
+  if(!(e.view_type==='received' || e.view_type==='sent')) return;
+  var src=(e.source_text||'').toString().trim();
+  var caret=document.createElement('span');
+  caret.className='sch-src-caret';
+  caret.style.cssText='display:block;font-size:11px;color:#8a8578;margin-top:2px;user-select:none;';
+  caret.textContent=src?'▸ 원문 보기':'▸ 원문 없음';
+  var det=document.createElement('div');
+  det.className='sch-src';
+  det.style.cssText='display:none;margin-top:6px;padding:7px 9px;font-size:12px;line-height:1.6;color:#4a463f;background:rgba(0,0,0,.035);border-left:3px solid #c9bfa8;border-radius:0 6px 6px 0;white-space:pre-wrap;word-break:break-word;';
+  if(src){
+    var head='원문 · '+(e.from||'')+(e.source_briefing?' · '+e.source_briefing+' 보고':'');
+    det.textContent=head+'\n'+src;
+  }else{
+    det.textContent='원문 없음 — 원문 저장(9/8) 이전에 등록된 지시이거나, 지시자가 제목 한 줄로만 적은 경우입니다.';
+  }
+  row.appendChild(caret); row.appendChild(det);
+  row.style.cursor='pointer';
+  row.addEventListener('click',function(ev){
+    var t=ev.target;
+    if(t && (t.tagName==='INPUT' || t.tagName==='BUTTON' || t.tagName==='A')) return;
+    var open=det.style.display!=='none';
+    det.style.display=open?'none':'block';
+    caret.textContent=(src?(open?'▸ 원문 보기':'▾ 원문 접기'):(open?'▸ 원문 없음':'▾ 원문 없음'));
+  });
 }
 
 function renderCardSections(bodyId, entries, options){

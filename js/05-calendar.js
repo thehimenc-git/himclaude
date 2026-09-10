@@ -5,7 +5,7 @@ function dirxAddRow(){
   var row=document.createElement('div');
   row.className='dirx-row';
   row.innerHTML=
-    '<input type="text" class="dirx-text" placeholder="예: 김려원 — 온보딩 자료 정리 요청" maxlength="200">'+
+    '<input type="text" class="dirx-text" placeholder="예: 박민준 — 회의록 정리 요청" maxlength="200">'+
     '<input type="date" class="dirx-date" title="완료 기한 (비우면 정리 단계에서 질문)">'+
     '<button type="button" class="dirx-del" title="삭제" onclick="this.parentNode.remove()">✕</button>';
   box.appendChild(row);

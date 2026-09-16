@@ -105,7 +105,7 @@ function renderTgSelection(res){
     if(it.hidden){
       html+='<div id="tgsel-row-'+i+'" data-hidden="1" style="padding:6px 4px;border-bottom:1px dashed rgba(0,0,0,.06);border-radius:8px;opacity:.7">'+
         '<div style="display:flex;align-items:center;gap:8px"><span style="flex:none;width:16px"></span>'+
-        '<span class="tgsel-name" style="flex:1"><b>'+escapeHtml(it.pj)+'</b> <span style="font-size:10.5px;color:#a99a86">'+escapeHtml(it.hidden_by||'')+' '+escapeHtml(String(it.hidden_at||'').slice(5,16))+' 제외</span></span>'+
+        '<span class="tgsel-name" style="flex:1"><b>'+escapeHtml(it.pj)+'</b> <span style="font-size:10.5px;color:#a99a86">'+escapeHtml(it.hidden_by||'')+' '+escapeHtml(_tgFmtAt_(it.hidden_at))+' 제외</span></span>'+
         '<button type="button" class="calx-mini" style="flex:none" onclick="tgHide('+i+',false)">↩ 복원</button></div></div>';
       if(i===TGSEL_ITEMS.length-1) html+='</div>';
       return;
@@ -203,6 +203,8 @@ function tgClearSearch(){
 }
 // [2026-08-24] 체크박스가 속한 줄을 찾아 배경색을 켜고/끔 — 체크박스 클릭·라벨 클릭·전체선택 세 경로에서 공용으로 사용
 // [2026-09-16] 제외/복원 — 서버 장부(외부브리핑 제외)에 저장 후 목록 재조회. 체크 상태는 보존
+// [2026-09-16] 제외 시각 표시 — 시트가 날짜로 자동 변환해 'Wed Sep 16 2026 …' 로 올 수 있어 MM/DD HH:MM 으로 통일
+function _tgFmtAt_(v){ var s=String(v||''); if(!s) return ''; if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(s)) return s.slice(5,16).replace('-','/'); var d=new Date(s); if(isNaN(d)) return s.slice(0,16); var p=function(n){return (n<10?'0':'')+n;}; return p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
 function tgHide(i,hide){
   var it=TGSEL_ITEMS[i]; if(!it||!profile) return;
   if(hide && !confirm('“'+it.pj+'” 을(를) 텔레그램 목록에서 뺄까요?\n복원 전까지 매일 목록·발송에서 빠집니다. (아래 “제외된 항목”에서 복원 가능)')) return;

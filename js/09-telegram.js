@@ -70,7 +70,7 @@ function renderTgSelection(res){
   var body=document.getElementById('ctx-tgsel-body');if(!body)return;
   TGSEL_ITEMS=res.items||[];
   var head=document.querySelector('#ctx-tgsel .ctx-head span');
-  if(head)head.textContent='외부브리핑 선정 (텔레그램) — '+res.date+' 기준 '+res.count+'건';
+  if(head)head.textContent='외부브리핑 선정 (텔레그램) — '+res.date+' 기준 '+res.count+'건'+(res.hidden_count?' (제외 '+res.hidden_count+')':'');
   var html='<div style="font-size:12.5px;color:#8a7a63;margin-bottom:8px">보낼 건을 체크하고 [보내기]를 누르면 등록된 수신자 전원에게 발송됩니다. <b>직전에 보낸 건은 미리 체크</b>돼 있으니 이번에 보낼 것만 다시 고르세요. [✏️ 문안]으로 발송 문구를 직접 고칠 수 있어요.<br>현안에 <b>“긴급”</b>이라고 적으면 목록·발송문 <b>맨 위에 🚨로 강조</b>됩니다. 문안이 없는 건은 보낼 때 AI가 <b>문제·결정사항·담당부서</b> 기준으로 초안을 만들어 저장합니다.</div>';
   html+='<div style="position:relative;margin-bottom:8px">'+
     '<input type="text" id="tgsel-search" placeholder="🔍 프로젝트 이름 검색" autocomplete="off" '+
@@ -86,15 +86,30 @@ function renderTgSelection(res){
     '</div>';
   // [2026-09-07] 두 구역: 이전에 보낸 건(마지막 발송일 내림차순) 위 / 아직 안 보낸 건 아래. TGSEL_ITEMS 순서도 이에 맞춤(행 index 일치)
   // [2026-09-08] 세 구역: 🚨 긴급(현안에 '긴급') 맨 위 → 이전에 보낸 건 → 아직 안 보낸 건
-  var urgentItems=(res.items||[]).filter(function(it){return !!it.urgent;});
-  var sentItems=(res.items||[]).filter(function(it){return !it.urgent && !!it.last_sent;}).sort(function(a,b){return String(b.last_sent||'').localeCompare(String(a.last_sent||''));});
-  var newItems=(res.items||[]).filter(function(it){return !it.urgent && !it.last_sent;});
-  TGSEL_ITEMS=urgentItems.concat(sentItems).concat(newItems);
+  // [2026-09-16] 제외된 항목(hidden)은 세 구역에서 빼고 맨 아래 접힌 구역으로 (강중구 요구: 불필요한 것 삭제)
+  var visItems=(res.items||[]).filter(function(it){return !it.hidden;});
+  var hiddenItems=(res.items||[]).filter(function(it){return !!it.hidden;});
+  var urgentItems=visItems.filter(function(it){return !!it.urgent;});
+  var sentItems=visItems.filter(function(it){return !it.urgent && !!it.last_sent;}).sort(function(a,b){return String(b.last_sent||'').localeCompare(String(a.last_sent||''));});
+  var newItems=visItems.filter(function(it){return !it.urgent && !it.last_sent;});
+  TGSEL_ITEMS=urgentItems.concat(sentItems).concat(newItems).concat(hiddenItems);
   var secHtml=function(t,color){return '<div class="tgsel-sec" style="margin:10px 0 4px;padding:4px 6px;font-weight:700;color:'+(color||'#4a5d4b')+';font-size:12.5px;border-left:3px solid '+(color||'#8faf8a')+'">'+t+'</div>';};
   if(urgentItems.length) html+=secHtml('🚨 긴급 '+urgentItems.length+'건 — 발송문 맨 위에 굵게 표시','#c05a5a');
+  var visCount=urgentItems.length+sentItems.length+newItems.length;
   TGSEL_ITEMS.forEach(function(it,i){
     if(sentItems.length && i===urgentItems.length) html+=secHtml('📤 이전에 보낸 건 '+sentItems.length+'건 — 직전 발송분은 미리 체크됨');
     if(i===urgentItems.length+sentItems.length) html+=secHtml('🆕 아직 안 보낸 건 '+newItems.length+'건');
+    if(i===visCount){   // [2026-09-16] 제외 구역 (접힘) — 체크박스 없음, [복원]만
+      html+='<div class="tgsel-sec" style="margin:14px 0 4px;padding:4px 6px;font-weight:700;color:#8a7a63;font-size:12.5px;border-left:3px solid #c9bfae;cursor:pointer" onclick="var b=document.getElementById(\x27tgsel-hidden-box\x27);b.style.display=b.style.display===\x27none\x27?\x27block\x27:\x27none\x27">🗂 제외된 항목 '+hiddenItems.length+'건 — 목록·발송에서 빠짐 (눌러서 펼치기/접기)</div><div id="tgsel-hidden-box" style="display:none">';
+    }
+    if(it.hidden){
+      html+='<div id="tgsel-row-'+i+'" data-hidden="1" style="padding:6px 4px;border-bottom:1px dashed rgba(0,0,0,.06);border-radius:8px;opacity:.7">'+
+        '<div style="display:flex;align-items:center;gap:8px"><span style="flex:none;width:16px"></span>'+
+        '<span class="tgsel-name" style="flex:1"><b>'+escapeHtml(it.pj)+'</b> <span style="font-size:10.5px;color:#a99a86">'+escapeHtml(it.hidden_by||'')+' '+escapeHtml(String(it.hidden_at||'').slice(5,16))+' 제외</span></span>'+
+        '<button type="button" class="calx-mini" style="flex:none" onclick="tgHide('+i+',false)">↩ 복원</button></div></div>';
+      if(i===TGSEL_ITEMS.length-1) html+='</div>';
+      return;
+    }
     // [2026-08-24] 체크박스 중앙 = 이름줄 중앙: 체크박스+이름(+배지)+문안버튼만 별도 flex줄로 묶어
     //   align-items:center 로 중앙정렬(폰트 leading 배분에 안 흔들리는 방식).
     //   문안 줄 들여쓰기 = 체크박스 폭(16px)만큼 투명한 여백을 앞에 똑같이 둬서, 값을 감으로 안 정하고
@@ -110,6 +125,7 @@ function renderTgSelection(res){
       (it.last_sent?' <span style="font-size:10.5px;background:#e9f1e6;color:#4a5d4b;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">📤 '+escapeHtml(String(it.last_sent).slice(5,10).replace('-','/'))+' 발송'+(it.in_last_send?' · 직전':'')+'</span>':'')+
       '</span>'+
       '<button type="button" class="calx-mini" style="flex:none" onclick="tgEditText('+i+')">✏️ 문안</button>'+
+      '<button type="button" class="calx-mini" style="flex:none;color:#a99a86" title="목록·발송에서 빼기 (아래 제외 구역에서 복원 가능)" onclick="tgHide('+i+',true)">🗑 제외</button>'+
       '</div>'+
       '<div class="tgsel-detail" style="display:'+(detail?'flex':'none')+';gap:8px;margin-top:6px">'+
       '<span style="flex:none;width:16px"></span>'+
@@ -141,6 +157,10 @@ function renderTgSelection(res){
     '</div>';
   html+='<pre id="tgsel-preview" style="display:none;margin-top:10px;padding:10px;background:rgba(0,0,0,.04);border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-all"></pre>';
   body.innerHTML=html;
+  if(TGSEL_KEEP_CHECKED){   // [2026-09-16] 제외/복원 직후 재조회 시 체크 상태 유지
+    body.querySelectorAll('input.tgsel-chk').forEach(function(c){ var k=c.getAttribute('data-pj'); if(k in TGSEL_KEEP_CHECKED){ c.checked=!!TGSEL_KEEP_CHECKED[k]; tgUpdateRowHighlight(c); } });
+    TGSEL_KEEP_CHECKED=null;
+  }
   tgUpdateSelCount();
   loadTgRecipients();
 }
@@ -182,6 +202,22 @@ function tgClearSearch(){
   searchEl.focus();
 }
 // [2026-08-24] 체크박스가 속한 줄을 찾아 배경색을 켜고/끔 — 체크박스 클릭·라벨 클릭·전체선택 세 경로에서 공용으로 사용
+// [2026-09-16] 제외/복원 — 서버 장부(외부브리핑 제외)에 저장 후 목록 재조회. 체크 상태는 보존
+function tgHide(i,hide){
+  var it=TGSEL_ITEMS[i]; if(!it||!profile) return;
+  if(hide && !confirm('“'+it.pj+'” 을(를) 텔레그램 목록에서 뺄까요?\n복원 전까지 매일 목록·발송에서 빠집니다. (아래 “제외된 항목”에서 복원 가능)')) return;
+  var keep={}; document.querySelectorAll('#ctx-tgsel-body input.tgsel-chk').forEach(function(c){ keep[c.getAttribute('data-pj')]=c.checked; });
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_hide',token:APPS_SCRIPT_TOKEN,name:profile.name,pj:it.pj,hide:!!hide})})
+    .then(function(r){return r.json()})
+    .then(function(res){
+      if(!res||!res.ok){ alert('실패: '+((res&&res.message)||'')); return; }
+      toast(hide?'🗑 목록에서 뺐습니다 — 아래 “제외된 항목”에서 복원 가능':'↩ 복원했습니다');
+      TGSEL_KEEP_CHECKED=keep;
+      loadTgSelection();
+    })
+    .catch(function(e){ alert('통신 오류: '+e.message); });
+}
+var TGSEL_KEEP_CHECKED=null;
 function tgUpdateRowHighlight(chk){
   var row=chk&&chk.closest?chk.closest('[id^="tgsel-row-"]'):null;
   if(!row) return;

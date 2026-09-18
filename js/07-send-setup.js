@@ -47,7 +47,10 @@ function hideReportDoneScreen(){
   if (chat) chat.style.display = '';
 }
 
+var _sendLockUntil = 0;   // 2026-09-18 — 발송 버튼 이중 클릭(재제출 4건 사고) 잠금
 function performSend(){
+  if (Date.now() < _sendLockUntil) { toast('발송 처리 중입니다. 잠시만 기다려주세요.'); return; }
+  _sendLockUntil = Date.now() + 60000;
   // 챗 UX: collectStructure (옛 카드 DOM read) 호출 제거. currentStructured 그대로 사용.
   var structured=flattenToFiveFields(currentStructured);
   var dc=dateStr.replace(/-/g,'');
@@ -65,7 +68,7 @@ function performSend(){
   requestUserGmailAccess(function(token){
     if (!token) {
       if (!confirm('본인 Gmail 권한 없음 (또는 OAuth 거부됨).\n운영 hub(thehim180724) 발신으로 진행할까요?\n\n참고: 예 = 옛 방식 (본인 Sent 미기록). 아니오 = 발송 취소.')) {
-        toast('발송 취소됨');
+        toast('발송 취소됨'); _sendLockUntil = 0;
         return;
       }
       _performSendViaGAS(structured, dc, false);

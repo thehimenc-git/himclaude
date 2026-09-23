@@ -657,6 +657,20 @@ var ReportChat = {
     // 첫 turn — 자동으로 시작 메시지 보내서 Claude 의 첫 질문 받기
     // 2026-05-21 v2 — opts.resumed=true 일 때만 이어쓰기 양식 (restoreDraft 호출 케이스).
     // 1차 분류 직후의 Tier 자동 confirm 은 "이어쓰기" 가 아니므로 일반 첫 turn 으로 시작.
+    // 2026-09-23 — 프로젝트 안내는 AI 말이 아니라 고정 문구로. (AI 가 "📌 맞췄습니다" 를 "맞습니까?" 로 바꿔 말해
+    //   직원들이 "매번 이게 맞냐고 묻는다"고 느끼던 재질문 차단. 서버 확정챗도 프로젝트 언급·선택지를 막음.)
+    try {
+      var ac = (!opts.resumed && structured && Array.isArray(structured.auto_corrections)) ? structured.auto_corrections : [];
+      if (ac.length) {
+        var lines = ac.map(function(c) {
+          var code = c.code ? c.code + ' ' : '';
+          if (c.temp) return "• '" + c.token + "' → 목록에 없어 " + (c.code || '') + " 로 " + (/^구조-/.test(String(c.code || '')) ? '신규' : '임시') + " 등록";
+          if (c.uncertain) return "• '" + c.token + "' → " + code + c.label + "  (확실치 않음 — 다르면 알려주세요)";
+          return "• '" + c.token + "' → " + code + c.label;
+        });
+        this.addMsg('assistant', '📌 프로젝트 목록 기준으로 맞췄습니다\n' + lines.join('\n') + '\n다르면 아래 채팅에 적어주세요. 예: "' + ac[0].token + '는 24-U02야"');
+      }
+    } catch (e) {}
     var startMsg = opts.resumed
       ? '이어쓰기로 시작합니다. 이전에 확정된 항목들을 한 번 요약해 알려주시고, 남은 항목들을 확인해주세요.'
       : '정리 시작해주세요. 첫 항목부터 확인해주세요.';

@@ -71,7 +71,19 @@ function renderTgSelection(res){
   TGSEL_ITEMS=res.items||[];
   var head=document.querySelector('#ctx-tgsel .ctx-head span');
   if(head)head.textContent='외부브리핑 선정 (텔레그램) — '+res.date+' 기준 '+res.count+'건'+(res.hidden_count?' (제외 '+res.hidden_count+')':'');
-  var html='<div style="font-size:12.5px;color:#8a7a63;margin-bottom:8px">보낼 건을 체크하고 [보내기]를 누르면 등록된 수신자 전원에게 발송됩니다. <b>직전에 보낸 건은 미리 체크</b>돼 있으니 이번에 보낼 것만 다시 고르세요. [✏️ 문안]으로 발송 문구를 직접 고칠 수 있어요.<br>현안에 <b>“긴급”</b>이라고 적으면 목록·발송문 <b>맨 위에 🚨로 강조</b>됩니다. 문안이 없는 건은 보낼 때 AI가 <b>문제·결정사항·담당부서</b> 기준으로 초안을 만들어 저장합니다.</div>';
+  body.classList.remove('tg-hidemode');
+  // [2026-09-27] 강중구 요청: ②요청사항 칸(최상단) ①여러 건 골라 한 번에 제외 ③노션에 없는 건은 서버가 미리 걸러냄
+  var rq=res.request||{};
+  var html='<style>#ctx-tgsel-body .tgsel-hwrap{display:none}#ctx-tgsel-body.tg-hidemode .tgsel-hwrap{display:inline-flex}#ctx-tgsel-body.tg-hidemode .tgsel-edit-btn{display:none}#ctx-tgsel-body .tgsel-hidebar{display:none}#ctx-tgsel-body.tg-hidemode .tgsel-hidebar{display:flex}#ctx-tgsel-body.tg-hidemode .tgsel-chk{opacity:.25;pointer-events:none}</style>';
+  html+='<div style="margin-bottom:10px;padding:10px;border:1px solid rgba(196,144,122,.45);border-radius:8px;background:rgba(196,144,122,.07)">'+
+    '<div style="font-weight:700;margin-bottom:4px">📌 요청사항 <span style="font-weight:400;color:#8a7a63;font-size:12px">프로젝트 외에 전달할 말 — 발송문 <b>맨 위</b>에 실립니다 (비울 때까지 매번 실림)</span></div>'+
+    '<textarea id="tgsel-request" maxlength="1000" style="width:100%;min-height:64px;box-sizing:border-box;font-size:13px;padding:8px;border:1px solid rgba(0,0,0,.15);border-radius:6px;font-family:inherit" placeholder="예) 9/30(수) 14시 정기 협의 일정 확인 부탁드립니다.">'+escapeHtml(rq.text||'')+'</textarea>'+
+    '<div style="margin-top:6px;display:flex;gap:6px;align-items:center;justify-content:flex-end">'+
+    '<span id="tgsel-request-info" style="margin-right:auto;font-size:11.5px;color:#a99a86">'+(rq.text?('저장됨 · '+escapeHtml(rq.by||'')+' '+escapeHtml(_tgFmtAt_(rq.at))):'저장된 요청사항 없음')+'</span>'+
+    '<button type="button" class="calx-mini" style="color:#c05a5a" onclick="tgSaveRequest(true)">비우기</button>'+
+    '<button type="button" class="calx-mini" style="background:#3d5a3d;color:#fff;border-radius:6px;padding:4px 12px" onclick="tgSaveRequest(false)">요청사항 저장</button>'+
+    '</div></div>';
+  html+='<div style="font-size:12.5px;color:#8a7a63;margin-bottom:8px">보낼 건을 체크하고 [보내기]를 누르면 등록된 수신자 전원에게 발송됩니다. <b>직전에 보낸 건은 미리 체크</b>돼 있으니 이번에 보낼 것만 다시 고르세요. [✏️ 문안]으로 발송 문구를 직접 고칠 수 있어요.<br>현안에 <b>“긴급”</b>이라고 적으면 목록·발송문 <b>맨 위에 🚨로 강조</b>됩니다. 문안이 없는 건은 보낼 때 AI가 <b>문제·결정사항·담당부서</b> 기준으로 초안을 만들어 저장합니다.</div>';
   html+='<div style="position:relative;margin-bottom:8px">'+
     '<input type="text" id="tgsel-search" placeholder="🔍 프로젝트 이름 검색" autocomplete="off" '+
     'style="width:100%;box-sizing:border-box;padding:8px 28px 8px 10px;font-size:13px;border:1px solid rgba(0,0,0,.15);border-radius:8px;font-family:inherit" '+
@@ -82,8 +94,15 @@ function renderTgSelection(res){
   html+='<div style="margin-bottom:8px;display:flex;gap:6px;align-items:center">'+
     '<button type="button" class="calx-mini" onclick="tgSelectAll(true)">전체 선택</button>'+
     '<button type="button" class="calx-mini" onclick="tgSelectAll(false)">전체 해제</button>'+
+    '<button type="button" class="calx-mini" style="color:#8a7a63" onclick="tgHideMode(true)">🗑 제외할 건 고르기</button>'+
     '<span id="tgsel-count" style="font-size:12px;color:#C4907A;font-weight:600;margin-left:auto"></span>'+
     '</div>';
+  html+='<div class="tgsel-hidebar" style="position:sticky;top:0;z-index:3;margin-bottom:8px;padding:8px 10px;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid #e0b4b4;border-radius:8px;background:#fdf1f1;font-size:12.5px">'+
+    '<b style="color:#c05a5a">🗑 제외할 건을 체크하세요</b><span id="tgsel-hcount" style="color:#8a7a63">0건 선택</span>'+
+    '<span style="margin-left:auto;display:flex;gap:6px">'+
+    '<button type="button" class="calx-mini" onclick="tgHideMode(false)">취소</button>'+
+    '<button type="button" class="calx-mini" style="background:#c05a5a;color:#fff;border-radius:6px;padding:4px 12px" onclick="tgHideSelected()">선택한 건 한 번에 제외</button>'+
+    '</span></div>';
   // [2026-09-07] 두 구역: 이전에 보낸 건(마지막 발송일 내림차순) 위 / 아직 안 보낸 건 아래. TGSEL_ITEMS 순서도 이에 맞춤(행 index 일치)
   // [2026-09-08] 세 구역: 🚨 긴급(현안에 '긴급') 맨 위 → 이전에 보낸 건 → 아직 안 보낸 건
   // [2026-09-16] 제외된 항목(hidden)은 세 구역에서 빼고 맨 아래 접힌 구역으로 (강중구 요구: 불필요한 것 삭제)
@@ -100,12 +119,16 @@ function renderTgSelection(res){
     if(sentItems.length && i===urgentItems.length) html+=secHtml('📤 이전에 보낸 건 '+sentItems.length+'건 — 직전 발송분은 미리 체크됨');
     if(i===urgentItems.length+sentItems.length) html+=secHtml('🆕 아직 안 보낸 건 '+newItems.length+'건');
     if(i===visCount){   // [2026-09-16] 제외 구역 (접힘) — 체크박스 없음, [복원]만
-      html+='<div class="tgsel-sec" style="margin:14px 0 4px;padding:4px 6px;font-weight:700;color:#8a7a63;font-size:12.5px;border-left:3px solid #c9bfae;cursor:pointer" onclick="var b=document.getElementById(\x27tgsel-hidden-box\x27);b.style.display=b.style.display===\x27none\x27?\x27block\x27:\x27none\x27">🗂 제외된 항목 '+hiddenItems.length+'건 — 목록·발송에서 빠짐 (눌러서 펼치기/접기)</div><div id="tgsel-hidden-box" style="display:none">';
+      html+='<div class="tgsel-sec" style="margin:14px 0 4px;padding:4px 6px;font-weight:700;color:#8a7a63;font-size:12.5px;border-left:3px solid #c9bfae;cursor:pointer" onclick="var b=document.getElementById(\x27tgsel-hidden-box\x27);b.style.display=b.style.display===\x27none\x27?\x27block\x27:\x27none\x27">🗂 제외된 항목 '+hiddenItems.length+'건 — 목록·발송에서 빠짐 (눌러서 펼치기/접기)</div><div id="tgsel-hidden-box" style="display:none">'+
+        '<div style="display:flex;gap:6px;align-items:center;margin:4px 4px 6px">'+
+        '<button type="button" class="calx-mini" onclick="tgRestoreCheckAll(true)">전체 선택</button>'+
+        '<button type="button" class="calx-mini" onclick="tgRestoreCheckAll(false)">전체 해제</button>'+
+        '<button type="button" class="calx-mini" style="margin-left:auto;background:#3d5a3d;color:#fff;border-radius:6px;padding:4px 12px" onclick="tgRestoreSelected()">↩ 선택한 건 한 번에 복원</button></div>';
     }
     if(it.hidden){
       html+='<div id="tgsel-row-'+i+'" data-hidden="1" style="padding:6px 4px;border-bottom:1px dashed rgba(0,0,0,.06);border-radius:8px;opacity:.7">'+
-        '<div style="display:flex;align-items:center;gap:8px"><span style="flex:none;width:16px"></span>'+
-        '<span class="tgsel-name" style="flex:1"><b>'+escapeHtml(it.pj)+'</b> <span style="font-size:10.5px;color:#a99a86">'+escapeHtml(it.hidden_by||'')+' '+escapeHtml(_tgFmtAt_(it.hidden_at))+' 제외</span></span>'+
+        '<div style="display:flex;align-items:center;gap:8px"><input type="checkbox" class="tgsel-rchk" data-pj="'+escapeHtml(it.pj)+'" style="flex:none;width:16px">'+
+        '<span class="tgsel-name" style="flex:1;cursor:pointer" onclick="var c=this.parentNode.querySelector(\x27input\x27);c.checked=!c.checked"><b>'+escapeHtml(it.pj)+'</b> <span style="font-size:10.5px;color:#a99a86">'+escapeHtml(it.hidden_by||'')+' '+escapeHtml(_tgFmtAt_(it.hidden_at))+' 제외</span></span>'+
         '<button type="button" class="calx-mini" style="flex:none" onclick="tgHide('+i+',false)">↩ 복원</button></div></div>';
       if(i===TGSEL_ITEMS.length-1) html+='</div>';
       return;
@@ -119,13 +142,13 @@ function renderTgSelection(res){
     html+='<div id="tgsel-row-'+i+'" style="padding:6px 4px;border-bottom:1px dashed rgba(0,0,0,.06);border-radius:8px;background:'+(it.selected?TG_ROW_CHECKED_BG:'transparent')+'">'+
       '<div style="display:flex;align-items:center;gap:8px">'+
       '<input type="checkbox" class="tgsel-chk" data-pj="'+escapeHtml(it.pj)+'"'+(it.selected?' checked':'')+' style="flex:none;width:16px" onchange="tgUpdateSelCount();tgUpdateRowHighlight(this)">'+
-      '<span class="tgsel-name" style="flex:1;cursor:pointer" onclick="var c=this.parentNode.querySelector(\x27input\x27);c.checked=!c.checked;tgUpdateSelCount();tgUpdateRowHighlight(c)"><b>'+escapeHtml(it.pj)+'</b>'+
+      '<span class="tgsel-name" style="flex:1;cursor:pointer" onclick="tgRowClick(this)"><b>'+escapeHtml(it.pj)+'</b>'+
       (it.urgent?' <span style="font-size:10.5px;background:#fce4e4;color:#c62828;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block;font-weight:700">🚨 긴급</span>':'')+
       (it.custom_text?' <span style="font-size:10.5px;background:#e4ebf7;color:#2A6DA6;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">'+(it.auto_draft?'🤖 AI 초안':'✏️ 수정된 문안')+'</span>':'')+
       (it.last_sent?' <span style="font-size:10.5px;background:#e9f1e6;color:#4a5d4b;border-radius:4px;padding:1px 5px;white-space:nowrap;display:inline-block">📤 '+escapeHtml(String(it.last_sent).slice(5,10).replace('-','/'))+' 발송'+(it.in_last_send?' · 직전':'')+'</span>':'')+
       '</span>'+
-      '<button type="button" class="calx-mini" style="flex:none" onclick="tgEditText('+i+')">✏️ 문안</button>'+
-      '<button type="button" class="calx-mini" style="flex:none;color:#a99a86" title="목록·발송에서 빼기 (아래 제외 구역에서 복원 가능)" onclick="tgHide('+i+',true)">🗑 제외</button>'+
+      '<button type="button" class="calx-mini tgsel-edit-btn" style="flex:none" onclick="tgEditText('+i+')">✏️ 문안</button>'+
+      '<label class="tgsel-hwrap" style="flex:none;align-items:center;gap:4px;font-size:12px;color:#c05a5a;cursor:pointer"><input type="checkbox" class="tgsel-hchk" data-pj="'+escapeHtml(it.pj)+'" style="width:16px" onchange="tgUpdateHideCount()">제외</label>'+
       '</div>'+
       '<div class="tgsel-detail" style="display:'+(detail?'flex':'none')+';gap:8px;margin-top:6px">'+
       '<span style="flex:none;width:16px"></span>'+
@@ -133,6 +156,13 @@ function renderTgSelection(res){
       '</div>'+
       '</div>';
   });
+  var fo=res.filtered_out||[];
+  if(fo.length){
+    html+='<div class="tgsel-sec" style="margin:14px 0 4px;padding:4px 6px;font-weight:700;color:#8a7a63;font-size:12.5px;border-left:3px solid #c9bfae;cursor:pointer" onclick="var b=document.getElementById(\x27tgsel-filtered-box\x27);b.style.display=b.style.display===\x27none\x27?\x27block\x27:\x27none\x27">🚫 노션 프로젝트 목록에 없어 자동으로 빠진 항목 '+fo.length+'건 (눌러서 펼치기/접기)</div>'+
+      '<div id="tgsel-filtered-box" style="display:none;padding:4px 8px 6px;font-size:12px;color:#8a7a63;line-height:1.7">'+
+      '<div style="color:#a99a86;margin-bottom:2px">노션에 프로젝트로 등록되면 다음 날부터 자동으로 목록에 올라옵니다.</div>'+
+      fo.map(function(f){return '· '+escapeHtml(f.pj);}).join('<br>')+'</div>';
+  }
   html+='<div id="tgsel-empty" class="ctx-row ctx-empty" style="display:none;margin:6px 4px">검색 결과가 없습니다.</div>';
   html+='<div id="tgsel-editor" style="display:none;margin-top:10px;padding:10px;border:1px solid rgba(42,157,214,.4);border-radius:8px;background:rgba(42,157,214,.05)">'+
     '<div style="font-weight:600;margin-bottom:6px" id="tgsel-editor-title"></div>'+
@@ -220,6 +250,70 @@ function tgHide(i,hide){
     .catch(function(e){ alert('통신 오류: '+e.message); });
 }
 var TGSEL_KEEP_CHECKED=null;
+// [2026-09-27] 제외 모드 — 보내기용 체크와 섞이지 않게, 제외는 별도 체크칸으로 고른 뒤 한 번에 처리
+function tgIsHideMode(){ var b=document.getElementById('ctx-tgsel-body'); return !!(b&&b.classList.contains('tg-hidemode')); }
+function tgHideMode(on){
+  var b=document.getElementById('ctx-tgsel-body'); if(!b) return;
+  b.classList.toggle('tg-hidemode',!!on);
+  if(!on) b.querySelectorAll('input.tgsel-hchk').forEach(function(c){ c.checked=false; var r=c.closest('[id^="tgsel-row-"]'); var s=r&&r.querySelector('input.tgsel-chk'); if(r) r.style.background=(s&&s.checked)?TG_ROW_CHECKED_BG:'transparent'; });
+  var ed=document.getElementById('tgsel-editor'); if(on&&ed) ed.style.display='none';
+  tgUpdateHideCount();
+}
+function tgRowClick(span){
+  var row=span.parentNode; if(!row) return;
+  if(tgIsHideMode()){ var h=row.querySelector('input.tgsel-hchk'); if(h){ h.checked=!h.checked; tgUpdateHideCount(); } return; }
+  var c=row.querySelector('input.tgsel-chk'); if(!c) return;
+  c.checked=!c.checked; tgUpdateSelCount(); tgUpdateRowHighlight(c);
+}
+function tgUpdateHideCount(){
+  var b=document.getElementById('ctx-tgsel-body'); if(!b) return;
+  var n=0;
+  b.querySelectorAll('input.tgsel-hchk').forEach(function(c){ if(c.checked) n++; var r=c.closest('[id^="tgsel-row-"]'); if(r&&tgIsHideMode()) r.style.background=c.checked?'#fdeaea':'transparent'; });
+  var el=document.getElementById('tgsel-hcount'); if(el) el.textContent=n+'건 선택';
+}
+function _tgBulkHide_(pjs,hide){
+  if(!profile||!pjs.length) return;
+  var keep={}; document.querySelectorAll('#ctx-tgsel-body input.tgsel-chk').forEach(function(c){ keep[c.getAttribute('data-pj')]=c.checked; });
+  if(hide) pjs.forEach(function(p){ delete keep[p]; });
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_hide',token:APPS_SCRIPT_TOKEN,name:profile.name,pjs:pjs,hide:!!hide})})
+    .then(function(r){return r.json()})
+    .then(function(res){
+      if(!res||!res.ok){ alert('실패: '+((res&&res.message)||'')); return; }
+      toast(hide?('🗑 '+pjs.length+'건을 목록에서 뺐습니다 — 아래 “제외된 항목”에서 복원 가능'):('↩ '+pjs.length+'건 복원했습니다'));
+      TGSEL_KEEP_CHECKED=keep;
+      loadTgSelection();
+    })
+    .catch(function(e){ alert('통신 오류: '+e.message); });
+}
+function tgHideSelected(){
+  var pjs=Array.prototype.map.call(document.querySelectorAll('#ctx-tgsel-body input.tgsel-hchk:checked'),function(c){return c.getAttribute('data-pj');});
+  if(!pjs.length){ alert('제외할 건을 먼저 체크해주세요.'); return; }
+  if(!confirm(pjs.length+'건을 텔레그램 목록에서 뺄까요?\n\n· '+pjs.slice(0,12).join('\n· ')+(pjs.length>12?'\n… 외 '+(pjs.length-12)+'건':'')+'\n\n복원 전까지 매일 목록·발송에서 빠집니다. (아래 “제외된 항목”에서 복원 가능)')) return;
+  _tgBulkHide_(pjs,true);
+}
+function tgRestoreCheckAll(all){ document.querySelectorAll('#ctx-tgsel-body input.tgsel-rchk').forEach(function(c){ c.checked=!!all; }); }
+function tgRestoreSelected(){
+  var pjs=Array.prototype.map.call(document.querySelectorAll('#ctx-tgsel-body input.tgsel-rchk:checked'),function(c){return c.getAttribute('data-pj');});
+  if(!pjs.length){ alert('복원할 건을 먼저 체크해주세요.'); return; }
+  _tgBulkHide_(pjs,false);
+}
+// [2026-09-27] 요청사항 저장/비우기 — 서버에 1건 보관, 발송문 맨 위에 실림
+function tgSaveRequest(clear){
+  var ta=document.getElementById('tgsel-request'); if(!ta||!profile) return;
+  if(clear){ if(!ta.value.trim()&&!confirm('저장된 요청사항을 비울까요?')) return; ta.value=''; }
+  var text=ta.value.trim();
+  if(!clear&&!text){ alert('요청사항을 입력하거나 [비우기]를 눌러주세요.'); return; }
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_set_request',token:APPS_SCRIPT_TOKEN,name:profile.name,text:text})})
+    .then(function(r){return r.json()})
+    .then(function(res){
+      if(!res||!res.ok){ alert('저장 실패: '+((res&&res.message)||'')); return; }
+      var info=document.getElementById('tgsel-request-info');
+      var q=res.request||{};
+      if(info) info.textContent=q.text?('저장됨 · '+(q.by||'')+' '+_tgFmtAt_(q.at)):'저장된 요청사항 없음';
+      toast(q.text?'📌 요청사항 저장 — 발송문 맨 위에 실립니다':'요청사항을 비웠습니다');
+    })
+    .catch(function(e){ alert('통신 오류: '+e.message); });
+}
 function tgUpdateRowHighlight(chk){
   var row=chk&&chk.closest?chk.closest('[id^="tgsel-row-"]'):null;
   if(!row) return;
@@ -230,9 +324,11 @@ function tgUpdateRowHighlight(chk){
 function tgSelectAll(all){
   TGSEL_ITEMS.forEach(function(it,i){
     var row=document.getElementById('tgsel-row-'+i); if(!row||row.style.display==='none') return;
+    if(tgIsHideMode()){ var hc=row.querySelector('input.tgsel-hchk'); if(hc) hc.checked=all; return; }   // [2026-09-27]
     var chk=row.querySelector('input.tgsel-chk');
     if(chk){ chk.checked=all; tgUpdateRowHighlight(chk); }
   });
+  if(tgIsHideMode()){ tgUpdateHideCount(); return; }
   tgUpdateSelCount();
 }
 function tgUpdateSelCount(){
@@ -352,7 +448,9 @@ function loadTgRecipients(){
 }
 // [2026-08-20] 1단계: 미리보기 요청 (즉시 발송 X). dry_run:true 로 서버에 문구·대상만 물어봄.
 var TG_PENDING_ITEMS=null;
+var TG_PENDING_REQUEST=null;
 function sendTgSelection(){
+  if(tgIsHideMode()) tgHideMode(false);
   var body=document.getElementById('ctx-tgsel-body');if(!body||!profile)return;
   // [2026-08-24] 검색으로 화면에서 숨겨진(display:none) 행도 DOM에는 그대로 남아있어
   //   체크박스 상태를 그대로 읽어올 수 있음 — 검색 중이었어도 이전에 체크해둔 건 안 빠짐
@@ -362,9 +460,11 @@ function sendTgSelection(){
   var picked=items.filter(function(it){return it.selected;}).length;
   if(!picked){alert('보낼 건을 먼저 체크해주세요.');return;}
   TG_PENDING_ITEMS=items;
+  var rqEl=document.getElementById('tgsel-request');
+  TG_PENDING_REQUEST=rqEl?rqEl.value.trim():null;   // [2026-09-27] 요청사항
   var btn=document.getElementById('tgsel-send');
   if(btn){btn.disabled=true;btn.textContent='불러오는 중...';}
-  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:APPS_SCRIPT_TOKEN,name:profile.name,items:items,dry_run:true})})
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:APPS_SCRIPT_TOKEN,name:profile.name,items:items,request:(TG_PENDING_REQUEST===null?undefined:TG_PENDING_REQUEST),dry_run:true})})
     .then(function(r){return r.json()})
     .then(function(res){
       if(btn){btn.disabled=false;btn.textContent='📨 체크한 건 보내기';}
@@ -373,6 +473,7 @@ function sendTgSelection(){
       if(tgt)tgt.textContent=((res.targets&&res.targets.length)
         ?('발송 대상: '+res.targets.join(', ')+' ('+res.targets.length+'명)')
         :'⚠️ 등록된 수신자가 없습니다 — 이대로 발송해도 실제 발송은 되지 않습니다')
+        +(res.request?' · 📌 요청사항 포함':'')
         +((res.urgent&&res.urgent.length)?' · 🚨 긴급 '+res.urgent.length+'건 맨 위':'')
         +((res.auto_drafted&&res.auto_drafted.length)?' · 🤖 AI 초안 '+res.auto_drafted.length+'건(장부에 저장됨, 문안에서 수정 가능)':'');
       var pv=document.getElementById('tg-preview-text');
@@ -387,7 +488,7 @@ function tgConfirmSend(){
   var dlg=document.getElementById('tg-preview-dlg');
   if(dlg)dlg.classList.remove('on');
   if(!TG_PENDING_ITEMS||!profile)return;
-  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:APPS_SCRIPT_TOKEN,name:profile.name,items:TG_PENDING_ITEMS})})
+  fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'tg_send',token:APPS_SCRIPT_TOKEN,name:profile.name,items:TG_PENDING_ITEMS,request:(TG_PENDING_REQUEST===null?undefined:TG_PENDING_REQUEST)})})
     .then(function(r){return r.json()})
     .then(function(res){
       if(res&&res.ok){

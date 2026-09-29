@@ -709,7 +709,7 @@ var ReportChat = {
           if (c.uncertain) return "• '" + c.token + "' → " + code + c.label + "  (확실치 않음 — 다르면 알려주세요)";
           return "• '" + c.token + "' → " + code + c.label;
         });
-        this.addMsg('assistant', '📌 프로젝트 목록 기준으로 맞췄습니다\n' + lines.join('\n') + '\n다르면 아래 채팅에 적어주세요. 예: "' + ac[0].token + '는 24-U02야"');
+        this.addMsg('assistant', '📌 아래 프로젝트로 보고합니다\n' + lines.join('\n') + '\n다르면 아래 채팅에 적어주세요. 예: "' + ac[0].token + '는 24-U02야"');
       }
     } catch (e) {}
     var startMsg = opts.resumed

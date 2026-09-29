@@ -1,3 +1,46 @@
+// ── 구글 서버 간헐 오류 자동 재시도 (2026-09-30) ──────────
+// 구글 Apps Script 웹앱은 가끔 요청을 놓친다 (오류 화면 404 / "unknown action"). 아무 일도 안 하는 가벼운 호출도
+// 같은 식으로 실패하므로 우리 코드와 무관. 예전에는 실패하면 바로 "분석 실패"를 띄워 직원이 처음부터 다시 했다.
+// ★저장·발송이 없는 호출(정리·확정챗)만★ 이 함수로 보낸다. 발송(send_daily_report)은 메일이 두 번 나갈 수 있어 쓰지 않는다.
+// opts: { tries(기본 3), onRetry(시도번호, 사유), signal }
+function gasPostRetry(payload, opts){
+  opts=opts||{};
+  var tries=opts.tries||3, n=0;
+  function once(){
+    n++;
+    return fetch(APPS_SCRIPT_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(payload),
+      signal:opts.signal
+    })
+    .then(function(r){return r.text();})
+    .then(function(t){
+      var d=null;
+      try{ d=JSON.parse(t); }catch(e){ throw {gasRetry:true, reason:'구글 서버가 오류 화면을 돌려줌'}; }
+      if(d && d.ok===false && (d.error==='unknown action' || d.retryable===true)){
+        throw {gasRetry:true, reason:(d.message||'구글 서버가 요청을 놓침'), data:d};
+      }
+      return d;
+    })
+    .catch(function(err){
+      if(err && (err.name==='AbortError' || /aborted/i.test(String(err.message||'')))) throw err;
+      var retryable=!!(err && err.gasRetry) || (err instanceof TypeError);   // TypeError = 연결 실패 (구글 404 화면은 브라우저에서 이렇게 보인다)
+      if(retryable && n<tries){
+        if(opts.onRetry){ try{ opts.onRetry(n+1, (err && err.reason)||'연결 실패'); }catch(e){} }
+        return new Promise(function(res){ setTimeout(res, 1500*n); }).then(once);
+      }
+      if(err && err.gasRetry){
+        if(err.data && err.data.message) throw new Error(err.data.message+' ('+n+'번 시도)');
+        throw new Error('구글 서버 응답 오류 ('+n+'번 시도했습니다). 잠시 뒤 다시 시도해주세요.');
+      }
+      if(err instanceof TypeError) throw new Error('서버 연결 실패 ('+n+'번 시도했습니다). 잠시 뒤 다시 시도해주세요.');
+      throw err;
+    });
+  }
+  return once();
+}
+
 // ── 분석 → P2 (챗 형식 UX, 2026-05-07) ──────────
 function doAnalyze(){
   var txt=document.getElementById('main-input').value.trim();
@@ -20,17 +63,15 @@ function doAnalyze(){
       '</div>';
   }
 
-  fetch(APPS_SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({
+  gasPostRetry({
       token:APPS_SCRIPT_TOKEN,
       action:'structure_report',
       email:(profile&&profile.email)||'',   // 개인 확정 사전 조회용 (2026-08-20)
       raw:txt
-    })
-  })
-  .then(function(r){return r.json()})
+  },{tries:3,onRetry:function(n){
+      var lb=document.getElementById('report-chat-loading');
+      if(lb)lb.textContent='🖌️ 서버 응답이 없어 다시 시도하고 있습니다 ('+n+'/3) — 잠시만 기다려주세요';
+  }})
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'구조화 실패');
     currentStructured=data.structured;
@@ -812,10 +853,8 @@ var ReportChat = {
     var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     self._abortCtrl = ctrl;
 
-    fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
+    // 2026-09-30 — 구글 간헐 오류면 한 번 더 시도 (같은 말을 다시 보내도 서버 저장은 덮어쓰기라 안전)
+    gasPostRetry({
         token:       APPS_SCRIPT_TOKEN,
         action:      'chat_disambiguate',
         email:       (profile && profile.email) || '',   // 개인 확정 사전 조회·저장용 (2026-08-20)
@@ -823,10 +862,7 @@ var ReportChat = {
         structured:  currentStructured,
         history:     self.history,
         userMessage: text
-      }),
-      signal: ctrl ? ctrl.signal : undefined
-    })
-    .then(function(r){ return r.json(); })
+    }, { tries: 2, signal: ctrl ? ctrl.signal : undefined })
     .then(function(d){
       // stale 응답 가드 — start 가 재호출되어 session 이 증가했다면 이 응답은 무시 (중복 메시지·요금 누적 차단).
       if (session !== self._session) { return; }
@@ -1574,17 +1610,12 @@ function doReanalyze(onSuccess){
     '</div>';
   document.getElementById('report-edit-actions').style.display='none';
 
-  fetch(APPS_SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({
+  gasPostRetry({
       token:APPS_SCRIPT_TOKEN,
       action:'structure_report',
       email:(profile&&profile.email)||'',   // 개인 확정 사전 조회용 (2026-08-20)
       raw:combined
-    })
-  })
-  .then(function(r){return r.json()})
+  },{tries:3})
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'재정리 실패');
     currentStructured=data.structured;

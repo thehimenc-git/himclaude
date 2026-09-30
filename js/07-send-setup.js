@@ -48,6 +48,7 @@ function hideReportDoneScreen(){
 }
 
 var _sendLockUntil = 0;   // 2026-09-18 — 발송 버튼 이중 클릭(재제출 4건 사고) 잠금
+var _userMailSentSig = '';   // 2026-09-30 — 본인 Gmail 로 이미 보낸 보고의 내용 표시 (같은 내용이면 메일을 또 보내지 않음)
 function performSend(){
   if (Date.now() < _sendLockUntil) { toast('발송 처리 중입니다. 잠시만 기다려주세요.'); return; }
   _sendLockUntil = Date.now() + 60000;
@@ -63,6 +64,13 @@ function performSend(){
   // 2026-05-22 PM 신설 — 본인 Gmail 로 발송 (OAuth 동의 시). 실패 시 옛 흐름 (GAS GmailApp = thehim180724 발신) fallback.
   if (!_initGmailTokenClient()) {
     _performSendViaGAS(structured, dc, false);
+    return;
+  }
+  // 2026-09-30 — 본인 Gmail 로 이미 나간 보고(같은 내용)를 다시 누른 경우: 메일은 또 보내지 않고 서버 기록만 다시 시도.
+  //   (메일은 나갔는데 서버 기록 응답을 못 받아 "발송 실패"가 뜬 뒤 다시 누르면 메일이 두 통 나가던 문제)
+  var mailSig = dc + '|' + JSON.stringify(structured);
+  if (_userMailSentSig === mailSig) {
+    _performSendViaGAS(structured, dc, true);
     return;
   }
   requestUserGmailAccess(function(token){
@@ -98,6 +106,7 @@ function performSend(){
       oauthBody,
       function(success, err){
         if (success) {
+          _userMailSentSig = mailSig;
           // 시트·Drive 누적만 (GAS GmailApp 스킵)
           _performSendViaGAS(structured, dc, true);
         } else {
@@ -126,26 +135,29 @@ function _performSendViaGAS(structured, dc, useUserSend){
     document.getElementById('report-edit-actions').style.display='none';
   }
 
-  fetch(APPS_SCRIPT_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({
-      token:APPS_SCRIPT_TOKEN,
-      action:'send_daily_report',
-      name:profile.name,
-      role:profile.role,
-      dept:profile.dept,
-      grade:profile.grade,
-      date:dateStr,
-      to:'thehim180724@gmail.com',
-      cc:'taesilkim2@gmail.com',
-      subject:'[일일보고] '+profile.name+'_'+dc,
-      raw:currentRawText,
-      structured:structured,
-      use_user_send: !!useUserSend   // true 면 GAS GmailApp 스킵 (이미 클라가 본인 Gmail 로 발송)
-    })
+  // 2026-09-30 — 발송도 자동으로 다시 보낸다 (구글 서버가 처리해 놓고 응답만 잃어 "발송 실패"가 뜨던 문제).
+  //   서버가 같은 보고를 다시 받으면 저장·메일 없이 처음 결과를 그대로 돌려주므로(duplicate) 다시 보내도 두 번 접수되지 않는다.
+  gasPostRetry({
+    token:APPS_SCRIPT_TOKEN,
+    action:'send_daily_report',
+    name:profile.name,
+    role:profile.role,
+    dept:profile.dept,
+    grade:profile.grade,
+    date:dateStr,
+    to:'thehim180724@gmail.com',
+    cc:'taesilkim2@gmail.com',
+    subject:'[일일보고] '+profile.name+'_'+dc,
+    raw:currentRawText,
+    structured:structured,
+    use_user_send: !!useUserSend   // true 면 GAS GmailApp 스킵 (이미 클라가 본인 Gmail 로 발송)
+  },{
+    tries:4,
+    onRetry:function(n){
+      var t=document.querySelector('#report-done-body .done-title');
+      if(t) t.textContent='발송 확인 중... (다시 시도 '+(n-1)+')';
+    }
   })
-  .then(function(r){return r.json()})
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'발송 실패');
     clearDraft();
@@ -188,7 +200,8 @@ function _performSendViaGAS(structured, dc, useUserSend){
     // 오류 시: 챗 UI 복원해 사용자가 재시도 가능하도록. toast 로 원인 알림.
     hideReportDoneScreen();
     document.getElementById('report-edit-actions').style.display='flex';
-    toast('❌ 발송 실패: '+err);
+    _sendLockUntil = 0;   // 실패로 끝났으면 바로 다시 누를 수 있게
+    toast('❌ 발송 실패: '+((err&&err.message)||err));
   });
 }
 

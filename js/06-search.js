@@ -1,5 +1,5 @@
 // ── 구글 서버 간헐 오류 자동 재시도 (2026-09-30) ──────────
-// 구글 Apps Script 웹앱은 가끔 요청을 놓친다 (오류 화면 404 / "unknown action"). 아무 일도 안 하는 가벼운 호출도
+// 구글 Apps Script 웹앱은 가끔 요청을 놓치거나 처리해 놓고 응답만 잃는다 (오류 화면 404 / "unknown action"). 아무 일도 안 하는 가벼운 호출도
 // 같은 식으로 실패하므로 우리 코드와 무관. 예전에는 실패하면 바로 "분석 실패"를 띄워 직원이 처음부터 다시 했다.
 // 정리·확정챗(저장·발송 없음)과 발송(send_daily_report)을 이 함수로 보낸다. 발송은 서버가 같은 보고를 다시 받으면
 // 저장·메일 없이 처음 결과를 돌려주므로(duplicate, 10분) 다시 보내도 안전하다. 그 밖의 쓰기 호출에는 쓰지 말 것.
@@ -19,8 +19,14 @@ function gasPostRetry(payload, opts){
     .then(function(t){
       var d=null;
       try{ d=JSON.parse(t); }catch(e){ throw {gasRetry:true, reason:'구글 서버가 오류 화면을 돌려줌'}; }
-      if(d && d.ok===false && (d.error==='unknown action' || d.retryable===true)){
-        throw {gasRetry:true, reason:(d.message||'구글 서버가 요청을 놓침'), data:d};
+      // GAS_TRANSIENT = 01-config.js 의 fetch 감싸개가 연결 실패·구글 오류 화면(404)을 바꿔 놓은 응답.
+      //   2026-10-01 — 이것도 다시 보낸다. 실제 브라우저에서는 오류가 전부 이 모양으로 와서, 빠져 있던 동안
+      //   "서버는 처리했는데 응답만 잃은" 경우가 재시도 없이 바로 실패 화면으로 갔다 (9/30 두 번 접수).
+      //   직접 취소(signal)한 요청은 다시 보내지 않는다.
+      var transient=!!(d && d.ok===false && d.error==='GAS_TRANSIENT');
+      if(transient && opts.signal && opts.signal.aborted) return d;
+      if(d && d.ok===false && (d.error==='unknown action' || d.retryable===true || transient)){
+        throw {gasRetry:true, reason:(transient?'응답을 받지 못함':(d.message||'구글 서버가 요청을 놓침')), data:(transient?null:d)};
       }
       return d;
     })

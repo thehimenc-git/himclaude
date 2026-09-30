@@ -15,6 +15,9 @@ var APPS_SCRIPT_TOKEN='thehim2026';
 //   ★재시도 금지 목록이 핵심★ otp_request 는 인증메일을 보내고, chat_send·query·
 //     analyze_query 는 Claude API 를 호출한다. GET 이라고 무조건 재시도하면
 //     인증메일 3통 발송 + API 비용 3배가 된다. 액션 추가 시 이 목록부터 확인할 것.
+//   예외(2026-09-30~10-01): 정리(structure_report)·확정챗(chat_disambiguate)·발송(send_daily_report) POST 는
+//     호출부 gasPostRetry(06-search.js)가 여기서 돌려준 GAS_TRANSIENT 를 받아 직접 다시 보낸다.
+//     (발송은 서버가 같은 보고를 한 번만 접수하므로 안전). 이 감싸개 자체는 POST 를 다시 보내지 않는다.
 (function(){
   if (typeof window === 'undefined' || !window.fetch || !window.Response) return;
   var _rawFetch = window.fetch.bind(window);

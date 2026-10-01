@@ -61,6 +61,14 @@ function performSend(){
     return;
   }
 
+  // 2026-10-01 — 정리본 6칸이 전부 비었는데 원문이 있으면 본인 Gmail 로 빈 메일을 보내지 않는다 (10/1 민인호).
+  //   서버 발신 길로 돌리면 서버가 원문으로 다시 정리해서(sendDailyReport 자동 보강) 그 내용으로 메일을 보낸다.
+  var _emptySix=!['pj','content','meeting','issue','dir','schedule'].some(function(k){ return String(structured[k]||'').trim()!==''; });
+  if(_emptySix && String(currentRawText||'').trim()){
+    _performSendViaGAS(structured, dc, false);
+    return;
+  }
+
   // 2026-05-22 PM 신설 — 본인 Gmail 로 발송 (OAuth 동의 시). 실패 시 옛 흐름 (GAS GmailApp = thehim180724 발신) fallback.
   if (!_initGmailTokenClient()) {
     _performSendViaGAS(structured, dc, false);

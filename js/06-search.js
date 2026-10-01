@@ -883,9 +883,15 @@ var ReportChat = {
       self.history.push({ role: 'user',      content: text });
       self.history.push({ role: 'assistant', content: d.message || '' });
       if (d.updated_structured) {
-        currentStructured = d.updated_structured;
-        lastAIStructured  = JSON.stringify(currentStructured);
-        try { saveDraft('p2'); } catch(e){}
+        // 2026-10-01 — 대화 AI 가 돌려준 정리본이 알맹이 없는 모양(프로젝트·공통이 빠짐 등)이면 화면의 정리본을 바꾸지 않는다.
+        //   검사 없이 통째로 바꿨더니 6칸이 전부 빈 메일이 나갔다 (10/1 민인호). 이전 정리본에 내용이 있을 때만 막는다.
+        if (structuredLooksEmpty(d.updated_structured) && currentStructured && !structuredLooksEmpty(currentStructured)) {
+          try { console.warn('[report] 알맹이 없는 정리본 응답 — 이전 정리본 유지'); } catch(e){}
+        } else {
+          currentStructured = d.updated_structured;
+          lastAIStructured  = JSON.stringify(currentStructured);
+          try { saveDraft('p2'); } catch(e){}
+        }
       }
       // 2026-05-21 Phase 2 — choice_groups 가 있으면 batch UI 렌더, 없으면 기존 quick_replies
       var cg = Array.isArray(d.choice_groups) ? d.choice_groups : [];
@@ -1481,6 +1487,14 @@ function collectStructure(){
     });
   });
   return {projects:projects, common:prevS.common};
+}
+
+// 정리본을 발송용 6칸으로 바꿨을 때 전부 빈칸인가 (2026-10-01 — 빈 메일 방지용)
+function structuredLooksEmpty(s){
+  try{
+    var f=flattenToFiveFields(s);
+    return !['pj','content','meeting','issue','dir','schedule'].some(function(k){ return String(f[k]||'').trim()!==''; });
+  }catch(e){ return true; }
 }
 
 function flattenToFiveFields(s){

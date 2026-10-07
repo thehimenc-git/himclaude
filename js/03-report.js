@@ -140,13 +140,16 @@ function bindDraftAutoSave(){
 }
 
 // L2 owner 확인 요청 로딩 (Phase 6, 2026-05-08 / 2026-05-12 인명 병합 확장)
-// L2 grade 만 렌더. PJ 확인 + 인명 merge + 인명 distinct 카드 분기 (순서 = PJ → merge → distinct)
+// PJ 확인 + 인명 merge + 인명 distinct 카드 분기 (순서 = PJ → merge → distinct)
+// 2026-10-07 — PJ 확인 요청을 팀장(L3)도 받는다(GAS @220 PJ_APPROVERS). L2 는 예전 그대로,
+//   L2 가 아니면 PJ 확인만 조회해서 본인 앞으로 온 건이 있을 때만 카드를 보인다(승인자 판단은 서버 명단 하나로).
 function loadL2PendingReviews(){
   var card = document.getElementById('ctx-l2-review');
   if (!card) return;
   var grade = profile && profile.grade ? String(profile.grade).toUpperCase() : '';
-  if (grade !== 'L2') { card.style.display = 'none'; return; }
-  card.style.display = '';
+  var isL2 = (grade === 'L2');
+  if (!isL2 && !(profile && profile.email)) { card.style.display = 'none'; return; }
+  card.style.display = isL2 ? '' : 'none';
   var body = document.getElementById('ctx-l2-review-body');
   body.innerHTML = '<div class="ctx-loading-inline">🌿 불러오는 중...</div>';
 
@@ -160,7 +163,7 @@ function loadL2PendingReviews(){
     })
   }).then(function(r){ return r.json(); }).catch(function(){ return { ok: false, items: [] }; });
 
-  var fetchPerson = fetch(APPS_SCRIPT_URL, {
+  var fetchPerson = !isL2 ? Promise.resolve({ ok: false, items: [] }) : fetch(APPS_SCRIPT_URL, {   // 인명 확인은 L2 전원 배정
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
@@ -173,7 +176,7 @@ function loadL2PendingReviews(){
   // 2026-05-22 — AI 인덱스 B_학습 "PJ 약칭" → L2 즉시 등록 카드 source
   // 2026-08-25 — 마스터 탭(.tab-master)이 이식된 폼에선 PJ 등록을 그 탭이 전담 → 여기선 스킵(중복 제거).
   var _hasMasterTab = !!document.querySelector('.mode-tab.tab-master');
-  var fetchRegister = _hasMasterTab ? Promise.resolve({ ok: false, items: [] }) : fetch(APPS_SCRIPT_URL, {
+  var fetchRegister = (_hasMasterTab || !isL2) ? Promise.resolve({ ok: false, items: [] }) : fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
@@ -189,6 +192,10 @@ function loadL2PendingReviews(){
     var rgResp = results[2] || { ok: false, items: [] };
     var countEl = document.getElementById('ctx-l2-count');
 
+    if (!isL2) {   // L2 아님 — 본인 앞 PJ 확인 요청이 있을 때만 카드를 연다
+      if (!(pjResp.ok && Array.isArray(pjResp.items) && pjResp.items.length)) { card.style.display = 'none'; return; }
+      card.style.display = '';
+    }
     if (!pjResp.ok && !pnResp.ok && !rgResp.ok) {
       body.innerHTML = '<div class="ctx-loading-inline">⚠️ ' + escapeHtml((pjResp.message || pnResp.message || rgResp.message) || '오류') + '</div>';
       return;

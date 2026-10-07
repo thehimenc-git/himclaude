@@ -32,9 +32,9 @@ var MasterTab = (function () {
 
   function _apply(resp) {
     _items         = Array.isArray(resp.items) ? resp.items : [];
-    _sugg          = resp.suggestions || { U: '26-U01', C: '26-C01', S: '26-S01', E: '26-E01', A: '26-A01' };
+    _sugg          = resp.suggestions || { U: '26-U01', C: '26-C01', E: '26-E01', A: '26-A01' };
     _prefixMax     = resp.prefixMax || { U: 0, C: 0, S: 0, E: 0, A: 0 };
-    _prefixMeaning = resp.prefixMeaning || { U: '도시계획', S: '구조', C: '공간기획', E: '검토·임시', A: 'AI' };
+    _prefixMeaning = resp.prefixMeaning || { U: '도시 업무 전반', C: '토목', E: '더힘구조 계약분', A: 'AI' };
     _loaded = true;
     var badge = document.getElementById('tab-master-count');
     if (badge) badge.textContent = _items.length ? String(_items.length) : '';
@@ -57,7 +57,7 @@ var MasterTab = (function () {
       return;
     }
     var legend = '<div class="l2-pj-prefix-legend">';
-    ['U', 'S', 'C', 'E', 'A'].forEach(function (p) {
+    ['U', 'C', 'E', 'A'].forEach(function (p) {   // 2026-10-07 S 폐지(→ E)
       legend += '<span><b>' + p + '</b>=' + escapeHtml(_prefixMeaning[p] || '') +
                 ' (현재 ' + (_prefixMax[p] || 0) + ' / 다음 ' + escapeHtml(_sugg[p] || '') + ')</span>';
     });

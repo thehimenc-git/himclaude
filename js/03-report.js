@@ -203,8 +203,8 @@ function loadL2PendingReviews(){
     var pjItems       = (pjResp.ok && Array.isArray(pjResp.items)) ? pjResp.items : [];
     var personItems   = (pnResp.ok && Array.isArray(pnResp.items)) ? pnResp.items : [];
     var registerItems = (rgResp.ok && Array.isArray(rgResp.items)) ? rgResp.items : [];
-    var suggestions   = (rgResp.ok && rgResp.suggestions) ? rgResp.suggestions : { U:'26-U01', C:'26-C01', S:'26-S01', E:'26-E01', A:'26-A01' };
-    var prefixMax     = (rgResp.ok && rgResp.prefixMax) ? rgResp.prefixMax : { U:0, C:0, S:0, E:0, A:0 };
+    var suggestions   = (rgResp.ok && rgResp.suggestions) ? rgResp.suggestions : { U:'26-U01', C:'26-C01', E:'26-E01', A:'26-A01' };
+    var prefixMax     = (rgResp.ok && rgResp.prefixMax) ? rgResp.prefixMax : { U:0, C:0, E:0, A:0 };
     // 인명 카드 정렬 — merge 먼저, distinct 나중
     personItems.sort(function(a, b){ return (a.kind === 'merge' ? 0 : 1) - (b.kind === 'merge' ? 0 : 1); });
 
@@ -222,10 +222,10 @@ function loadL2PendingReviews(){
     var html = '';
     // ⓪ 신규 PJ 등록 요청 (2026-05-22) — AI 인덱스 B_학습 "PJ 약칭" → 즉시 마스터 등록
     if (registerItems.length){
-      var prefixMeaning = (rgResp.ok && rgResp.prefixMeaning) ? rgResp.prefixMeaning : { U:'도시계획', S:'구조', C:'공간기획', E:'검토·임시', A:'AI' };
+      var prefixMeaning = (rgResp.ok && rgResp.prefixMeaning) ? rgResp.prefixMeaning : { U:'도시 업무 전반', C:'토목', E:'더힘구조 계약분', A:'AI' };
       // prefix 의미 + 다음 추천 코드 — 카드 공통 헤더로 1회 표시 (각 entry 위)
       var prefixHintHtml = '<div class="l2-pj-prefix-legend">';
-      ['U','S','C','E','A'].forEach(function(p){
+      ['U','C','E','A'].forEach(function(p){   // 2026-10-07 S 폐지(→ E)
         prefixHintHtml += '<span><b>' + p + '</b>=' + escapeHtml(prefixMeaning[p] || '') + ' (현재 최신 ' + (prefixMax[p] || 0) + ' / 다음 ' + escapeHtml(suggestions[p] || '') + ')</span>';
       });
       prefixHintHtml += '</div>';

@@ -6,6 +6,8 @@
 //   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml.
 var MasterTab = (function () {
   var _items = [], _sugg = {}, _prefixMax = {}, _prefixMeaning = {}, _loaded = false;
+  // 2026-10-07 — 임시코드(TEMP-) 목록 + 삭제(제외 표시). 실장·팀장은 노션 마스터에 못 들어가므로 여기서 정리한다
+  var _temps = [], _tempQ = '';
 
   function _post(payload) {
     payload.token = APPS_SCRIPT_TOKEN;
@@ -26,6 +28,7 @@ var MasterTab = (function () {
         if (!resp || !resp.ok || resp.reason === 'not_pj_owner') { btn.style.display = 'none'; return; }
         btn.style.display = '';             // 오너 → 탭 노출
         _apply(resp);
+        _loadTemps();
       })
       .catch(function () { btn.style.display = 'none'; });
   }
@@ -33,7 +36,7 @@ var MasterTab = (function () {
   function _apply(resp) {
     _items         = Array.isArray(resp.items) ? resp.items : [];
     _sugg          = resp.suggestions || { U: '26-U01', C: '26-C01', E: '26-E01', A: '26-A01' };
-    _prefixMax     = resp.prefixMax || { U: 0, C: 0, S: 0, E: 0, A: 0 };
+    _prefixMax     = resp.prefixMax || { U: 0, C: 0, E: 0, A: 0 };
     _prefixMeaning = resp.prefixMeaning || { U: '도시 업무 전반', C: '토목', E: '더힘구조 계약분', A: 'AI' };
     _loaded = true;
     var badge = document.getElementById('tab-master-count');
@@ -49,11 +52,50 @@ var MasterTab = (function () {
       .then(function (resp) { if (resp && resp.ok) _apply(resp); });
   }
 
+  function _loadTemps() {
+    _post({ action: 'master_temp_list' })
+      .then(function (resp) { _temps = (resp && resp.ok && Array.isArray(resp.items)) ? resp.items : []; _render(); })
+      .catch(function () {});
+  }
+
+  function _tempHtml() {
+    var q = _tempQ.toLowerCase();
+    var list = _temps.filter(function (t) { return !q || (t.code + ' ' + t.name + ' ' + (t.note || '')).toLowerCase().indexOf(q) >= 0; });
+    var h = '<div class="master-intro" style="margin-top:18px"><b>임시코드 ' + _temps.length + '건</b> — 보고에서 자동 등록됐거나 옛 보고에서 옮겨 온 미확정 프로젝트. ' +
+            '프로젝트가 아니거나 끝난 건은 <b>삭제</b>(목록·AI 후보에서 빠짐, 연결된 보고는 그대로, 되돌릴 수 있음). ' +
+            '정식 코드·검토 번호 지정이나 같은 사업 합치기는 관리자에게.</div>';
+    h += '<input type="text" id="m-temp-q" placeholder="검색 (코드·이름·메모)" value="' + escapeHtml(_tempQ) + '" oninput="MasterTab.filterTemps(this.value)" style="width:100%;margin:6px 0 8px" />';
+    if (!list.length) return h + '<div class="ctx-loading-inline">' + (_temps.length ? '검색 결과 없음' : '✅ 임시코드 없음') + '</div>';
+    list.forEach(function (t) {
+      h += '<div class="l2-review-item" data-temp="' + escapeHtml(t.code) + '">';
+      h += '<div class="l2-review-head"><strong>' + escapeHtml(t.name || '(이름 없음)') + '</strong> <span class="l2-review-status">' + escapeHtml(t.code) + (t.track ? ' · ' + escapeHtml(t.track) : '') + '</span></div>';
+      if (t.note) h += '<div class="l2-review-context">' + escapeHtml(t.note) + '</div>';
+      h += '<div class="l2-review-actions"><button data-code="' + escapeHtml(t.code) + '" onclick="MasterTab.removeTemp(this.getAttribute(&quot;data-code&quot;))">🗑 삭제</button></div></div>';
+    });
+    return h;
+  }
+
+  function filterTemps(q) {
+    _tempQ = String(q || '');
+    var box = document.getElementById('m-temp-box');
+    if (box) { box.innerHTML = _tempHtml(); var el = document.getElementById('m-temp-q'); if (el) { el.focus(); el.setSelectionRange(_tempQ.length, _tempQ.length); } }
+  }
+
+  function removeTemp(code) {
+    var t = _temps.filter(function (x) { return x.code === code; })[0];
+    if (!t) return;
+    if (!confirm('삭제할까요?\n' + (t.name || '') + ' (' + code + ')\n\n목록과 AI 후보에서 빠집니다. 연결된 보고는 그대로이고, 나중에 되돌릴 수 있습니다.')) return;
+    _post({ action: 'master_exclude', code: code }).then(function (resp) {
+      if (resp && resp.ok && resp.changed) { _temps = _temps.filter(function (x) { return x.code !== code; }); filterTemps(_tempQ); }
+      else alert('삭제 실패: ' + ((resp && (resp.message || resp.error)) || '이미 처리됐을 수 있습니다 — 새로고침'));
+    }).catch(function () { alert('네트워크 오류'); });
+  }
+
   function _render() {
     var body = document.getElementById('mode-master-body');
     if (!body) return;
     if (!_items.length) {
-      body.innerHTML = '<div class="ctx-loading-inline">✅ 승격 대기 없음</div>';
+      body.innerHTML = '<div class="ctx-loading-inline">✅ 승격 대기 없음</div><div id="m-temp-box">' + _tempHtml() + '</div>';
       return;
     }
     var legend = '<div class="l2-pj-prefix-legend">';
@@ -85,7 +127,7 @@ var MasterTab = (function () {
       html += '<button onclick="MasterTab.respond(' + i + ', \'reject\')">기각</button>';
       html += '</div></div>';
     });
-    body.innerHTML = html;
+    body.innerHTML = html + '<div id="m-temp-box">' + _tempHtml() + '</div>';
   }
 
   function respond(idx, mode) {
@@ -120,5 +162,5 @@ var MasterTab = (function () {
     }).catch(function () { alert('네트워크 오류'); });
   }
 
-  return { boot: boot, init: init, refresh: refresh, respond: respond };
+  return { boot: boot, init: init, refresh: refresh, respond: respond, filterTemps: filterTemps, removeTemp: removeTemp };
 })();

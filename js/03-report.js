@@ -950,6 +950,7 @@ function resetProfile(){
   document.getElementById('file-chips').innerHTML='';
   document.getElementById('main-input').value='';
   if(typeof dirxClear==='function')dirxClear();
+  if(typeof PjPick!=='undefined')PjPick.clear();   // 2026-10-07 고른 프로젝트 비우기
   goPage('p0');loadStaff();
 }
 

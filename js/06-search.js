@@ -52,7 +52,11 @@ function gasPostRetry(payload, opts){
 function doAnalyze(){
   var txt=document.getElementById('main-input').value.trim();
   var dirBlock=dirxCollect();   // 지시·요청 칸 → [지시사항] 블록으로 본문에 합류 (2026-08-07)
-  if(!txt&&!dirBlock){toast('업무 내용을 입력해주세요');return;}
+  // 2026-10-07 고른 프로젝트: 본문 앞에 "[코드 정식이름]" 줄로 붙이고, 서버에는 고른 목록도 같이 보낸다 (그 코드로 확정, 되묻지 않음)
+  var pjPicked=(typeof PjPick!=='undefined')?PjPick.collect():[];
+  if(pjPicked===null)return;   // 고른 프로젝트에 내용이 비어 있음 → 안내하고 멈춤
+  if(!txt&&!dirBlock&&!pjPicked.length){toast('업무 내용을 입력해주세요');return;}
+  if(pjPicked.length)txt=pjPicked.map(function(p){return '['+p.code+' '+p.name+']\n'+p.text;}).join('\n\n')+(txt?'\n\n'+txt:'');
   if(dirBlock)txt=(txt?txt+'\n\n':'')+'[지시사항]\n'+dirBlock;
 
   currentRawText=txt;
@@ -74,6 +78,7 @@ function doAnalyze(){
       token:APPS_SCRIPT_TOKEN,
       action:'structure_report',
       email:(profile&&profile.email)||'',   // 개인 확정 사전 조회용 (2026-08-20)
+      picked:pjPicked,                       // 2026-10-07 검색해서 고른 프로젝트 — 서버가 그 코드로 확정
       raw:txt
   },{tries:3,onRetry:function(n){
       var lb=document.getElementById('report-chat-loading');
@@ -1635,6 +1640,7 @@ function doReanalyze(onSuccess){
       token:APPS_SCRIPT_TOKEN,
       action:'structure_report',
       email:(profile&&profile.email)||'',   // 개인 확정 사전 조회용 (2026-08-20)
+      picked:(typeof PjPick!=='undefined')?PjPick.codes():[],   // 2026-10-07 다시 정리할 때도 고른 프로젝트는 그대로 확정
       raw:combined
   },{tries:3})
   .then(function(data){

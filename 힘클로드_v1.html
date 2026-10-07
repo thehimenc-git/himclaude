@@ -2454,10 +2454,80 @@ body.search-mode-active{
     <div class="ctx-body collapsible" id="ctx-td-raw-body"></div>
   </div>
 
+  <!-- 프로젝트 고르기 (2026-10-07) — js/10-pjpick.js -->
+  <style>
+    .pjx-wrap{margin:10px 20px 4px}
+    .pjx-search{position:relative}
+    .pjx-q{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid rgba(0,0,0,.15);border-radius:10px;font-size:14px;background:#fffdf9;font-family:inherit}
+    .pjx-q:focus{outline:none;border-color:#b8935a;box-shadow:0 0 0 3px rgba(184,147,90,.15)}
+    .pjx-results{position:absolute;left:0;right:0;top:100%;z-index:60;background:#fff;border:1px solid rgba(0,0,0,.15);border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.14);max-height:340px;overflow:auto;margin-top:4px}
+    .pjx-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,.05);font-size:13.5px;line-height:1.35}
+    .pjx-item:last-child{border-bottom:none}
+    .pjx-item.on,.pjx-item:hover{background:#f6efe3}
+    .pjx-code{font-weight:700;color:#7a5a2b;margin-right:6px;white-space:nowrap}
+    .pjx-meta{font-size:11.5px;color:#a0917c;margin-top:2px}
+    .pjx-tag{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:8px;background:#eef3ee;color:#4d6b52;margin-left:6px;vertical-align:1px}
+    .pjx-tag.off{background:#f1efec;color:#8d8377}
+    .pjx-tag.new{background:#fdf0dc;color:#9a6a1c}
+    .pjx-none{padding:10px 12px;font-size:12.5px;color:#9a8c78}
+    .pjx-card{border:1px solid rgba(0,0,0,.12);border-left:4px solid #b8935a;border-radius:12px;background:#fffdf9;margin-top:8px;padding:10px 12px}
+    .pjx-card-head{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;font-weight:600;color:#5a4a36}
+    .pjx-card-head .nm{flex:1;min-width:0}
+    .pjx-del{border:none;background:transparent;color:#b09a80;font-size:15px;cursor:pointer;padding:0 4px}
+    .pjx-ta{width:100%;box-sizing:border-box;margin-top:8px;border:1px solid rgba(0,0,0,.1);border-radius:8px;padding:8px 10px;font-size:13.5px;font-family:inherit;resize:vertical;min-height:64px;background:#fff}
+    .pjx-status{font-size:11.5px;color:#a99a86;margin:4px 2px 0}
+    .pjx-newrow{color:#7a5a2b;background:#fbf6ec;font-size:13px}
+    .pjx-infobtn{float:right;font-size:11px;color:#8a7a62;border:1px solid rgba(0,0,0,.12);border-radius:8px;padding:1px 7px;margin-left:8px;background:#fff}
+    .pjx-info{margin-top:6px;padding:8px 10px;background:#faf7f1;border-radius:8px;font-size:12px;line-height:1.55;cursor:default;color:#5a4a36}
+    .pjx-info-row{display:flex;gap:8px}
+    .pjx-info-row .k{flex:0 0 64px;color:#a0917c}
+    .pjx-info-row .v{flex:1;min-width:0;word-break:break-all;white-space:pre-wrap}
+    .pjx-tools{display:flex;gap:14px;margin-top:6px}
+    .pjx-link{border:none;background:transparent;color:#7a5a2b;font-size:12px;cursor:pointer;padding:2px 0;text-decoration:underline;font-family:inherit}
+    .pjx-new{border:1px solid rgba(184,147,90,.5);border-radius:12px;background:#fffdf9;margin-top:8px;padding:12px}
+    .pjx-new-title{font-weight:700;font-size:13.5px;color:#5a4a36;margin-bottom:2px}
+    .pjx-lab{display:block;font-size:11.5px;color:#8a7a62;margin:8px 0 3px}
+    .pjx-new-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .pjx-new-btns{display:flex;gap:8px;margin-top:10px}
+    .pjx-btn{border:1px solid rgba(0,0,0,.15);background:#fff;border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;color:#5a4a36}
+    .pjx-btn.main{background:#7a5a2b;border-color:#7a5a2b;color:#fff;font-weight:600}
+    .pjx-btn.warn{margin-top:8px;border-color:#c98b3a;color:#9a6a1c}
+    .pjx-btn:disabled{opacity:.6;cursor:default}
+    .pjx-sim-title{font-size:12.5px;color:#9a6a1c;margin:10px 0 4px;font-weight:600}
+    .pjx-sim{border:1px solid rgba(0,0,0,.08);border-radius:8px;margin-top:4px;background:#fff}
+    .pjx-all{border:1px solid rgba(0,0,0,.12);border-radius:12px;background:#fff;margin-top:8px;padding:10px}
+    .pjx-all-head{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    .pjx-all-head .pjx-q{padding:7px 9px;font-size:13px;width:auto}
+    .pjx-all-count{font-size:11.5px;color:#a0917c;margin:6px 2px}
+    .pjx-all-body{max-height:420px;overflow:auto;border-top:1px solid rgba(0,0,0,.06)}
+    .pjx-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+    .pjx-tbl th{position:sticky;top:0;background:#f6efe3;text-align:left;padding:6px 8px;font-weight:600;color:#5a4a36;white-space:nowrap}
+    .pjx-tbl td{padding:6px 8px;border-bottom:1px solid rgba(0,0,0,.05);vertical-align:top}
+    .pjx-tr{cursor:pointer}
+    .pjx-tr:hover,.pjx-tr.on{background:#fbf6ec}
+  </style>
+  <div class="pjx-wrap" id="pjx-wrap">
+    <div class="dirx-title"><span>📁 프로젝트 보고 — 검색해서 고르기</span><span class="sec-line"></span></div>
+    <div class="pjx-search">
+      <input type="text" class="pjx-q" id="pjx-q" autocomplete="off"
+        placeholder="프로젝트 이름·코드·발주처로 검색 (예: 서리풀, 25-C02, 양동)"
+        onfocus="PjPick.onFocus()" oninput="PjPick.onInput()" onkeydown="PjPick.onKey(event)" onblur="PjPick.onBlur()">
+      <div class="pjx-results" id="pjx-results" hidden></div>
+    </div>
+    <div class="pjx-tools">
+      <button type="button" class="pjx-link" onclick="PjPick.openNew()">＋ 새 프로젝트 등록</button>
+      <button type="button" class="pjx-link" onclick="PjPick.openAll()">📋 프로젝트 목록 전체 보기</button>
+    </div>
+    <div class="pjx-new" id="pjx-new" hidden></div>
+    <div class="pjx-all" id="pjx-all" hidden></div>
+    <div id="pjx-cards"></div>
+    <div class="pjx-status" id="pjx-status">프로젝트를 검색해서 고르면, 되묻지 않고 그 프로젝트로 바로 보고됩니다. 여러 개 고를 수 있습니다. 목록에 없으면 "새 프로젝트 등록"을 눌러 주세요.</div>
+  </div>
+
   <div class="input-wrap">
     <textarea class="main-textarea" id="main-input" rows="8"
       oninput="autosizeTa(this)"
-      placeholder="형식 없이 말하듯 편하게 써주시면 됩니다."></textarea>
+      placeholder="위에서 고르지 않은 업무(목록에 없는 프로젝트·회의·근태 등)는 여기에 평소처럼 편하게 써주시면 됩니다."></textarea>
     <div class="input-hint">💡 프로젝트명, 만난 사람, 요청사항 등 생각나는 대로 — 힘클로드가 정리합니다</div>
   </div>
 
@@ -2880,6 +2950,7 @@ body.search-mode-active{
 <script src="js/07-send-setup.js"></script>  <!-- 저장·발송 · Report 네임스페이스 · 셋업 모달 -->
 <script src="js/08-master.js"></script>  <!-- 프로젝트 마스터 승격 탭 (오너 전용, 2026-08-25) -->
 <script src="js/09-telegram.js"></script>  <!-- 텔레그램 외부브리핑 탭 (2026-08-25 이관) -->
+<script src="js/10-pjpick.js"></script>  <!-- 보고창 프로젝트 고르기·등록·지난 보고 카드 (2026-10-07) -->
 
 
 <!-- ===== 음성 후처리 셋업 (2026-05-29) — vp-* JS. csTryCopy/csMsg/APPS_SCRIPT_URL 재사용 ===== -->

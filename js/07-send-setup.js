@@ -169,6 +169,7 @@ function _performSendViaGAS(structured, dc, useUserSend){
   .then(function(data){
     if(!data.ok)throw new Error(data.message||'발송 실패');
     clearDraft();
+    if(typeof PjPick!=='undefined')PjPick.clear();   // 2026-10-07 발송 끝 → 고른 프로젝트 비우기
     // 발송 시각이 일일 브리핑 윈도우(08:50~16:00) 안이면 누락 경고.
     // - 오늘 brfing 은 08:50 트리거 1회만 실행되고 alreadyDone 시트로 재실행 차단
     // - 다음날 brfing 의 cutoff = 어제 16:00 이라 08:50~16:00 발송분은 today 윈도우에도 안 잡힘
@@ -240,6 +241,7 @@ function showTestComplete(structured){
 function newRep(){
   document.getElementById('main-input').value='';
   if(typeof dirxClear==='function')dirxClear();
+  if(typeof PjPick!=='undefined')PjPick.clear();   // 2026-10-07 고른 프로젝트 비우기
   files=[];document.getElementById('file-chips').innerHTML='';
   currentStructured=null;
   lastAIStructured=null;

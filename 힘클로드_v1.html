@@ -618,7 +618,11 @@ html::-webkit-scrollbar-button,
   display:flex;
   margin:8px 20px 12px;   /* sticky 헤더 안 — 위·아래 여백으로 user-bar/콘텐츠 와 호흡 */
   gap:8px;
+  /* 승인자는 탭이 6개(마스터)라 폰 폭을 넘는다 — 페이지 전체가 넓어지지 않게 탭 줄만 옆으로 민다 */
+  overflow-x:auto;
+  scrollbar-width:none;
 }
+.mode-tabs::-webkit-scrollbar{display:none}
 /* base — 탭 정체성은 --tab-color / --tab-tint 변수로 분리.
    새 탭 추가 시 .mode-tab.tab-XXX 한 줄만 정의하면 hover/active 자동 동작. */
 .mode-tab{
@@ -2326,7 +2330,7 @@ body.search-mode-active{
   <!-- 상단 sticky 헤더: user-bar + 모드 탭 (스크롤 시 함께 고정) -->
   <div class="p1-header">
     <div class="user-bar">
-      <div class="user-dot" id="user-dot" onclick="resetProfile()">?</div>
+      <div class="user-dot" id="user-dot" role="button" tabindex="0" aria-label="내 메뉴" onclick="typeof MasterTab!=='undefined'?MasterTab.menu():resetProfile()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">?</div>
       <div class="user-info">
         <div class="user-name" id="user-name">-</div>
         <div class="user-date" id="user-date">-</div>
@@ -2528,7 +2532,7 @@ body.search-mode-active{
       <div><b>검토-12_260706</b> 계약 전 검토 — 실 NAS 검토 폴더 번호·날짜</div>
       <div><b>TEMP-20261013-001</b> 보고에 새로 나와 아직 확인 전 — 이 코드로 그대로 보고하면 돼요</div>
       <div><b>INT-기타</b> 사내 업무</div>
-      <div class="pjx-codehelp-note">검토·계약이 정해지면 실장·팀장이 마스터 탭에서 코드를 바꿔요. 옛 코드로 쓴 보고도 같은 사업으로 이어져요.</div>
+      <div class="pjx-codehelp-note">실이 NAS에 검토·프로젝트 폴더를 만들면 코드가 자동으로 바뀌어요(평일 아침·오후). 애매한 것만 실장·팀장이 마스터 탭에서 확인해요. 옛 코드로 쓴 보고도 같은 사업으로 이어져요.</div>
     </div>
     <div class="pjx-new" id="pjx-new" hidden></div>
     <div class="pjx-all" id="pjx-all" hidden></div>

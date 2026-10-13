@@ -12,8 +12,9 @@
 //   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml, toast.
 var MasterTab = (function () {
   var _pending = [], _temps = [], _projects = [];
+  var _nas = [], _nasRecent = [];   // NAS 폴더 — 확인할 것(애매한 것) · 최근 자동 반영 (2026-10-13, GAS NasSync.js)
   var _sugg = {}, _meaning = {}, _loaded = false, _tempsLoaded = false, _tempsErr = '';
-  var _filter = 'todo', _q = '';
+  var _filter = 'todo', _q = '', _timer = null;
   var _open = {};      // 카드 key → { choice: 'exist'|'new'|'not', kind, letter, target, tq }
   var _err = {};       // 카드 key → 오류 문구
   var _busy = {};      // 카드 key → 요청 중
@@ -30,6 +31,7 @@ var MasterTab = (function () {
     }).then(function (r) { return r.json(); });
   }
   function _esc(s) { return escapeHtml(String(s == null ? '' : s)); }
+  function _atText(v) { var d = new Date(v); return isNaN(d) ? String(v || '') : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
   function _md(d) { var m = String(d || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? (+m[1]) + '/' + (+m[2]) : ''; }
 
   // ── 불러오기 ─────────────────────────────────────
@@ -40,10 +42,13 @@ var MasterTab = (function () {
     _injectStyle();
     _post({ action: 'get_pending_pj_registrations' })
       .then(function (resp) {
-        if (!resp || !resp.ok || resp.reason === 'not_pj_owner') { btn.style.display = 'none'; return; }
+        if (!resp || !resp.ok || resp.reason === 'not_pj_owner') { btn.style.display = 'none'; _approver = false; _bell(); return; }
         btn.style.display = '';
+        _approver = true;
         _applyPending(resp);
         _loadTemps();
+        // 켜 둔 채로 있어도 새 알림을 받게 30분마다 다시 본다 (NAS 동기화는 평일 08:45·16:30)
+        if (!_timer) _timer = setInterval(refresh, 30 * 60 * 1000);
       })
       .catch(function (e) { console.error('[master] boot', e); btn.style.display = 'none'; });
   }
@@ -55,10 +60,13 @@ var MasterTab = (function () {
   }
   function _applyPending(resp) {
     _pending = Array.isArray(resp.items) ? resp.items : [];
+    _nas = Array.isArray(resp.nas_notices) ? resp.nas_notices : [];
+    _nasRecent = Array.isArray(resp.nas_recent) ? resp.nas_recent : [];
     _sugg = resp.suggestions || {};
     _meaning = resp.prefixMeaning || {};
     _loaded = true;
     _badge();
+    _bell();
     _render();
   }
   function _loadTemps() {
@@ -69,18 +77,23 @@ var MasterTab = (function () {
         _projects = Array.isArray(resp.projects) ? resp.projects : [];
         _tempsLoaded = true; _tempsErr = '';
         _render();
-        _maybePopup();
+        _bell();
       })
       .catch(function (e) { console.error('[master] temp list', e); _tempsLoaded = true; _tempsErr = '임시코드 목록을 불러오지 못했어요'; _render(); });
   }
   function _badge() {
     var b = document.getElementById('tab-master-count');
-    if (b) b.textContent = _pending.length ? String(_pending.length) : '';
+    var n = _pending.length + _nas.length;
+    if (b) b.textContent = n ? String(n) : '';
   }
 
   // ── 카드 목록 ─────────────────────────────────────
   function _cards() {
     var out = [];
+    _nas.forEach(function (x) {
+      out.push({ key: 'N:' + x.code, type: 'nas', code: x.code, name: x.name || x.folder || '', folder: x.folder || '', cands: x.cands || [],
+                 nasKind: x.kind || '', reports: 0, last: '', who: [], similar: [], done: false });
+    });
     _pending.forEach(function (p) {
       out.push({ key: 'P:' + p['키'], type: 'pending', name: p['키'] || '', memo: p['값'] || '', src: p,
                  reports: p.reports || 0, last: p.last || '', who: p.who || [], similar: p.similar || [], done: false });
@@ -99,7 +112,8 @@ var MasterTab = (function () {
       if (!q) return true;
       return (c.name + ' ' + (c.code || '') + ' ' + (c.note || '') + ' ' + (c.memo || '')).toLowerCase().indexOf(q) >= 0;
     }).sort(function (a, b) {
-      if (a.type !== b.type) return a.type === 'pending' ? -1 : 1;              // 새로 찾음 먼저
+      var rank = { nas: 0, pending: 1, temp: 2 };                                   // NAS 확인 → 새로 찾음 → 임시코드
+      if (a.type !== b.type) return rank[a.type] - rank[b.type];
       return (b.reports - a.reports) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0) || (a.key < b.key ? 1 : -1);
     });
   }
@@ -136,7 +150,7 @@ var MasterTab = (function () {
     var list = body.querySelector('.mt-list');
     if (!_loaded || (!_tempsLoaded && !_pending.length)) { list.innerHTML = '<div class="mt-empty">불러오는 중이에요… (처음엔 몇 초 걸려요)</div>'; return; }
     var vis = _visible(all);
-    var h = '';
+    var h = _recentHtml();
     if (_tempsErr) h += '<div class="mt-empty err">' + _esc(_tempsErr) + ' <button type="button" class="mt-btn" data-act="reload">다시 시도</button></div>';
     if (!vis.length) {
       h += '<div class="mt-empty">' + (_q ? '찾는 이름이 없어요' : _filter === 'done' ? '끝난 것이 없어요' : '확인할 새 사업이 없어요 — 보고에 새 이름이 나오면 여기에 떠요') + '</div>';
@@ -148,6 +162,7 @@ var MasterTab = (function () {
   }
 
   function _cardHtml(c) {
+    if (c.type === 'nas') return _nasCardHtml(c);
     var k = _esc(c.key), op = _open[c.key] || {}, busy = !!_busy[c.key];
     var tag = c.type === 'pending'
       ? '<span class="mt-tag new">새로 찾음</span>'
@@ -171,6 +186,40 @@ var MasterTab = (function () {
     if (op.choice) h += '<div class="mt-panel">' + _panelHtml(c, op) + '</div>';
     if (_err[c.key]) h += '<div class="mt-err">' + _esc(_err[c.key]) + '</div>';
     return h + '</div>';
+  }
+
+  // NAS 에 폴더가 생겼는데 이어지는 사업이 애매할 때 — 후보 하나를 고르거나 '새 사업' (2026-10-13)
+  function _nasCardHtml(c) {
+    var k = _esc(c.key), op = _open[c.key] || {}, busy = _busy[c.key] ? ' disabled' : '';
+    var what = c.nasKind === 'project' ? '계약 프로젝트 폴더' : '검토 폴더';
+    var h = '<div class="mt-card mt-nas' + (_busy[c.key] ? ' busy' : '') + '" data-key="' + k + '">';
+    h += '<div class="mt-tags"><span class="mt-tag nas">NAS 폴더</span><span class="mt-tag">' + _esc(c.code) + '</span></div>';
+    h += '<div class="mt-name">' + _esc(c.name) + '</div>';
+    h += '<div class="mt-meta">NAS에 새 ' + what + '가 생겼어요. 이미 목록에 있는 사업과 같은지 확인해 주세요.</div>';
+    h += '<div class="mt-panel"><div class="mt-label">어느 쪽인가요?</div><div class="mt-opts">';
+    c.cands.forEach(function (x) {
+      var on = op.picked === x.code;
+      h += '<button type="button" class="mt-opt' + (on ? ' on' : '') + '" data-act="nas-pick" data-code="' + _esc(x.code) + '"><b>' + _esc(x.code) + '</b> ' + _esc(x.name) + ' 와 같은 사업이에요</button>';
+    });
+    h += '<button type="button" class="mt-opt' + (op.picked === '' ? ' on' : '') + '" data-act="nas-pick" data-code="">새 사업이에요 — ' + _esc(c.code) + ' 로 새로 등록</button>';
+    h += '</div>';
+    if (op.picked != null) {
+      h += '<button type="button" class="mt-go" data-act="do-nas"' + busy + '>' +
+           (op.picked ? _esc(op.picked) + ' → ' + _esc(c.code) + ' 로 바꾸기' : _esc(c.code) + ' 새로 등록하기') + '</button>';
+    }
+    h += '</div>';
+    if (_err[c.key]) h += '<div class="mt-err">' + _esc(_err[c.key]) + '</div>';
+    return h + '</div>';
+  }
+
+  // 최근 자동 반영 — 확실해서 NAS 가 알아서 바꾼 것. 관리자가 모르고 지나가지 않게 (접힘)
+  function _recentHtml() {
+    if (!_nasRecent.length) return '';
+    var label = { register_review: '새 검토 등록', register_formal: '새 정식 등록', formalize: '코드 변경', stage: '단계 변경' };
+    return '<details class="mt-guide mt-recent"><summary>NAS가 자동으로 바꾼 것 · 최근 7일 ' + _nasRecent.length + '건</summary><div class="mt-guide-body"><ul>' +
+      _nasRecent.map(function (r) {
+        return '<li><b>' + _esc(r.code) + '</b> ' + _esc(label[r.op] || r.op) + ' — ' + _esc(r.folder || r.detail) + ' <span class="mt-guide-dim">' + _esc(_atText(r.at)) + '</span></li>';
+      }).join('') + '</ul><p class="mt-guide-dim">틀린 게 있으면 이 탭이나 노션에서 바로 고치면 돼요.</p></div></details>';
   }
 
   function _panelHtml(c, op) {
@@ -270,6 +319,13 @@ var MasterTab = (function () {
     else if (act === 'do-exist') { _doExist(c, op); return; }
     else if (act === 'do-new') { _doNew(c, op); return; }
     else if (act === 'do-not') { _doNot(c); return; }
+    else if (act === 'nas-pick') { op.picked = b.getAttribute('data-code'); }
+    else if (act === 'do-nas') {
+      _run(c, { action: 'nas_resolve', code: c.code, target: op.picked || '' },
+           op.picked ? op.picked + ' → ' + c.code + ' 로 바꿨어요' : c.code + ' 를 새로 등록했어요',
+           function () { _loadTemps(); });   // 바뀐 임시코드·새 행이 아래 목록에도 보이게
+      return;
+    }
     _rerenderCard(key);
   }
   function _onInput(e) {
@@ -318,7 +374,8 @@ var MasterTab = (function () {
   }
   function _finish(c, msg) {
     delete _busy[c.key]; delete _open[c.key]; delete _err[c.key];
-    if (c.type === 'pending') _pending = _pending.filter(function (p) { return 'P:' + p['키'] !== c.key; });
+    if (c.type === 'nas') _nas = _nas.filter(function (x) { return x.code !== c.code; });
+    else if (c.type === 'pending') _pending = _pending.filter(function (p) { return 'P:' + p['키'] !== c.key; });
     else _temps = _temps.filter(function (t) { return t.code !== c.code; });
     _badge();
     if (typeof toast === 'function') toast(msg);
@@ -362,42 +419,122 @@ var MasterTab = (function () {
     return '<details class="mt-guide"><summary>코드가 바뀌는 순서 · NAS 폴더와의 관계</summary><div class="mt-guide-body">' +
       '<ol>' +
       '<li><b>보고에 새 이름이 나오면</b> 목록에 없을 때 <code>TEMP-날짜-번호</code>가 자동으로 붙어요. 직원은 그 코드로 그대로 보고하면 돼요.</li>' +
-      '<li><b>실이 NAS 검토 폴더(NN_YYMMDD_이름)를 만들면</b> 여기서 [새 사업이 맞아요 › 검토 중이에요]에 폴더 번호·날짜 그대로 <code>검토-NN_YYMMDD</code>를 넣어 주세요.</li>' +
-      '<li><b>계약되면</b> 재무 원장 코드(= NAS 프로젝트 폴더 <code>YY-X##</code>)로 [계약됐어요]. 옛 코드는 별칭으로 남아 지난 보고도 이어져요.</li>' +
+      '<li><b>실이 NAS 검토 폴더(NN_YYMMDD_이름)를 만들면</b> 자동으로 <code>검토-NN_YYMMDD</code>가 돼요 — 이어지는 임시코드가 하나로 확실하면 그걸 바꾸고, 없으면 새로 등록해요.</li>' +
+      '<li><b>계약되어 NAS 프로젝트 폴더(<code>YY-X##</code>)가 생기면</b> 같은 방식으로 정식 코드가 돼요. 옛 코드는 별칭으로 남아 지난 보고도 이어져요.</li>' +
       '<li><b>사업이 아니면</b> [사업이 아니에요] — 나중에 되돌릴 수 있어요.</li>' +
       '</ol>' +
-      '<p><b>NAS에 폴더만 만들어서는 아무것도 바뀌지 않아요.</b> 서버가 NAS에 닿지 않아요 — 여기서 코드를 바꿔 주셔야 해요. 빠진 건 매주 월요일 점검이 찾아 알려요.</p>' +
+      '<p><b>NAS 폴더는 평일 08:45·16:30에 읽어요.</b> 비슷한 이름이 여럿이라 애매하면 바꾸지 않고 맨 위 [NAS 폴더] 카드로 물어봐요 — 골라 주세요. 자동으로 바꾼 건 아래 「NAS가 자동으로 바꾼 것」에 남아요. 폴더 이름의 (취소)·미계약 종결도 단계에 반영돼요.</p>' +
       '<p class="mt-guide-dim">반영: 보고창·브리핑 10분 안 · 노션 1시간 안 · 힘내자 대시보드 다음 날 새벽</p>' +
       '</div></details>';
   }
 
-  // ── 하루 한 번 안내 팝업 (승인자, 확인할 게 있을 때만) ─────────
-  //   2026-10-13 — 탭을 열어 보지 않으면 임시코드가 쌓이기만 했다. 매번 뜨면 무시하게 되니 하루 한 번.
-  function _maybePopup() {
-    var nNew = _pending.length, nTemp = _temps.filter(function (t) { return t.stage !== '종결'; }).length;
-    if (!nNew && !nTemp) return;
-    if (typeof activeMode !== 'undefined' && activeMode === 'master') return;     // 이미 탭에 있음
-    var key = 'mt_popup_' + String((profile && profile.email) || ''), today = new Date();
-    var ymd = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
-    try { if (localStorage.getItem(key) === ymd) return; localStorage.setItem(key, ymd); } catch (e) {}
-    if (document.getElementById('mt-pop')) return;
-    var box = document.createElement('div');
-    box.id = 'mt-pop'; box.className = 'mt-pop';
-    box.innerHTML =
-      '<div class="mt-pop-card" role="dialog" aria-modal="true" aria-labelledby="mt-pop-t">' +
-        '<div class="mt-pop-t" id="mt-pop-t">🗂️ 새 사업 확인 부탁드려요</div>' +
-        '<p>보고에서 새로 나온 사업이 있어요. 마스터 탭에서 같은 사업이 있는지, 새 사업인지 확인해 주세요 — 브리핑과 프로젝트 화면이 정확해져요.</p>' +
-        '<div class="mt-pop-n">' + (nNew ? '<span>새로 찾음 <b>' + nNew + '</b>건</span>' : '') + '<span>확인 기다리는 임시코드 <b>' + nTemp + '</b>건</span></div>' +
-        '<button type="button" class="mt-go" data-pop="go">마스터 탭에서 확인하기</button>' +
-        '<button type="button" class="mt-pop-later" data-pop="later">오늘은 나중에</button>' +
-      '</div>';
-    box.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-pop]');
-      if (!b && e.target !== box) return;
-      box.remove();
-      if (b && b.getAttribute('data-pop') === 'go' && typeof onTabClick === 'function') { onTabClick('master'); window.scrollTo(0, 0); }
+  // ── 알림 (이름 동그라미) ─────────────────────────────
+  //   2026-10-13 — 처음엔 팝업이었는데 매번 뜨면 방해된다는 사용자 의견으로 바꿨다:
+  //   좌측 위 이름 동그라미에 테두리가 빛나고 숫자가 붙는다 → 누르면 알림 목록 + 직원 변경.
+  //   열면 '읽음'(브라우저에 기억) — 빛은 꺼지고, 아직 골라야 할 것(NAS 확인·새로 찾음)은 회색 숫자로 남는다.
+  var _approver = false;
+  function _seenKey() { return 'mt_seen_' + String((profile && profile.email) || ''); }
+  // 본 것 = 알림 키 집합. '#R'·'#T' 는 그 목록의 첫 기준선을 잡았다는 표시 —
+  //   처음 쓰는 브라우저에서 이미 쌓인 자동 반영·임시코드 70개를 '새것'이라 부르지 않으려고.
+  //   임시코드 목록(master_temp_list)은 늦게 오므로 목록마다 따로 잡는다.
+  function _readSeen() {
+    var seen = {};
+    try { JSON.parse(localStorage.getItem(_seenKey()) || '[]').forEach(function (k) { seen[k] = 1; }); } catch (e) { console.warn('[master] seen', e); }
+    return seen;
+  }
+  function _writeSeen(seen) {
+    // 지금 목록에 없는 옛 키는 버린다(표시는 남긴다) — 계속 쌓이지 않게
+    var live = {}; _allKeys().forEach(function (k) { live[k] = 1; });
+    var keys = Object.keys(seen).filter(function (k) { return k.charAt(0) === '#' || live[k] || (!_tempsLoaded && k.indexOf('T:') === 0); });
+    try { localStorage.setItem(_seenKey(), JSON.stringify(keys)); } catch (e) { console.warn('[master] seen', e); }
+  }
+  function _allKeys() {
+    var k = [];
+    _nas.forEach(function (x) { k.push('N:' + x.code); });
+    _pending.forEach(function (p) { k.push('P:' + p['키']); });
+    _nasRecent.forEach(function (r) { k.push('R:' + r.at + r.code); });
+    _temps.forEach(function (t) { k.push('T:' + t.code); });
+    return k;
+  }
+  // 알림 한 줄씩 — 확인할 것(act) 먼저, 그다음 알아만 두면 되는 것(NAS 자동 반영·새 임시코드)
+  function _alerts() {
+    var out = [];
+    _nas.forEach(function (x) { out.push({ key: 'N:' + x.code, act: true, tag: 'NAS 폴더', text: x.code + ' ' + (x.name || x.folder || '') + ' — 같은 사업인지 골라 주세요' }); });
+    _pending.forEach(function (p) { out.push({ key: 'P:' + p['키'], act: true, tag: '새로 찾음', text: (p['키'] || '') + ' — 사업인지 확인해 주세요' }); });
+    _nasRecent.forEach(function (r) { out.push({ key: 'R:' + r.at + r.code, act: false, tag: 'NAS 자동', text: r.code + ' ' + (r.folder || r.detail || '') }); });
+    _temps.forEach(function (t) { if (t.stage !== '종결') out.push({ key: 'T:' + t.code, act: false, tag: '새 임시코드', text: t.code + ' ' + (t.name || '') }); });
+    var seen = _readSeen(), changed = false;
+    if (_loaded && !seen['#R']) { _nasRecent.forEach(function (r) { seen['R:' + r.at + r.code] = 1; }); seen['#R'] = 1; changed = true; }
+    if (_tempsLoaded && !_tempsErr && !seen['#T']) { _temps.forEach(function (t) { seen['T:' + t.code] = 1; }); seen['#T'] = 1; changed = true; }
+    if (changed) _writeSeen(seen);
+    // 기준선 잡기 전(목록이 아직 안 옴)엔 그 목록은 새것으로 치지 않는다
+    if (!seen['#T']) _temps.forEach(function (t) { seen['T:' + t.code] = 1; });
+    out.forEach(function (a) { a.fresh = !seen[a.key]; });
+    // 알아만 두면 되는 건 새것만 보여 준다 (임시코드 70개를 늘 늘어놓지 않게)
+    return out.filter(function (a) { return a.act || a.fresh; });
+  }
+  function _bell() {
+    var dot = document.getElementById('user-dot');
+    if (!dot) return;
+    var b = dot.querySelector('.ud-badge');
+    if (!_approver) { if (b) b.remove(); dot.classList.remove('ud-glow'); return; }
+    var list = _alerts(), fresh = list.filter(function (a) { return a.fresh; }).length;
+    var n = fresh || list.length;
+    if (!b) { b = document.createElement('span'); b.className = 'ud-badge'; dot.appendChild(b); }
+    b.textContent = n > 99 ? '99+' : String(n);
+    b.style.display = n ? '' : 'none';
+    b.classList.toggle('dim', !fresh);
+    dot.classList.toggle('ud-glow', !!fresh);
+    dot.setAttribute('aria-label', fresh ? '새 알림 ' + fresh + '건' : (n ? '확인 기다리는 알림 ' + n + '건' : '내 메뉴'));
+  }
+  function _closeMenu() { var m = document.getElementById('ud-menu'); if (m) m.remove(); document.removeEventListener('keydown', _escMenu); }
+  function _escMenu(e) { if (e.key === 'Escape') _closeMenu(); }
+  // 이름 동그라미를 누르면 — 알림(승인자만) + 직원 변경
+  function menu() {
+    _injectStyle();
+    if (document.getElementById('ud-menu')) { _closeMenu(); return; }
+    var dot = document.getElementById('user-dot');
+    var list = _approver ? _alerts() : [];
+    var h = '<div class="ud-card" role="menu">';
+    h += '<div class="ud-who">' + _esc((profile && profile.name) || '') + (profile && profile.dept ? ' <span>' + _esc(profile.dept) + '</span>' : '') + '</div>';
+    if (_approver) {
+      h += '<div class="ud-sec">알림</div>';
+      if (!list.length) h += '<div class="ud-empty">새 알림이 없어요</div>';
+      else {
+        h += '<ul class="ud-list">';
+        list.slice(0, 8).forEach(function (a) {
+          h += '<li><button type="button" class="ud-item' + (a.fresh ? ' fresh' : '') + '" data-ud="go"><span class="ud-tag' + (a.act ? ' act' : '') + '">' + _esc(a.tag) + '</span>' + _esc(a.text) + '</button></li>';
+        });
+        h += '</ul>';
+        if (list.length > 8) h += '<div class="ud-empty">외 ' + (list.length - 8) + '건</div>';
+      }
+      h += '<button type="button" class="ud-go" data-ud="go">🗂️ 마스터 탭에서 확인하기</button>';
+    }
+    h += '<button type="button" class="ud-out" data-ud="out">직원 변경 (로그아웃)</button></div>';
+    var m = document.createElement('div');
+    m.id = 'ud-menu'; m.className = 'ud-menu'; m.innerHTML = h;
+    m.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-ud]');
+      if (!b && e.target !== m) return;
+      _closeMenu();
+      if (!b) return;
+      if (b.getAttribute('data-ud') === 'out') { if (typeof resetProfile === 'function') resetProfile(); return; }
+      if (typeof onTabClick === 'function') {
+        onTabClick('master'); window.scrollTo(0, 0);
+        var tab = document.querySelector('.mode-tab.tab-master');   // 폰에선 탭 줄 오른쪽 끝이라 안 보인다
+        if (tab) tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
     });
-    document.body.appendChild(box);
+    var r = dot ? dot.getBoundingClientRect() : { left: 16, bottom: 56 };
+    m.querySelector('.ud-card').style.cssText = 'top:' + Math.round(r.bottom + 8) + 'px;left:' + Math.max(8, Math.round(r.left)) + 'px';
+    document.body.appendChild(m);
+    document.addEventListener('keydown', _escMenu);
+    if (_approver) {   // 열면 읽음 — 임시코드는 목록에 안 보인 옛것까지 전부 본 걸로
+      var seen = _readSeen();
+      _allKeys().forEach(function (k) { seen[k] = 1; });
+      _writeSeen(seen);
+      _bell();
+    }
   }
 
   // ── 스타일 (이 탭만 쓰는 것) ─────────────────────────
@@ -450,16 +587,31 @@ var MasterTab = (function () {
       '.mt-guide-body ol{margin:0 0 8px;padding-left:20px}.mt-guide-body li{margin-bottom:4px}',
       '.mt-guide-body code{background:var(--paper2);padding:0 4px;border-radius:4px;font-size:12.5px}',
       '.mt-guide-body p{margin:6px 0 0}.mt-guide-dim{color:var(--ink3);font-size:12.5px}',
-      '.mt-pop{position:fixed;inset:0;z-index:9999;background:rgba(30,30,25,.45);display:flex;align-items:center;justify-content:center;padding:16px}',
-      '.mt-pop-card{background:#fff;border-radius:14px;max-width:420px;width:100%;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.2);--mt:#8A6D3B}',
-      '.mt-pop-t{font-size:17px;font-weight:700;margin-bottom:8px;color:var(--ink)}',
-      '.mt-pop-card p{font-size:14px;line-height:1.65;color:var(--ink2);margin:0 0 10px}',
-      '.mt-pop-n{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:13.5px;color:var(--ink2);margin-bottom:4px}.mt-pop-n b{color:#8A6D3B}',
-      '.mt-pop-later{display:block;width:100%;margin-top:6px;min-height:40px;border:0;background:transparent;color:var(--ink3);font:inherit;font-size:14px;cursor:pointer}',
+      '.mt-tag.nas{background:#E8F0F7;border-color:#5B7FA3;color:#2F5F8A;font-weight:600}',
+      '.mt-card.mt-nas{border-color:#9DB6CF}',
+      '.mt-recent ul{margin:0;padding-left:18px}.mt-recent li{margin-bottom:3px}',
+      '.user-dot{position:relative}',
+      '.user-dot.ud-glow{box-shadow:0 0 0 2px #fff,0 0 0 4px #D9822B;animation:udGlow 1.8s ease-in-out infinite}',
+      '@keyframes udGlow{0%,100%{box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(217,130,43,.95),0 0 10px 3px rgba(217,130,43,.45)}50%{box-shadow:0 0 0 2px #fff,0 0 0 4px rgba(217,130,43,.55),0 0 2px 0 rgba(217,130,43,0)}}',
+      '@media (prefers-reduced-motion:reduce){.user-dot.ud-glow{animation:none}}',
+      '.ud-badge{position:absolute;top:-5px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#D2452F;color:#fff;font:600 11px/18px "Noto Sans KR",sans-serif;text-align:center;box-shadow:0 0 0 2px #fff;box-sizing:border-box}',
+      '.ud-badge.dim{background:#9A958A}',
+      '.ud-menu{position:fixed;inset:0;z-index:9999}',
+      '.ud-card{position:absolute;width:min(340px,calc(100vw - 16px));max-height:calc(100vh - 80px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px;box-sizing:border-box}',
+      '.ud-who{font-size:15px;font-weight:600;color:var(--ink);padding:2px 4px 8px;border-bottom:1px solid var(--line)}.ud-who span{font-weight:400;font-size:13px;color:var(--ink3);margin-left:4px}',
+      '.ud-sec{font-size:12px;color:var(--ink3);margin:10px 4px 4px}',
+      '.ud-empty{font-size:13.5px;color:var(--ink3);padding:6px 4px}',
+      '.ud-list{list-style:none;margin:0;padding:0}',
+      '.ud-item{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:8px;padding:8px 6px;font:inherit;font-size:13.5px;line-height:1.5;color:var(--ink2);cursor:pointer;min-height:40px;word-break:keep-all}',
+      '.ud-item:hover{background:var(--paper2)}.ud-item.fresh{color:var(--ink);font-weight:500}',
+      '.ud-item.fresh::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#D2452F;margin-right:6px;vertical-align:middle}',
+      '.ud-tag{display:inline-block;font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:0 7px;margin-right:6px;color:var(--ink3)}.ud-tag.act{border-color:#8A6D3B;color:#8A6D3B}',
+      '.ud-go{display:block;width:100%;margin-top:8px;min-height:42px;border:0;border-radius:10px;background:#8A6D3B;color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer}',
+      '.ud-out{display:block;width:100%;margin-top:8px;min-height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink2);font:inherit;font-size:14px;cursor:pointer}',
       '@media (max-width:600px){.mt-choices{flex-direction:column}.mt-btn{width:100%}}'
     ].join('\n');
     document.head.appendChild(s);
   }
 
-  return { boot: boot, init: init, refresh: refresh };
+  return { boot: boot, init: init, refresh: refresh, menu: menu };
 })();

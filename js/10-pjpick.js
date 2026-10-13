@@ -8,6 +8,9 @@ var PjPick={
   KEY:'himclaude_v2_pjpick',
   list:null, loading:false, picks:[], shown:[], sel:-1, _blurT:null, _restored:false,
   norm:function(s){ return String(s||'').toLowerCase().replace(/[\s\-_·.,()\[\]\/]/g,''); },
+  // 본부는 셋뿐 (2026-10-13). 시트 G열에 옛 분류(검토·구조·도시·해당없음·-)가 섞여 있어 드롭다운·카드에 그대로 보였다
+  DEPTS:['기획본부','도시계획본부','설계본부'],
+  normDept:function(d){ d=String(d||'').trim(); if(d==='도시본부') d='도시계획본부'; return this.DEPTS.indexOf(d)>=0?d:''; },
   today:function(){ var t=new Date(); return t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2); },
   status:function(msg){ var el=document.getElementById('pjx-status'); if(el) el.textContent=msg; },
 
@@ -22,6 +25,7 @@ var PjPick={
       if(!d||!d.ok) throw new Error((d&&(d.error||d.message))||'목록을 받지 못했습니다');
       self.list=(d.projects||[]).filter(function(p){ return p.stage!=='시스템'; });
       self.list.forEach(function(p){
+        p.dept=self.normDept(p.dept);
         p._n=self.norm(p.name); p._c=self.norm(p.code);
         p._k=self.norm([p.code,p.name,p.client,(p.alt||[]).join(' ')].join(' '));
       });
@@ -236,12 +240,11 @@ var PjPick={
     if(!box.hidden){ box.hidden=true; box.innerHTML=''; return; }
     box.hidden=false;
     if(!self.list){ box.innerHTML='<div class="pjx-none">프로젝트 목록을 불러오는 중입니다...</div>'; self._allWait=true; self.load(); return; }
-    var depts=[]; self.list.forEach(function(p){ if(p.dept&&depts.indexOf(p.dept)<0) depts.push(p.dept); });
     self.allOpen=null;
     box.innerHTML=
       '<div class="pjx-all-head">'+
         '<select class="pjx-q" id="pjx-all-dept" onchange="PjPick.renderAll()"><option value="">본부 전체</option>'+
-          depts.map(function(d){ return '<option>'+escapeHtml(d)+'</option>'; }).join('')+'</select>'+
+          self.DEPTS.map(function(d){ return '<option>'+escapeHtml(d)+'</option>'; }).join('')+'<option value="__none">미지정</option></select>'+
         '<select class="pjx-q" id="pjx-all-kind" onchange="PjPick.renderAll()"><option value="">구분 전체</option><option value="notion">노션</option><option value="sheet">노션 외 목록</option><option value="new">임시 코드</option></select>'+
         '<input type="text" class="pjx-q" id="pjx-all-q" placeholder="이 안에서 찾기" oninput="PjPick.renderAll()" style="flex:1;min-width:120px">'+
         '<button type="button" class="pjx-btn" onclick="PjPick.openAll()">닫기</button>'+
@@ -256,7 +259,7 @@ var PjPick={
     var kind=String((document.getElementById('pjx-all-kind')||{}).value||'');
     var words=String((document.getElementById('pjx-all-q')||{}).value||'').trim().split(/\s+/).map(self.norm).filter(Boolean);
     var rows=self.list.filter(function(p){
-      if(dept && p.dept!==dept) return false;
+      if(dept==='__none' ? !!p.dept : (dept && p.dept!==dept)) return false;
       if(kind==='notion' && !p.notion) return false;
       if(kind==='sheet' && p.notion) return false;
       if(kind==='new' && !p.temp) return false;

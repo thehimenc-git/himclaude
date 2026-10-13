@@ -2482,8 +2482,11 @@ body.search-mode-active{
     .pjx-info-row{display:flex;gap:8px}
     .pjx-info-row .k{flex:0 0 64px;color:#a0917c}
     .pjx-info-row .v{flex:1;min-width:0;word-break:break-all;white-space:pre-wrap}
-    .pjx-tools{display:flex;gap:14px;margin-top:6px}
+    .pjx-tools{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px}
     .pjx-link{border:none;background:transparent;color:#7a5a2b;font-size:12px;cursor:pointer;padding:2px 0;text-decoration:underline;font-family:inherit}
+    .pjx-codehelp{margin:6px 0 2px;padding:8px 10px;border-radius:8px;background:var(--paper2);font-size:12.5px;line-height:1.75;color:var(--ink2)}
+    .pjx-codehelp b{color:var(--ink);margin-right:4px}
+    .pjx-codehelp-note{margin-top:4px;color:var(--ink3)}
     .pjx-new{border:1px solid rgba(184,147,90,.5);border-radius:12px;background:#fffdf9;margin-top:8px;padding:12px}
     .pjx-new-title{font-weight:700;font-size:13.5px;color:#5a4a36;margin-bottom:2px}
     .pjx-lab{display:block;font-size:11.5px;color:#8a7a62;margin:8px 0 3px}
@@ -2517,6 +2520,15 @@ body.search-mode-active{
     <div class="pjx-tools">
       <button type="button" class="pjx-link" onclick="PjPick.openNew()">＋ 새 프로젝트 등록</button>
       <button type="button" class="pjx-link" onclick="PjPick.openAll()">📋 프로젝트 목록 전체 보기</button>
+      <button type="button" class="pjx-link" onclick="var h=document.getElementById('pjx-codehelp');h.hidden=!h.hidden">❔ 코드 뜻</button>
+    </div>
+    <!-- 2026-10-13 코드 뜻 — 정본은 HIMNAEJA reference/PROJECT_CODE_SPEC.md '한눈에 보기' -->
+    <div class="pjx-codehelp" id="pjx-codehelp" hidden>
+      <div><b>26-U07</b> 계약된 사업 — 재무 원장 코드 (U 도시 · C 토목 · E 더힘구조 · A AI)</div>
+      <div><b>검토-12_260706</b> 계약 전 검토 — 실 NAS 검토 폴더 번호·날짜</div>
+      <div><b>TEMP-20261013-001</b> 보고에 새로 나와 아직 확인 전 — 이 코드로 그대로 보고하면 돼요</div>
+      <div><b>INT-기타</b> 사내 업무</div>
+      <div class="pjx-codehelp-note">검토·계약이 정해지면 실장·팀장이 마스터 탭에서 코드를 바꿔요. 옛 코드로 쓴 보고도 같은 사업으로 이어져요.</div>
     </div>
     <div class="pjx-new" id="pjx-new" hidden></div>
     <div class="pjx-all" id="pjx-all" hidden></div>

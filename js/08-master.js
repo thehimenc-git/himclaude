@@ -69,6 +69,7 @@ var MasterTab = (function () {
         _projects = Array.isArray(resp.projects) ? resp.projects : [];
         _tempsLoaded = true; _tempsErr = '';
         _render();
+        _maybePopup();
       })
       .catch(function (e) { console.error('[master] temp list', e); _tempsLoaded = true; _tempsErr = '임시코드 목록을 불러오지 못했어요'; _render(); });
   }
@@ -111,6 +112,7 @@ var MasterTab = (function () {
       body.setAttribute('data-mt', '1');
       body.innerHTML =
         '<p class="mt-intro">보고에서 새로 나온 사업 이름이에요. 하나씩 같은 사업이 있는지, 새 사업인지 확인해 주세요.</p>' +
+        _guideHtml() +
         '<div class="mt-bar"><div class="mt-chips"></div>' +
         '<input type="search" class="mt-search" placeholder="이름·코드로 찾기" /></div>' +
         '<div class="mt-list"></div>';
@@ -354,6 +356,50 @@ var MasterTab = (function () {
     else _run(c, { action: 'reject_pj_learning', source_key: c.src['키'] || '', source_value: c.src['값'] || '' }, '등록 대기에서 지웠어요');
   }
 
+  // ── 코드가 바뀌는 순서 (접힌 안내) ─────────────────────
+  // 정본: HIMNAEJA reference/PROJECT_CODE_SPEC.md '한눈에 보기' — 고칠 땐 거기부터
+  function _guideHtml() {
+    return '<details class="mt-guide"><summary>코드가 바뀌는 순서 · NAS 폴더와의 관계</summary><div class="mt-guide-body">' +
+      '<ol>' +
+      '<li><b>보고에 새 이름이 나오면</b> 목록에 없을 때 <code>TEMP-날짜-번호</code>가 자동으로 붙어요. 직원은 그 코드로 그대로 보고하면 돼요.</li>' +
+      '<li><b>실이 NAS 검토 폴더(NN_YYMMDD_이름)를 만들면</b> 여기서 [새 사업이 맞아요 › 검토 중이에요]에 폴더 번호·날짜 그대로 <code>검토-NN_YYMMDD</code>를 넣어 주세요.</li>' +
+      '<li><b>계약되면</b> 재무 원장 코드(= NAS 프로젝트 폴더 <code>YY-X##</code>)로 [계약됐어요]. 옛 코드는 별칭으로 남아 지난 보고도 이어져요.</li>' +
+      '<li><b>사업이 아니면</b> [사업이 아니에요] — 나중에 되돌릴 수 있어요.</li>' +
+      '</ol>' +
+      '<p><b>NAS에 폴더만 만들어서는 아무것도 바뀌지 않아요.</b> 서버가 NAS에 닿지 않아요 — 여기서 코드를 바꿔 주셔야 해요. 빠진 건 매주 월요일 점검이 찾아 알려요.</p>' +
+      '<p class="mt-guide-dim">반영: 보고창·브리핑 10분 안 · 노션 1시간 안 · 힘내자 대시보드 다음 날 새벽</p>' +
+      '</div></details>';
+  }
+
+  // ── 하루 한 번 안내 팝업 (승인자, 확인할 게 있을 때만) ─────────
+  //   2026-10-13 — 탭을 열어 보지 않으면 임시코드가 쌓이기만 했다. 매번 뜨면 무시하게 되니 하루 한 번.
+  function _maybePopup() {
+    var nNew = _pending.length, nTemp = _temps.filter(function (t) { return t.stage !== '종결'; }).length;
+    if (!nNew && !nTemp) return;
+    if (typeof activeMode !== 'undefined' && activeMode === 'master') return;     // 이미 탭에 있음
+    var key = 'mt_popup_' + String((profile && profile.email) || ''), today = new Date();
+    var ymd = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+    try { if (localStorage.getItem(key) === ymd) return; localStorage.setItem(key, ymd); } catch (e) {}
+    if (document.getElementById('mt-pop')) return;
+    var box = document.createElement('div');
+    box.id = 'mt-pop'; box.className = 'mt-pop';
+    box.innerHTML =
+      '<div class="mt-pop-card" role="dialog" aria-modal="true" aria-labelledby="mt-pop-t">' +
+        '<div class="mt-pop-t" id="mt-pop-t">🗂️ 새 사업 확인 부탁드려요</div>' +
+        '<p>보고에서 새로 나온 사업이 있어요. 마스터 탭에서 같은 사업이 있는지, 새 사업인지 확인해 주세요 — 브리핑과 프로젝트 화면이 정확해져요.</p>' +
+        '<div class="mt-pop-n">' + (nNew ? '<span>새로 찾음 <b>' + nNew + '</b>건</span>' : '') + '<span>확인 기다리는 임시코드 <b>' + nTemp + '</b>건</span></div>' +
+        '<button type="button" class="mt-go" data-pop="go">마스터 탭에서 확인하기</button>' +
+        '<button type="button" class="mt-pop-later" data-pop="later">오늘은 나중에</button>' +
+      '</div>';
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-pop]');
+      if (!b && e.target !== box) return;
+      box.remove();
+      if (b && b.getAttribute('data-pop') === 'go' && typeof onTabClick === 'function') { onTabClick('master'); window.scrollTo(0, 0); }
+    });
+    document.body.appendChild(box);
+  }
+
   // ── 스타일 (이 탭만 쓰는 것) ─────────────────────────
   function _injectStyle() {
     if (document.getElementById('mt-style')) return;
@@ -398,6 +444,18 @@ var MasterTab = (function () {
       '.mt-go:disabled{background:var(--line);color:var(--ink3);cursor:default}',
       '.mt-go.danger{background:var(--brush-rose)}',
       '.mt-err{margin-top:8px;font-size:13px;color:#B5533C}',
+      '.mt-guide{margin:0 0 12px;border:1px solid var(--line);border-radius:10px;background:#fff}',
+      '.mt-guide summary{cursor:pointer;padding:10px 12px;font-size:14px;color:var(--mt);font-weight:600;min-height:20px}',
+      '.mt-guide-body{padding:0 14px 12px;font-size:13.5px;line-height:1.7;color:var(--ink2)}',
+      '.mt-guide-body ol{margin:0 0 8px;padding-left:20px}.mt-guide-body li{margin-bottom:4px}',
+      '.mt-guide-body code{background:var(--paper2);padding:0 4px;border-radius:4px;font-size:12.5px}',
+      '.mt-guide-body p{margin:6px 0 0}.mt-guide-dim{color:var(--ink3);font-size:12.5px}',
+      '.mt-pop{position:fixed;inset:0;z-index:9999;background:rgba(30,30,25,.45);display:flex;align-items:center;justify-content:center;padding:16px}',
+      '.mt-pop-card{background:#fff;border-radius:14px;max-width:420px;width:100%;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.2);--mt:#8A6D3B}',
+      '.mt-pop-t{font-size:17px;font-weight:700;margin-bottom:8px;color:var(--ink)}',
+      '.mt-pop-card p{font-size:14px;line-height:1.65;color:var(--ink2);margin:0 0 10px}',
+      '.mt-pop-n{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:13.5px;color:var(--ink2);margin-bottom:4px}.mt-pop-n b{color:#8A6D3B}',
+      '.mt-pop-later{display:block;width:100%;margin-top:6px;min-height:40px;border:0;background:transparent;color:var(--ink3);font:inherit;font-size:14px;cursor:pointer}',
       '@media (max-width:600px){.mt-choices{flex-direction:column}.mt-btn{width:100%}}'
     ].join('\n');
     document.head.appendChild(s);

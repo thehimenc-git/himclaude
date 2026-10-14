@@ -9,6 +9,7 @@
 //   예전엔 코드 칸에 늘 U 다음 번호가 미리 들어가 있었고(토목도 그대로 누르면 U), 칸 하나를 새 코드·합칠 대상
 //   두 용도로 같이 썼다. 확인·오류는 전부 alert 였다.
 //   활성 조건: #tab-master-btn 이 있고 get_pending_pj_registrations 가 승인자로 인정할 때만 탭 노출.
+//   정리 대상(2026-10-14): 30일 보고 없는 임시코드에 딱지·칩, 새로 넘어온 것만 이름 동그라미에 셈(S:).
 //   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml, toast.
 var MasterTab = (function () {
   var _pending = [], _temps = [], _projects = [];
@@ -33,6 +34,18 @@ var MasterTab = (function () {
   function _esc(s) { return escapeHtml(String(s == null ? '' : s)); }
   function _atText(v) { var d = new Date(v); return isNaN(d) ? String(v || '') : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
   function _md(d) { var m = String(d || '').match(/^\d{4}-(\d{2})-(\d{2})/); return m ? (+m[1]) + '/' + (+m[2]) : ''; }
+
+  // 정리 대상 (2026-10-14) — 30일 동안 보고가 없는 임시코드. 표시만 하고 자동으로 빼지 않는다.
+  //   임시코드는 원래 NAS 폴더가 없는 단계라 "폴더 없음"은 따로 안 본다.
+  //   보고가 한 번도 없으면 코드의 생성일(TEMP-YYYYMMDD-NNN)부터 센다 — 막 생긴 임시코드가 바로 걸리지 않게.
+  var STALE_DAYS = 30;
+  function _kstDay(offsetDays) { return new Date(Date.now() + 9 * 3600 * 1000 - (offsetDays || 0) * 86400 * 1000).toISOString().slice(0, 10); }
+  function _isStale(t) {
+    if (!t || t.stage === '종결') return false;
+    var ref = String(t.last || '').slice(0, 10);
+    if (!ref) { var m = String(t.code || '').match(/^TEMP-(\d{4})(\d{2})(\d{2})-/); ref = m ? m[1] + '-' + m[2] + '-' + m[3] : ''; }
+    return !!ref && ref < _kstDay(STALE_DAYS);
+  }
 
   // ── 불러오기 ─────────────────────────────────────
   // 로그인 직후 1회 — 승인자면 탭 노출 + 데이터 적재.
@@ -100,7 +113,7 @@ var MasterTab = (function () {
     });
     _temps.forEach(function (t) {
       out.push({ key: 'T:' + t.code, type: 'temp', code: t.code, name: t.name || '', note: t.note || '', stage: t.stage || '',
-                 reports: t.reports || 0, last: t.last || '', who: t.who || [], similar: t.similar || [], done: t.stage === '종결' });
+                 reports: t.reports || 0, last: t.last || '', who: t.who || [], similar: t.similar || [], done: t.stage === '종결', stale: _isStale(t) });
     });
     return out;
   }
@@ -109,11 +122,13 @@ var MasterTab = (function () {
     return all.filter(function (c) {
       if (_filter === 'todo' && c.done) return false;
       if (_filter === 'done' && !c.done) return false;
+      if (_filter === 'stale' && !c.stale) return false;
       if (!q) return true;
       return (c.name + ' ' + (c.code || '') + ' ' + (c.note || '') + ' ' + (c.memo || '')).toLowerCase().indexOf(q) >= 0;
     }).sort(function (a, b) {
       var rank = { nas: 0, pending: 1, temp: 2 };                                   // NAS 확인 → 새로 찾음 → 임시코드
       if (a.type !== b.type) return rank[a.type] - rank[b.type];
+      if (_filter === 'stale') return a.last < b.last ? -1 : a.last > b.last ? 1 : (a.key < b.key ? -1 : 1);   // 오래 잠잠한 것부터
       return (b.reports - a.reports) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0) || (a.key < b.key ? 1 : -1);
     });
   }
@@ -141,9 +156,9 @@ var MasterTab = (function () {
     var body = document.getElementById('mode-master-body');
     if (!body || !body.getAttribute('data-mt')) return;
     var all = _cards();
-    var n = { todo: 0, done: 0, all: all.length };
-    all.forEach(function (c) { if (c.done) n.done++; else n.todo++; });
-    body.querySelector('.mt-chips').innerHTML = [['todo', '확인 필요'], ['done', '끝난 것'], ['all', '전체']].map(function (x) {
+    var n = { todo: 0, stale: 0, done: 0, all: all.length };
+    all.forEach(function (c) { if (c.done) n.done++; else n.todo++; if (c.stale) n.stale++; });
+    body.querySelector('.mt-chips').innerHTML = [['todo', '확인 필요'], ['stale', '정리 대상'], ['done', '끝난 것'], ['all', '전체']].map(function (x) {
       return '<button type="button" class="mt-chip' + (_filter === x[0] ? ' on' : '') + '" data-act="filter" data-f="' + x[0] + '">' +
              x[1] + ' <span>' + n[x[0]] + '</span></button>';
     }).join('');
@@ -153,8 +168,9 @@ var MasterTab = (function () {
     var h = _recentHtml();
     if (_tempsErr) h += '<div class="mt-empty err">' + _esc(_tempsErr) + ' <button type="button" class="mt-btn" data-act="reload">다시 시도</button></div>';
     if (!vis.length) {
-      h += '<div class="mt-empty">' + (_q ? '찾는 이름이 없어요' : _filter === 'done' ? '끝난 것이 없어요' : '확인할 새 사업이 없어요 — 보고에 새 이름이 나오면 여기에 떠요') + '</div>';
+      h += '<div class="mt-empty">' + (_q ? '찾는 이름이 없어요' : _filter === 'done' ? '끝난 것이 없어요' : _filter === 'stale' ? '정리 대상이 없어요 — 30일 넘게 보고가 없는 임시코드가 여기에 모여요' : '확인할 새 사업이 없어요 — 보고에 새 이름이 나오면 여기에 떠요') + '</div>';
     } else {
+      if (_filter === 'stale') h += '<p class="mt-hint mt-stale-hint">30일 넘게 보고가 없는 임시코드예요. 끝났거나 사업이 아니면 [사업이 아니에요], 다른 사업과 같으면 [이미 있는 사업이에요], 아직 진행 중이면 그대로 두면 돼요.</p>';
       if (!_tempsLoaded) h += '<div class="mt-empty">임시코드 목록을 불러오는 중이에요…</div>';
       vis.forEach(function (c) { h += _cardHtml(c); });
     }
@@ -166,7 +182,8 @@ var MasterTab = (function () {
     var k = _esc(c.key), op = _open[c.key] || {}, busy = !!_busy[c.key];
     var tag = c.type === 'pending'
       ? '<span class="mt-tag new">새로 찾음</span>'
-      : '<span class="mt-tag temp">임시 · ' + _esc(c.code) + '</span>' + (c.done ? '<span class="mt-tag">끝남</span>' : '');
+      : '<span class="mt-tag temp">임시 · ' + _esc(c.code) + '</span>' + (c.done ? '<span class="mt-tag">끝남</span>' : '') +
+        (c.stale ? '<span class="mt-tag stale">정리 대상 · ' + (c.reports ? '30일 보고 없음' : '보고 없음') + '</span>' : '');
     var meta = c.reports
       ? '보고 ' + c.reports + '번 · 마지막 ' + _md(c.last) + (c.who.length ? ' · ' + _esc(c.who.join('·')) : '')
       : '아직 보고에 안 나왔어요';
@@ -422,6 +439,7 @@ var MasterTab = (function () {
       '<li><b>실이 NAS 검토 폴더(NN_YYMMDD_이름)를 만들면</b> 자동으로 <code>검토-NN_YYMMDD</code>가 돼요 — 이어지는 임시코드가 하나로 확실하면 그걸 바꾸고, 없으면 새로 등록해요.</li>' +
       '<li><b>계약되어 NAS 프로젝트 폴더(<code>YY-X##</code>)가 생기면</b> 같은 방식으로 정식 코드가 돼요. 옛 코드는 별칭으로 남아 지난 보고도 이어져요.</li>' +
       '<li><b>사업이 아니면</b> [사업이 아니에요] — 나중에 되돌릴 수 있어요.</li>' +
+      '<li><b>30일 넘게 보고가 없는 임시코드</b>엔 「정리 대상」이 붙어요. 표시만 하고 자동으로 빼지 않아요 — 위 칩으로 모아 보고 정리해 주세요.</li>' +
       '</ol>' +
       '<p><b>NAS 폴더는 평일 08:45·16:30에 읽어요.</b> 비슷한 이름이 여럿이라 애매하면 바꾸지 않고 맨 위 [NAS 폴더] 카드로 물어봐요 — 골라 주세요. 자동으로 바꾼 건 아래 「NAS가 자동으로 바꾼 것」에 남아요. 폴더 이름의 (취소)·미계약 종결도 단계에 반영돼요.</p>' +
       '<p class="mt-guide-dim">반영: 보고창·브리핑 10분 안 · 노션 1시간 안 · 힘내자 대시보드 다음 날 새벽</p>' +
@@ -445,7 +463,7 @@ var MasterTab = (function () {
   function _writeSeen(seen) {
     // 지금 목록에 없는 옛 키는 버린다(표시는 남긴다) — 계속 쌓이지 않게
     var live = {}; _allKeys().forEach(function (k) { live[k] = 1; });
-    var keys = Object.keys(seen).filter(function (k) { return k.charAt(0) === '#' || live[k] || (!_tempsLoaded && k.indexOf('T:') === 0); });
+    var keys = Object.keys(seen).filter(function (k) { return k.charAt(0) === '#' || live[k] || (!_tempsLoaded && (k.indexOf('T:') === 0 || k.indexOf('S:') === 0)); });
     try { localStorage.setItem(_seenKey(), JSON.stringify(keys)); } catch (e) { console.warn('[master] seen', e); }
   }
   function _allKeys() {
@@ -453,7 +471,7 @@ var MasterTab = (function () {
     _nas.forEach(function (x) { k.push('N:' + x.code); });
     _pending.forEach(function (p) { k.push('P:' + p['키']); });
     _nasRecent.forEach(function (r) { k.push('R:' + r.at + r.code); });
-    _temps.forEach(function (t) { k.push('T:' + t.code); });
+    _temps.forEach(function (t) { k.push('T:' + t.code); if (_isStale(t)) k.push('S:' + t.code); });
     return k;
   }
   // 알림 한 줄씩 — 확인할 것(act) 먼저, 그다음 알아만 두면 되는 것(NAS 자동 반영·새 임시코드)
@@ -463,12 +481,16 @@ var MasterTab = (function () {
     _pending.forEach(function (p) { out.push({ key: 'P:' + p['키'], act: true, tag: '새로 찾음', text: (p['키'] || '') + ' — 사업인지 확인해 주세요' }); });
     _nasRecent.forEach(function (r) { out.push({ key: 'R:' + r.at + r.code, act: false, tag: 'NAS 자동', text: r.code + ' ' + (r.folder || r.detail || '') }); });
     _temps.forEach(function (t) { if (t.stage !== '종결') out.push({ key: 'T:' + t.code, act: false, tag: '새 임시코드', text: t.code + ' ' + (t.name || '') }); });
+    // 정리 대상 — 새로 30일을 넘긴 것만 알린다(이미 쌓인 것은 '#S' 기준선으로 본 것 처리 — 늘 켜져 있으면 알림 구실을 못 한다)
+    _temps.forEach(function (t) { if (_isStale(t)) out.push({ key: 'S:' + t.code, act: false, tag: '정리 대상', text: t.code + ' ' + (t.name || '') + ' — 30일 보고 없음' }); });
     var seen = _readSeen(), changed = false;
     if (_loaded && !seen['#R']) { _nasRecent.forEach(function (r) { seen['R:' + r.at + r.code] = 1; }); seen['#R'] = 1; changed = true; }
     if (_tempsLoaded && !_tempsErr && !seen['#T']) { _temps.forEach(function (t) { seen['T:' + t.code] = 1; }); seen['#T'] = 1; changed = true; }
+    if (_tempsLoaded && !_tempsErr && !seen['#S']) { _temps.forEach(function (t) { if (_isStale(t)) seen['S:' + t.code] = 1; }); seen['#S'] = 1; changed = true; }
     if (changed) _writeSeen(seen);
     // 기준선 잡기 전(목록이 아직 안 옴)엔 그 목록은 새것으로 치지 않는다
     if (!seen['#T']) _temps.forEach(function (t) { seen['T:' + t.code] = 1; });
+    if (!seen['#S']) _temps.forEach(function (t) { seen['S:' + t.code] = 1; });
     out.forEach(function (a) { a.fresh = !seen[a.key]; });
     // 알아만 두면 되는 건 새것만 보여 준다 (임시코드 70개를 늘 늘어놓지 않게)
     return out.filter(function (a) { return a.act || a.fresh; });
@@ -555,10 +577,12 @@ var MasterTab = (function () {
       '.mt-empty.err{color:var(--brush-rose)}',
       '.mt-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}',
       '.mt-card.busy{opacity:.6;pointer-events:none}',
-      '.mt-tags{display:flex;gap:6px;margin-bottom:6px}',
+      '.mt-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}',
       '.mt-tag{font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink3)}',
       '.mt-tag.new{background:var(--mt-tint);border-color:var(--mt);color:var(--mt);font-weight:600}',
       '.mt-tag.temp{border-style:dashed}',
+      '.mt-tag.stale{background:#FBF1E4;border-color:#C98A3C;color:#8F5A16;font-weight:600}',
+      '.mt-stale-hint{margin:0 0 4px}',
       '.mt-name{font-size:16px;font-weight:600;line-height:1.45;word-break:keep-all}',
       '.mt-meta{font-size:13px;color:var(--ink3);margin-top:2px}',
       '.mt-memo{font-size:13px;color:var(--ink2);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',

@@ -178,12 +178,18 @@ var PjPick={
     if(!sim.length){ self._sim=null; box.innerHTML='<div class="pjx-status">비슷한 이름의 프로젝트가 없습니다. 새로 등록하시면 됩니다.</div>'; return; }
     self._sim=sim;
     box.innerHTML='<div class="pjx-sim-title">비슷한 프로젝트가 이미 있습니다. 이 중에 있으면 눌러서 고르세요 (새로 등록하지 않습니다).</div>'+
-      sim.map(function(p,i){
-        var meta=[p.dept,p.status||p.stage,p.client?('발주 '+p.client):''].filter(Boolean).join(' · ');
-        return '<div class="pjx-item pjx-sim" onclick="PjPick.pickSimilar('+i+')">'+
-                 '<span class="pjx-code">'+escapeHtml(p.code)+'</span>'+escapeHtml(p.name)+self.tagHtml(p)+
-                 (meta?'<div class="pjx-meta">'+escapeHtml(meta)+'</div>':'')+'</div>';
-      }).join('');
+      sim.map(function(p,i){ return self.simItemHtml(p,i); }).join('');
+  },
+  // 2026-10-21 — 새 프로젝트 등록 칸의 "비슷한 프로젝트" 줄에도 검색 결과처럼 "자세히"(시트 내용: 별칭·진행상황·메모) 단추. 누르면 그 줄 안에서 펼침
+  simItemHtml:function(p,i){
+    var meta=[p.dept,p.status||p.stage,p.client?('발주 '+p.client):''].filter(Boolean).join(' · ');
+    var full=this.byCode(p.code)||p;   // 목록에 있으면 시트 내용(별칭·키워드·진행상황·메모)까지
+    return '<div class="pjx-item pjx-sim" onclick="PjPick.pickSimilar('+i+')">'+
+             '<span class="pjx-infobtn" title="프로젝트 목록 시트의 내용 보기" onclick="event.stopPropagation();var d=this.parentNode.querySelector(\'.pjx-siminfo\');d.hidden=!d.hidden;this.textContent=d.hidden?\'자세히\':\'접기\'">자세히</span>'+
+             '<span class="pjx-code">'+escapeHtml(p.code)+'</span>'+escapeHtml(p.name)+this.tagHtml(p)+
+             (meta?'<div class="pjx-meta">'+escapeHtml(meta.length>90?meta.slice(0,90)+'…':meta)+'</div>':'')+
+             '<div class="pjx-siminfo" hidden onclick="event.stopPropagation()">'+this.infoHtml(full)+'</div>'+
+           '</div>';
   },
   closeNew:function(){ var box=document.getElementById('pjx-new'); if(box){ box.hidden=true; box.innerHTML=''; } this._newBusy=false; this._sim=null; },
   submitNew:function(force){
@@ -219,12 +225,7 @@ var PjPick={
     var self=this, box=document.getElementById('pjx-new-sim'); if(!box) return;
     self._sim=sim;
     box.innerHTML='<div class="pjx-sim-title">비슷한 프로젝트가 이미 있습니다. 이 중에 있으면 눌러서 고르세요.</div>'+
-      sim.map(function(p,i){
-        var meta=[p.dept,p.status||p.stage,p.client?('발주 '+p.client):''].filter(Boolean).join(' · ');
-        return '<div class="pjx-item pjx-sim" onclick="PjPick.pickSimilar('+i+')">'+
-                 '<span class="pjx-code">'+escapeHtml(p.code)+'</span>'+escapeHtml(p.name)+self.tagHtml(p)+
-                 (meta?'<div class="pjx-meta">'+escapeHtml(meta)+'</div>':'')+'</div>';
-      }).join('')+
+      sim.map(function(p,i){ return self.simItemHtml(p,i); }).join('')+
       '<button type="button" class="pjx-btn warn" onclick="PjPick.submitNew(true)">이 중에 없음 — 그래도 새로 등록</button>';
   },
   pickSimilar:function(i){

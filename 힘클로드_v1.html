@@ -3932,7 +3932,7 @@ roster(26명) 중 reports 에 없는 사람 = 미제출. 단 **김대근·이희
       </button>
       <button class="cs-btn" onclick="chooseSetup('oauth')" style="text-align:left;padding:14px 16px;white-space:normal;line-height:1.4">
         <span style="font-size:14px;font-weight:600">🔑 메일 권한 동의</span><br>
-        <span style="font-size:11px;color:var(--ink3)">Claude.ai 에서 본인 Gmail 읽기·검색·첨부·발송 + Drive 1회 동의</span>
+        <span style="font-size:11px;color:var(--ink3)">① 클로드 앱용 구글 허가(한 번이면 끝) · ② 웹 보고를 내 이메일 이름으로 보낼지 선택</span>
       </button>
     </div>
     <div class="cs-actions" style="margin-top:16px">
@@ -3945,31 +3945,34 @@ roster(26명) 중 reports 에 없는 사람 = 미제출. 단 **김대근·이희
 <div class="cs-overlay" id="oauth-overlay" onclick="if(event.target===this)closeOauthConsent()">
   <div class="cs-modal" role="dialog" aria-labelledby="oauth-title">
     <div class="cs-title"><span class="cs-title-icon">🔑</span><span id="oauth-title">메일 권한 동의</span></div>
-    <p class="cs-sub">Claude.ai 에서 본인 Gmail/Drive 를 쓰기 위한 1회 Google 동의입니다.</p>
+    <p class="cs-sub">단추가 두 개 있습니다. <b>① 위 단추는 클로드 앱용</b>, <b>② 아래 단추는 이 웹 보고창용</b>입니다. 서로 다른 것이니 필요한 것만 누르세요.</p>
 
     <div class="cs-section">
-      <h4>본인 이메일 입력</h4>
+      <h4>본인 이메일 확인</h4>
       <div class="cs-name-row">
         <input class="cs-name-input" id="oauth-email" type="email" placeholder="본인 회사 Gmail (예: thehimenc180724@gmail.com)" onkeydown="if(event.key==='Enter')oauthOpenConsent()">
       </div>
       <p class="cs-msg" id="oauth-msg"></p>
-      <p class="desc">MCP 도구 호출에 쓰는 본인 식별 이메일과 동일해야 합니다.</p>
+      <p class="desc">회사에 등록된 본인 지메일입니다. 로그인하면 자동으로 들어갑니다. 다르면 고쳐 주세요.</p>
     </div>
 
     <div class="cs-section">
-      <h4>Google 동의</h4>
+      <h4>① 클로드 앱용 — 본인 Gmail 권한 동의</h4>
       <button class="cs-btn primary" onclick="oauthOpenConsent()" style="width:100%">본인 Gmail 권한 동의 (새 탭) →</button>
-      <p class="desc">누르면 새 탭에서 Google 동의가 열립니다. <b>1회 동의로 메일 읽기·검색·첨부·발송 + Drive</b> 가 모두 켜집니다.</p>
-      <p class="desc">⚠ "Google이 이 앱을 확인하지 않았습니다" 경고가 뜨면 <b>[고급] → [힘보고로 이동(안전하지 않음)]</b> 클릭 후 진행하세요. 회사 내부 도구라 정상입니다.</p>
-      <p class="desc">한 번 동의하면 유지됩니다(2026-10-26 앱 게시). 비밀번호를 바꾸거나 6개월 안 쓰면 다시 동의하라고 뜹니다.</p>
+      <p class="desc"><b>이 단추는 핸드폰·컴퓨터 클로드 앱에서 보고할 때 쓰는 허가입니다.</b> 지금 보고 있는 이 웹 보고창과는 상관없습니다.</p>
+      <p class="desc"><b>한 번 누르면:</b> 클로드 앱에서 "보고할 거야 → 보내"가 본인 이름으로 나가고, "오늘 통화 정리해줘", "메일 찾아줘", "이 파일 붙여 줘"가 됩니다. 그 뒤로 클로드 앱에서 <b>다시 인증하라고 뜨지 않습니다.</b> (2026-10-26부터. 예전에는 7일마다 다시 눌러야 했습니다.)</p>
+      <p class="desc"><b>누르면 이렇게 됩니다:</b> 새 탭에 구글 화면이 열립니다 → 본인 계정 선택 → "Google에서 확인하지 않은 앱" 경고가 나오면 왼쪽 아래 작은 글씨 <b>[고급]</b> → 맨 아래 <b>[HIM_CLAUDE(으)로 이동]</b> → 권한 네 칸 모두 체크 → <b>[계속]</b> → "동의가 저장되었습니다" 화면이 나오면 끝. 경고는 회사 내부 도구라서 나오는 것이고 정상입니다.</p>
+      <p class="desc"><b>다시 뜨는 경우는 두 가지뿐:</b> 구글 비밀번호를 바꿨을 때, 6개월 동안 한 번도 안 썼을 때. 그때 한 번 더 누르면 됩니다.</p>
     </div>
 
     <div class="cs-section">
-      <h4>웹 보고창 발신 계정</h4>
+      <h4>② 이 웹 보고창용 — 보고를 내 이메일 이름으로 보낼지</h4>
       <p class="desc" id="oauth-websend-state">현재: 회사 계정(thehim180724) 발송 — 구글 창 안 뜸 (기본)</p>
       <button class="cs-btn" id="oauth-websend-btn" onclick="oauthToggleWebSend()" style="width:100%">본인 지메일로 보내기 켜기 (구글 인증 1회)</button>
       <p class="cs-msg" id="oauth-websend-msg"></p>
-      <p class="desc">기본은 회사 계정이 대신 보내고 보고는 본인 이름으로 접수됩니다. 본인 보낸편지함에도 남기고 싶을 때만 켜세요. 켜면 구글 창이 한 번 뜨고, 그 뒤로는 이 브라우저에서 조용히 나갑니다.</p>
+      <p class="desc"><b>안 눌러도 됩니다.</b> 이 웹 보고창에서 [일일보고 발송]을 누르면 기본으로 회사 계정(thehim180724)이 대신 보냅니다. 구글 창이 안 뜨고, 보고는 본인 이름으로 접수되고, 브리핑에도 똑같이 실립니다. 대부분은 이대로 쓰면 됩니다.</p>
+      <p class="desc"><b>이 단추는</b> 예전처럼 보고를 <b>본인 이메일 이름으로</b> 보내던 분(발송할 때 구글 창이 뜨던 분)을 위한 것입니다. 켜면 구글 창이 한 번 뜨고 허용하면, 그 뒤로는 이 브라우저에서 묻지 않고 본인 이메일 이름으로 나가고 본인 보낸편지함에도 남습니다.</p>
+      <p class="desc">다른 컴퓨터나 다른 브라우저에서는 한 번 더 뜹니다. 되돌리려면 같은 단추를 다시 누르면 됩니다. ①을 눌렀다고 ②가 켜지지는 않습니다.</p>
     </div>
 
     <div class="cs-actions">

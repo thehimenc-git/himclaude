@@ -3669,7 +3669,7 @@ A를 종합한 5필드를 자연어로. **맨 위에 "아래는 수집 자료 �
 - get_mail 등 메일 도구가 reauth_required:true 로 떨어지면 → 응답 oauth_url 안내.
 - 그 외엔 먼저 권유하지 않음.
 [앱에서도 동의 가능]
-힘클로드 앱 ✦ 셋업 → 🔑 "메일 권한 동의" 에서도 같은 동의 가능. 거기서 해두면 claude.ai 에서도 본인 발송 자동 활성화. (Testing 모드라 약 7일 후 재동의 — 같은 oauth_url 로 30초.)
+힘클로드 앱 ✦ 셋업 → 🔑 "메일 권한 동의" 에서도 같은 동의 가능. 거기서 해두면 claude.ai 에서도 본인 발송 자동 활성화. (2026-10-26 앱 게시 후 한 번 동의로 유지. 만료 안내가 오면 같은 oauth_url 로 30초.)
 </script>
 
 <script type="text/plain" id="ub-tpl-briefing"># 오늘 브리핑 읽기 지침 — {{NAME}}
@@ -3961,7 +3961,15 @@ roster(26명) 중 reports 에 없는 사람 = 미제출. 단 **김대근·이희
       <button class="cs-btn primary" onclick="oauthOpenConsent()" style="width:100%">본인 Gmail 권한 동의 (새 탭) →</button>
       <p class="desc">누르면 새 탭에서 Google 동의가 열립니다. <b>1회 동의로 메일 읽기·검색·첨부·발송 + Drive</b> 가 모두 켜집니다.</p>
       <p class="desc">⚠ "Google이 이 앱을 확인하지 않았습니다" 경고가 뜨면 <b>[고급] → [힘보고로 이동(안전하지 않음)]</b> 클릭 후 진행하세요. 회사 내부 도구라 정상입니다.</p>
-      <p class="desc">약 7일 후 자동 만료됩니다(Testing 모드). 만료 시 같은 절차로 재동의하면 됩니다.</p>
+      <p class="desc">한 번 동의하면 유지됩니다(2026-10-26 앱 게시). 비밀번호를 바꾸거나 6개월 안 쓰면 다시 동의하라고 뜹니다.</p>
+    </div>
+
+    <div class="cs-section">
+      <h4>웹 보고창 발신 계정</h4>
+      <p class="desc" id="oauth-websend-state">현재: 회사 계정(thehim180724) 발송 — 구글 창 안 뜸 (기본)</p>
+      <button class="cs-btn" id="oauth-websend-btn" onclick="oauthToggleWebSend()" style="width:100%">본인 지메일로 보내기 켜기 (구글 인증 1회)</button>
+      <p class="cs-msg" id="oauth-websend-msg"></p>
+      <p class="desc">기본은 회사 계정이 대신 보내고 보고는 본인 이름으로 접수됩니다. 본인 보낸편지함에도 남기고 싶을 때만 켜세요. 켜면 구글 창이 한 번 뜨고, 그 뒤로는 이 브라우저에서 조용히 나갑니다.</p>
     </div>
 
     <div class="cs-actions">

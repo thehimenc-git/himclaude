@@ -86,6 +86,13 @@ var GOOGLE_OAUTH_CLIENT_ID = '78944797082-812csuhf14psu3pakcmqd236h7s9lcea.apps.
 var GMAIL_SEND_SCOPE       = 'https://www.googleapis.com/auth/gmail.send';
 var _gmailTokenClient = null;
 var _gmailAccessToken = '';
+var _gmailPendingCb   = null;   // 2026-10-26 — 구글 창을 닫거나 거부했을 때 돌려줄 콜백(없으면 창이 또 뜸)
+
+// 2026-10-26 (박제형) — 웹 보고 발신 계정 스위치. 기본 = 회사 계정(hub) 발신, 구글 창 안 뜸.
+//   ✦ → 🔑 메일 권한 동의에서 "본인 지메일로 보내기"를 켠 사람만 본인 Gmail 로 보냄.
+function _userGmailKey_(){ return 'him_v4_user_gmail_send:' + String((profile && profile.email) || '').toLowerCase(); }
+function userGmailSendOn(){ try { return localStorage.getItem(_userGmailKey_()) === 'on'; } catch(e){ return false; } }
+function setUserGmailSend(on){ try { if (on) localStorage.setItem(_userGmailKey_(), 'on'); else localStorage.removeItem(_userGmailKey_()); } catch(e){} }
 
 // GIS 페이지 load 후 1회 초기화 — 발송 첫 시도 직전 lazy init
 function _initGmailTokenClient() {
@@ -95,7 +102,8 @@ function _initGmailTokenClient() {
   _gmailTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: GOOGLE_OAUTH_CLIENT_ID,
     scope: GMAIL_SEND_SCOPE,
-    callback: function(){}   // dynamic callback — 매 호출 시 덮어쓰기
+    callback: function(){},   // dynamic callback — 매 호출 시 덮어쓰기
+    error_callback: function(){ var cb=_gmailPendingCb; _gmailPendingCb=null; if (cb) cb(); }   // 2026-10-26 창 닫음·거부 → 회사 계정으로
   });
   return true;
 }
@@ -109,7 +117,9 @@ function requestUserGmailAccess(callback) {
   var cached = sessionStorage.getItem('him_v4_gmail_token');
   var exp    = parseInt(sessionStorage.getItem('him_v4_gmail_token_exp') || '0', 10);
   if (cached && Date.now() < exp) { _gmailAccessToken = cached; callback(cached); return; }
+  _gmailPendingCb = function(){ callback(null); };
   _gmailTokenClient.callback = function(resp) {
+    _gmailPendingCb = null;
     if (resp && resp.access_token) {
       _gmailAccessToken = resp.access_token;
       sessionStorage.setItem('him_v4_gmail_token', resp.access_token);
@@ -126,7 +136,7 @@ function requestUserGmailAccess(callback) {
   //   브라우저 닫을 때마다(다음날) 전체 동의 화면을 다시 봤음. ''(빈 prompt)=동의 필요 시만 노출 → "매일 재동의" 해소.
   //   hint=본인 이메일 → 계정 선택 화면까지 스킵 (재방문 사용자 무클릭).
   try { _gmailTokenClient.requestAccessToken({prompt: '', hint: (profile && profile.email) || ''}); }
-  catch(e) { callback(null); }
+  catch(e) { _gmailPendingCb = null; callback(null); }
 }
 
 // MIME 메일 빌드 + base64url 인코딩 + Gmail API send.

@@ -69,6 +69,12 @@ function performSend(){
     return;
   }
 
+  // 2026-10-26 (박제형) — 기본은 회사 계정(hub) 발신. 구글 창 없음.
+  //   ✦ → 🔑 메일 권한 동의에서 "본인 지메일로 보내기"를 켠 사람만 아래 본인 Gmail 길로 간다.
+  if (!userGmailSendOn()) {
+    _performSendViaGAS(structured, dc, false);
+    return;
+  }
   // 2026-05-22 PM 신설 — 본인 Gmail 로 발송 (OAuth 동의 시). 실패 시 옛 흐름 (GAS GmailApp = thehim180724 발신) fallback.
   if (!_initGmailTokenClient()) {
     _performSendViaGAS(structured, dc, false);
@@ -83,10 +89,8 @@ function performSend(){
   }
   requestUserGmailAccess(function(token){
     if (!token) {
-      if (!confirm('본인 Gmail 권한 없음 (또는 OAuth 거부됨).\n운영 hub(thehim180724) 발신으로 진행할까요?\n\n참고: 예 = 옛 방식 (본인 Sent 미기록). 아니오 = 발송 취소.')) {
-        toast('발송 취소됨'); _sendLockUntil = 0;
-        return;
-      }
+      // 2026-10-26 — 묻지 않고 회사 계정으로 보낸다(창 닫음·거부 모두). 본인 Gmail 로 보내려면 ✦ 메일 권한 동의에서 다시 인증.
+      toast('본인 지메일 허가가 없어 회사 계정으로 발송합니다');
       _performSendViaGAS(structured, dc, false);
       return;
     }
@@ -120,10 +124,8 @@ function performSend(){
         } else {
           hideReportDoneScreen();
           document.getElementById('report-edit-actions').style.display='flex';
-          if (!confirm('본인 Gmail 발송 실패: '+err+'\n\n운영 hub(thehim180724) 발신으로 fallback 할까요?')) {
-            toast('❌ 발송 실패: '+err);
-            return;
-          }
+          // 2026-10-26 — 묻지 않고 회사 계정으로 보낸다.
+          toast('본인 지메일 발송 실패('+err+') — 회사 계정으로 발송합니다');
           _performSendViaGAS(structured, dc, false);
         }
       }
@@ -1840,7 +1842,25 @@ function vpLookupAndBuild(){
 var OAUTH_START_BASE = 'https://himreport-mcp-prod-production.up.railway.app/oauth/start';
 function openOauthConsent(){
   document.getElementById('oauth-overlay').classList.add('open');
+  var em=document.getElementById('oauth-email'); if (em && !em.value && profile && profile.email) em.value = profile.email;
+  oauthRenderWebSend();
   setTimeout(function(){ var i=document.getElementById('oauth-email'); if(i) i.focus(); }, 80);
+}
+// 2026-10-26 (박제형) — 웹 보고창 발신 계정 스위치 (기본 회사 계정). 켜면 구글 인증 한 번 → 이후 이 브라우저에선 조용히 본인 Gmail 발신.
+function oauthRenderWebSend(){
+  var on = userGmailSendOn();
+  var st=document.getElementById('oauth-websend-state'); if (st) st.textContent = on ? '현재: 본인 지메일 이름으로 발송 (보낸편지함에 남음)' : '현재: 회사 계정(thehim180724) 발송 — 구글 창 안 뜸 (기본)';
+  var bt=document.getElementById('oauth-websend-btn'); if (bt) bt.textContent = on ? '회사 계정 발송으로 되돌리기' : '본인 지메일로 보내기 켜기 (구글 인증 1회)';
+}
+function oauthToggleWebSend(){
+  if (userGmailSendOn()) { setUserGmailSend(false); oauthRenderWebSend(); csMsg('oauth-websend-msg','회사 계정 발송으로 되돌렸습니다.','ok'); return; }
+  if (!profile || !profile.email) { csMsg('oauth-websend-msg','먼저 보고창에 로그인하세요.','err'); return; }
+  if (!_initGmailTokenClient()) { csMsg('oauth-websend-msg','구글 인증 모듈을 못 불러왔습니다. 새로고침 후 다시.','err'); return; }
+  csMsg('oauth-websend-msg','구글 창에서 본인 계정을 고르고 허용하세요…','ok');
+  requestUserGmailAccess(function(token){
+    if (token) { setUserGmailSend(true); oauthRenderWebSend(); csMsg('oauth-websend-msg','켜졌습니다. 앞으로 웹 보고는 본인 지메일 이름으로 나갑니다(이 브라우저).','ok'); }
+    else { setUserGmailSend(false); oauthRenderWebSend(); csMsg('oauth-websend-msg','인증이 안 돼 회사 계정 발송 그대로 둡니다.','err'); }
+  });
 }
 function closeOauthConsent(){
   document.getElementById('oauth-overlay').classList.remove('open');
@@ -1852,7 +1872,7 @@ function oauthOpenConsent(){
   }
   var url = OAUTH_START_BASE + '?email=' + encodeURIComponent(email);
   window.open(url, '_blank', 'noopener');
-  csMsg('oauth-msg','새 탭 열림 — Google 동의를 마치면 이 창을 닫으세요. Testing 모드라 약 7일마다 재동의가 필요합니다.','ok');
+  csMsg('oauth-msg','새 탭 열림 — Google 동의를 마치면 이 창을 닫으세요. 한 번 동의하면 유지됩니다(2026-10-26 게시).','ok');
 }
 document.addEventListener('keydown', function(e){
   if (e.key === 'Escape') {

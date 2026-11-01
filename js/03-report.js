@@ -743,7 +743,7 @@ function buildEntryRow(e){
   var title=e.title||'';
   var fromHint='';
   if(e.view_type==='received' && e.from)              fromHint=' (from '+e.from+')';
-  else if(e.view_type==='sent' && e.to && e.to!==e.from)fromHint=' (→ '+e.to+')';
+  else if(e.view_type==='sent' && (e.to_name||(e.to!==e.from&&e.to)))fromHint=' (→ '+(e.to_name||e.to)+')';   // 2026-11-02 시킨 지시에 받는 사람 표시
 
   var color='blue';
   if((e.d_offset||0)<0)         color='rose';
@@ -759,7 +759,30 @@ function buildEntryRow(e){
     '<span class="sch-from">'+fromHint+'</span>'+
     '<span class="sch-d">'+dLabel+(dueMissing?' ⚠️':'')+'</span>';
   attachSourceText(d, e);   // 지시 원문 펼침 (2026-09-08)
+  if(e.view_type==='received' || e.view_type==='sent') attachDismissButton(d, e);   // 2026-11-02 지시 삭제 버튼
   return d;
+}
+
+// 지시 삭제 — 시킨 사람·받은 사람 누가 눌러도 다음부터 어디에도 안 뜸. 카톡 없음 (2026-11-02 박제형)
+function attachDismissButton(row, e){
+  var btn=document.createElement('button');
+  btn.type='button';
+  btn.textContent='삭제';
+  btn.style.cssText='margin-left:8px;padding:1px 7px;font-size:11px;color:#8a8578;background:none;border:1px solid #d8d2c4;border-radius:5px;cursor:pointer;';
+  btn.onclick=function(){
+    if(!profile)return;
+    if(!confirm('이 지시를 삭제할까요?\n시킨 사람과 받은 사람 목록에서 모두 사라집니다.'))return;
+    btn.disabled=true;btn.textContent='삭제 중...';
+    fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'dismiss_directive',token:'thehim2026',name:profile.name,id:e.id})})
+      .then(function(r){return r.json()})
+      .then(function(res){
+        if(res&&res.ok){loadContext();}
+        else{alert('삭제 실패: '+((res&&(res.error||res.message))||'알 수 없는 오류'));btn.disabled=false;btn.textContent='삭제';}
+      })
+      .catch(function(err){alert('통신 오류: '+err.message);btn.disabled=false;btn.textContent='삭제';});
+  };
+  var d=row.querySelector('.sch-d');
+  if(d) d.appendChild(btn); else row.appendChild(btn);
 }
 
 // 받은/보낸 지시 줄을 누르면 지시자 보고 원문(source_text)이 펼쳐짐 (2026-09-08)

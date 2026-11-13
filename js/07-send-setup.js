@@ -159,6 +159,7 @@ function _performSendViaGAS(structured, dc, useUserSend){
     cc:'taesilkim2@gmail.com',
     subject:'[일일보고] '+profile.name+'_'+dc,
     raw:currentRawText,
+    raw_parts:(typeof currentRawParts!=='undefined'&&currentRawParts)?currentRawParts:undefined,   // 2026-11-13 어제 보고 불러오기용
     structured:structured,
     use_user_send: !!useUserSend   // true 면 GAS GmailApp 스킵 (이미 클라가 본인 Gmail 로 발송)
   },{

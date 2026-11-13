@@ -3,6 +3,7 @@ var profile=null,files=[],voiceOn=false,mediaRec=null,editMode=false;
 var currentStructured=null;
 var lastAIStructured=null; // AI 분석/재정리 직후 스냅샷 (JSON 문자열). 발송 시 dirty 감지용
 var currentRawText='';
+var currentRawParts=null;   // 2026-11-13 보낼 때 카드·글 칸을 나눠 둔 것 (어제 보고 불러오기용)
 var _draftSaveTimer=null;  // main-input 디바운스 타이머
 // 어제(직전 근무일) 본인 보고 전체 — [{raw, time, submitted_at, filename}]
 var yesterdayItems=[];

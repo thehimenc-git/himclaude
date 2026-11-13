@@ -56,6 +56,7 @@ function doAnalyze(){
   var pjPicked=(typeof PjPick!=='undefined')?PjPick.collect():[];
   if(pjPicked===null)return;   // 고른 프로젝트에 내용이 비어 있음 → 안내하고 멈춤
   if(!txt&&!dirBlock&&!pjPicked.length){toast('업무 내용을 입력해주세요');return;}
+  currentRawParts={picks:pjPicked.map(function(p){return {code:p.code,name:p.name,text:p.text};}),free:txt};   // 2026-11-13 「어제 보고 불러오기」용 — 카드·글 칸을 나눠서 같이 저장
   if(pjPicked.length)txt=pjPicked.map(function(p){return '['+p.code+' '+p.name+']\n'+p.text;}).join('\n\n')+(txt?'\n\n'+txt:'');
   if(dirBlock)txt=(txt?txt+'\n\n':'')+'[지시사항]\n'+dirBlock;
 

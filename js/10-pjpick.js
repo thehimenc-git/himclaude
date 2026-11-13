@@ -369,6 +369,61 @@ var PjPick={
     })
     .catch(function(){ self._lastBusy=false; });
   },
+  // ── 2026-11-13 「어제 보고 불러오기」 버튼 (직원 건의): 언제든 눌러서, 오늘 전에 낸 가장 최근 보고를 프로젝트 카드 + 아래 글 칸까지 통째로 채운다 ──
+  //   서버 pj_pick_last 가 주는 것: last_parts(보낼 때 나눠 둔 카드·글 칸 — 11/13 부터 낸 보고) 또는 last_raw(보고 원문 — 그 전 보고).
+  //   지시사항 칸은 불러오지 않는다(같은 지시가 두 번 접수되지 않게). 서버가 둘 다 안 주면(옛 서버) 지난 보고 프로젝트 카드만 채운다.
+  loadPrev:function(){
+    var self=this;
+    if(typeof profile==='undefined'||!profile||!profile.email){ toast('계정 정보를 확인하는 중입니다. 잠시 뒤 다시 눌러 주세요'); return; }
+    if(!self.list){ toast('프로젝트 목록을 불러오는 중입니다. 잠시 뒤 다시 눌러 주세요'); self.load(); return; }
+    self.syncTexts();
+    var mi=document.getElementById('main-input');
+    var hasNow=self.picks.some(function(p){ return String(p.text||'').trim(); })||(mi&&mi.value.trim());
+    if(hasNow&&!confirm('지금 적어 둔 내용을 지우고 어제 보고 내용으로 바꿀까요?')) return;
+    self.status('어제 보고를 불러오는 중입니다...');
+    gasPostRetry({token:APPS_SCRIPT_TOKEN,action:'pj_pick_last',email:profile.email},{tries:2})
+    .then(function(d){
+      if(!d||!d.ok){ self.status('어제 보고를 불러오지 못했습니다'+(d&&d.error?' — '+d.error:'')+'. 다시 눌러 주세요.'); return; }
+      var got=null;
+      if(d.last_parts&&typeof d.last_parts==='object') got=self.fromParts(d.last_parts,d.last_date);
+      else if(d.last_raw) got=self.fromRaw(d.last_raw,d.last_date);
+      else if((d.recent||[]).length){
+        got={picks:[],free:''};
+        (d.recent||[]).forEach(function(code){ var p=self.byCode(code), lt=(d.by_code||{})[code]; if(p&&lt) got.picks.push(self.card(p,lt.text,lt.date)); });
+        d.last_date=d.recent_date;
+      }
+      if(!got||(!got.picks.length&&!got.free)){ self.status('불러올 지난 보고가 없습니다 (최근 10일 안에 낸 보고가 없음).'); return; }
+      self.picks=got.picks; self.renderCards(); self.save();
+      if(mi){ mi.value=got.free||''; if(typeof autosizeTa==='function') autosizeTa(mi); }
+      self.status('지난 보고('+(d.last_date||'')+')를 불러왔습니다 — 프로젝트 '+got.picks.length+'건'+(got.free?' + 아래 글 칸':'')+'. 오늘 내용으로 고쳐서 보내세요. 지시사항은 불러오지 않습니다.');
+    })
+    .catch(function(){ self.status('어제 보고를 불러오지 못했습니다 — 네트워크 오류. 다시 눌러 주세요.'); });
+  },
+  card:function(p,text,date){ return {code:p.code,name:p.name,dept:p.dept||'',status:p.status||p.stage||'',text:String(text||''),lastDate:date||''}; },
+  fromParts:function(parts,date){
+    var self=this, out={picks:[],free:String(parts.free||'').trim()};
+    (parts.picks||[]).forEach(function(x){
+      var p=x&&x.code?self.byCode(x.code):null;
+      if(p) out.picks.push(self.card(p,x.text,date));
+      else if(x&&String(x.text||'').trim()) out.free=('['+(x.code||'')+' '+(x.name||'')+']\n'+x.text+(out.free?'\n\n'+out.free:''));   // 지금 목록에 없는 코드 → 글 칸으로
+    });
+    return out;
+  },
+  // 옛 보고 원문: "[코드 이름]\n내용" 덩어리들(빈 줄로 이음) + 아래 글 칸 + "[지시사항]" 블록(맨 끝). 마지막 카드 뒤 첫 빈 줄부터는 글 칸으로 본다.
+  fromRaw:function(raw,date){
+    var self=this, picks=[], free=[], cur=null, inDir=false, blankAfterLast=false;
+    String(raw||'').replace(/\r/g,'').split('\n').forEach(function(line){
+      var t=line.trim();
+      if(t==='[지시사항]'){ inDir=true; cur=null; return; }
+      if(inDir) return;
+      var m=t.match(/^\[([^\s\]]+)\s+([^\]]*)\]$/), p=m?self.byCode(m[1]):null;
+      if(p){ cur=self.card(p,'',date); picks.push(cur); blankAfterLast=false; return; }
+      if(cur&&!blankAfterLast){ if(t===''){ blankAfterLast=true; return; } cur.text+=(cur.text?'\n':'')+line; return; }
+      free.push(line);
+    });
+    // 빈 줄 뒤 글이 다음 카드 머리로 이어졌으면 위에서 이미 새 카드가 됐다. 남은 것은 글 칸.
+    return {picks:picks.filter(function(c){ return c.text.trim(); }),free:free.join('\n').trim()};
+  },
   save:function(){ try{ localStorage.setItem(this.KEY,JSON.stringify({date:this.today(),picks:this.picks})); }catch(e){} },
   restore:function(){
     if(this._restored) return; this._restored=true;

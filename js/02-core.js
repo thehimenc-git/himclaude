@@ -323,7 +323,8 @@ function p0RequestOtp(){
     .then(function(d){
       if(!d.ok){toast('⚠️ '+(d.error||'오류')); return;}
       var echo=document.getElementById('p0-code-email-echo');
-      if(echo) echo.textContent=profile.email;
+      // 서버가 실제로 보낸 주소(sent_to) — 인증코드만 다른 메일로 받는 사람이 있다(GAS OTP_MAIL_TO)
+      if(echo) echo.textContent=d.sent_to||profile.email;
       p0ShowStage('code');
     })
     .catch(function(){toast('⚠️ 네트워크 오류');});

@@ -2404,7 +2404,7 @@ function p0RequestOtp(){
     .then(function(d){
       if(!d.ok){toast('⚠️ '+(d.error||'오류')); return;}
       var echo=document.getElementById('p0-code-email-echo');
-      if(echo) echo.textContent=profile.email;
+      if(echo) echo.textContent=d.sent_to||profile.email;
       p0ShowStage('code');
     })
     .catch(function(){toast('⚠️ 네트워크 오류');});

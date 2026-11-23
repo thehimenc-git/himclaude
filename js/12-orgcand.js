@@ -7,7 +7,7 @@
 //     · 명함과 같은 사람? 리멤버 명함과 같은 사람인지
 //     · 사업에 더할까?    보고에 나온 사람을 그 사업 조직도에 더할지(힘내자가 하루 한 번 올린다, 2026-11-23)
 //   자동으로 합치지 않는다 — 한 장에 한 번 누르는 것까지는 사람이 한다.
-//   읽기는 이메일(마스터 탭 다른 목록과 같음), 처리는 인증코드 로그인 세션(누가 정리했는지 서버가 직원목록 이름으로 남긴다).
+//   읽기 · 처리 모두 인증코드 로그인 세션(누가 정리했는지 서버가 직원목록 이름으로 남긴다). 이메일만으로는 안 열린다.
 //   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml, toast, getSession, MasterTab.
 var OrgCand = (function () {
   var _items = [], _loaded = false, _loading = false, _err = '';
@@ -30,9 +30,13 @@ var OrgCand = (function () {
   // ── 불러오기 ── 승인자 확인 뒤 마스터 탭이 한 번 부른다(칩 숫자 · 알림용), 「사람」을 열 때 다시 그린다
   function load(force) {
     if (_loading || (_loaded && !force)) return;
+    // 목록에 전화번호가 있어 읽기도 인증코드 로그인 세션으로만 받는다(2026-11-24, GAS @289)
+    var sess = (typeof getSession === 'function') ? getSession() : '';
+    if (!sess) { _err = '인증코드로 로그인하면 사람 목록이 보여요'; _render(); return; }
     _loading = true; _err = '';
-    _post({ action: 'org_cand_list' })
+    _post({ action: 'org_cand_list', session: sess })
       .then(function (j) {
+        if (j && j.reason === 'session_invalid') { _err = '로그인이 풀렸어요 — 인증코드로 다시 로그인해 주세요'; return; }
         if (!j || !j.ok) throw new Error((j && j.message) || '응답 없음');
         _items = j.items || [];
         _loaded = true;

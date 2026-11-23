@@ -483,7 +483,7 @@ var MasterTab = (function () {
   function _writeSeen(seen) {
     // 지금 목록에 없는 옛 키는 버린다(표시는 남긴다) — 계속 쌓이지 않게
     var live = {}; _allKeys().forEach(function (k) { live[k] = 1; });
-    var keys = Object.keys(seen).filter(function (k) { return k.charAt(0) === '#' || live[k] || (!_tempsLoaded && (k.indexOf('T:') === 0 || k.indexOf('S:') === 0)); });
+    var keys = Object.keys(seen).filter(function (k) { return k.charAt(0) === '#' || live[k] || (!_tempsLoaded && (k.indexOf('T:') === 0 || k.indexOf('S:') === 0)) || (!_org.length && k.indexOf('O:') === 0); });
     try { localStorage.setItem(_seenKey(), JSON.stringify(keys)); } catch (e) { console.warn('[master] seen', e); }
   }
   function _allKeys() {
@@ -492,6 +492,7 @@ var MasterTab = (function () {
     _pending.forEach(function (p) { k.push('P:' + p['키']); });
     _nasRecent.forEach(function (r) { k.push('R:' + r.at + r.code); });
     _temps.forEach(function (t) { k.push('T:' + t.code); if (_isStale(t)) k.push('S:' + t.code); });
+    _org.forEach(function (c) { k.push('O:' + c.cand_id); });   // 사람 후보 — 빠뜨리면 기준선이 저장되지 않아 쌓인 후보가 늘 새것으로 뜬다
     return k;
   }
   // 알림 한 줄씩 — 확인할 것(act) 먼저, 그다음 알아만 두면 되는 것(NAS 자동 반영·새 임시코드)

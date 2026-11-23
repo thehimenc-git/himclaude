@@ -60,6 +60,7 @@ var MasterTab = (function () {
         _approver = true;
         _applyPending(resp);
         _loadTemps();
+        if (typeof OrgCand !== 'undefined') OrgCand.load();   // 「사람」 칩 숫자 · 새 후보 알림 (2026-11-23)
         // 켜 둔 채로 있어도 새 알림을 받게 30분마다 다시 본다 (NAS 동기화는 평일 08:45·16:30)
         if (!_timer) _timer = setInterval(refresh, 30 * 60 * 1000);
       })
@@ -139,18 +140,36 @@ var MasterTab = (function () {
     if (!body.getAttribute('data-mt')) {
       // 머리(검색·칩)는 한 번만 그린다 — 검색칸을 다시 그리면 입력 중 포커스가 튄다
       body.setAttribute('data-mt', '1');
+      // 「사업 | 사람」 — 사람은 인명부 후보 정리(js/12-orgcand.js, 2026-11-23). 사업 쪽 화면은 그대로 아래에 둔다
       body.innerHTML =
+        '<div class="mt-kind" role="tablist" style="display:flex;gap:6px;margin:0 0 12px"><button type="button" class="mt-chip on" data-act="kind" data-k="pj">🗂️ 사업</button>' +
+        '<button type="button" class="mt-chip" data-act="kind" data-k="org">👤 사람 <span id="mt-org-n"></span></button></div>' +
+        '<div class="mt-pj">' +
         '<p class="mt-intro">보고에서 새로 나온 사업 이름이에요. 하나씩 같은 사업이 있는지, 새 사업인지 확인해 주세요.</p>' +
         _guideHtml() +
         '<div class="mt-bar"><div class="mt-chips"></div>' +
         '<input type="search" class="mt-search" placeholder="이름·코드로 찾기" /></div>' +
-        '<div class="mt-list"></div>';
+        '<div class="mt-list"></div></div>' +
+        '<div class="mt-org" hidden></div>';
       body.querySelector('.mt-search').addEventListener('input', function (e) { _q = String(e.target.value || ''); _renderList(); });
       body.addEventListener('click', _onClick);
       body.addEventListener('input', _onInput);
     }
     _renderList();
   }
+
+  function _kind(k) {
+    var body = document.getElementById('mode-master-body');
+    if (!body) return;
+    body.querySelectorAll('.mt-kind [data-k]').forEach(function (x) { x.classList.toggle('on', x.getAttribute('data-k') === k); });
+    body.querySelector('.mt-pj').hidden = k !== 'pj';
+    var org = body.querySelector('.mt-org');
+    org.hidden = k !== 'org';
+    if (k === 'org' && typeof OrgCand !== 'undefined') OrgCand.init(org);
+  }
+  // 사람 후보 — 알림엔 새로 생긴 것만(처음 본 258건은 기준선으로 본 것 처리, '#O')
+  var _org = [];
+  function orgAlerts(items) { _org = Array.isArray(items) ? items : []; _bell(); }
 
   function _renderList() {
     var body = document.getElementById('mode-master-body');
@@ -315,6 +334,7 @@ var MasterTab = (function () {
     var b = e.target.closest('[data-act]');
     if (!b || b.disabled) return;
     var act = b.getAttribute('data-act');
+    if (act === 'kind') { _kind(b.getAttribute('data-k')); return; }
     if (act === 'filter') { _filter = b.getAttribute('data-f'); _renderList(); return; }
     if (act === 'reload') { _tempsErr = ''; _tempsLoaded = false; _renderList(); _loadTemps(); return; }
     var el = b.closest('[data-key]'); if (!el) return;
@@ -483,10 +503,12 @@ var MasterTab = (function () {
     _temps.forEach(function (t) { if (t.stage !== '종결') out.push({ key: 'T:' + t.code, act: false, tag: '새 임시코드', text: t.code + ' ' + (t.name || '') }); });
     // 정리 대상 — 새로 30일을 넘긴 것만 알린다(이미 쌓인 것은 '#S' 기준선으로 본 것 처리 — 늘 켜져 있으면 알림 구실을 못 한다)
     _temps.forEach(function (t) { if (_isStale(t)) out.push({ key: 'S:' + t.code, act: false, tag: '정리 대상', text: t.code + ' ' + (t.name || '') + ' — 30일 보고 없음' }); });
+    _org.forEach(function (c) { out.push({ key: 'O:' + c.cand_id, act: false, tag: '사람', text: c.title }); });
     var seen = _readSeen(), changed = false;
     if (_loaded && !seen['#R']) { _nasRecent.forEach(function (r) { seen['R:' + r.at + r.code] = 1; }); seen['#R'] = 1; changed = true; }
     if (_tempsLoaded && !_tempsErr && !seen['#T']) { _temps.forEach(function (t) { seen['T:' + t.code] = 1; }); seen['#T'] = 1; changed = true; }
     if (_tempsLoaded && !_tempsErr && !seen['#S']) { _temps.forEach(function (t) { if (_isStale(t)) seen['S:' + t.code] = 1; }); seen['#S'] = 1; changed = true; }
+    if (_org.length && !seen['#O']) { _org.forEach(function (c) { seen['O:' + c.cand_id] = 1; }); seen['#O'] = 1; changed = true; }
     if (changed) _writeSeen(seen);
     // 기준선 잡기 전(목록이 아직 안 옴)엔 그 목록은 새것으로 치지 않는다
     if (!seen['#T']) _temps.forEach(function (t) { seen['T:' + t.code] = 1; });
@@ -637,5 +659,5 @@ var MasterTab = (function () {
     document.head.appendChild(s);
   }
 
-  return { boot: boot, init: init, refresh: refresh, menu: menu };
+  return { boot: boot, init: init, refresh: refresh, menu: menu, orgAlerts: orgAlerts };
 })();

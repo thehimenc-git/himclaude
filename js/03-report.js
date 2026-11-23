@@ -1,7 +1,7 @@
 // ── 모드 전환 (일일보고 ↔ 힘클로바) ──────────────
 var activeMode='report'; // 'report' | 'himclova'
 
-var VALID_MODES = ['report','search','himclova','calendar','master','telegram'];
+var VALID_MODES = ['report','search','himclova','calendar','master','telegram','org'];
 
 // 모드 탭 클릭 핸들러 — 사용자 클릭 트리거에만 사용 (시스템 호출은 switchMode 직접).
 // 현재 활성 탭 재클릭 시 confirm → 예면 모드별 reset + input sub-page 복귀.
@@ -68,6 +68,8 @@ function switchMode(name){
   if(name==='telegram'){ loadTgSelection(); loadTgHistory(); }
   // 마스터 탭 첫 진입 시 승격 대기 로드 (lazy + idempotent, 2026-08-25). 탭 없는 폼(v1)엔 MasterTab 미정의라 무영향.
   if(name==='master'  && typeof MasterTab !== 'undefined') MasterTab.init();
+  // 유관부서 탭 첫 진입 시 부서 목록 로드 (lazy + idempotent, 2026-11-23). 탭 없는 폼엔 OrgTab 미정의라 무영향.
+  if(name==='org'     && typeof OrgTab    !== 'undefined') OrgTab.init();
   // 검색 모드일 때만 body 스크롤 차단 — mode-search 가 fixed 라 페이지 휠 이벤트가 헛동작
   document.body.classList.toggle('search-mode-active', name === 'search');
 }

@@ -2745,6 +2745,26 @@ body.search-mode-active{
       .orgx-empty{padding:34px 10px;text-align:center;color:#8a7a63;font-size:13.5px;line-height:1.8}
       .orgx-dim{color:#a99a86;font-size:12.5px}
       .orgx-foot{font-size:11.5px;color:#a99a86;margin-top:16px;line-height:1.6}
+      .orgx-edit{margin-top:10px}
+      .orgx-scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+      .orgx-modal{background:#fffdf9;border-radius:14px;width:100%;max-width:460px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+      .orgx-mhead{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid rgba(0,0,0,.08);font-size:15px}
+      .orgx-x{border:none;background:none;font-size:20px;cursor:pointer;color:#8a7a63;padding:4px 8px}
+      .orgx-mbody{padding:14px 16px;overflow:auto}
+      .orgx-mfoot{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:12px 16px;border-top:1px solid rgba(0,0,0,.08)}
+      .orgx-mfoot .orgx-btn{margin-top:0}
+      .orgx-save{background:#3F7F86;color:#fff;border-color:#3F7F86}
+      .orgx-save:disabled{opacity:.6}
+      .orgx-saving{font-size:11.5px;color:#8a7a63;margin-right:auto}
+      .orgx-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+      .orgx-chip{border:1px solid rgba(0,0,0,.14);background:#fff;border-radius:999px;padding:5px 11px;font-size:12.5px;cursor:pointer}
+      .orgx-chip.on{background:#3F7F86;border-color:#3F7F86;color:#fff}
+      .orgx-l{display:block;font-size:12.5px;color:#5a4a38;margin-bottom:10px}
+      .orgx-in{display:block;width:100%;box-sizing:border-box;margin-top:4px;padding:8px 10px;border:1px solid rgba(0,0,0,.14);border-radius:8px;font-size:14px;background:#fff;font-family:inherit}
+      .orgx-p{font-size:13.5px;line-height:1.6;margin:0 0 10px}
+      .orgx-cand{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center;width:100%;text-align:left;border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font:inherit}
+      .orgx-cand .orgx-where{flex:1 1 100%}
+      .orgx-pick{margin-left:auto;font-size:12px;color:#3F7F86}
     </style>
     <div class="orgx-wrap">
       <div class="orgx-bar">
@@ -2755,7 +2775,7 @@ body.search-mode-active{
       </div>
       <div class="orgx-count" id="orgx-count"></div>
       <div id="orgx-list"></div>
-      <div class="orgx-foot">서울시 본청부터 채우는 중이에요. 틀린 곳이나 바뀐 담당자는 「인명부 마스터」 시트에서 고쳐요.</div>
+      <div class="orgx-foot">서울시 본청부터 채우는 중이에요. 바뀐 담당자는 줄을 펼쳐 「고치기 · 인사이동」으로 바로 고쳐요 — 누가 고쳤는지 기록이 남아요.</div>
     </div>
   </div>
 

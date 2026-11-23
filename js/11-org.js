@@ -5,7 +5,8 @@
 //   · 줄을 누르면 담당업무 전체 · 층 · 기준일이 펼쳐진다. 내선은 눌러서 바로 건다
 //   서버: GAS OrgDirectory.js 의 org_tree · org_search (요청의 email 이 직원목록에 있어야 열린다)
 //   ★이 저장소는 공개다 — 이름 · 내선 같은 데이터를 이 파일에 적지 않는다. 전부 서버에서 받아 온다.★
-//   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml.
+//   · 펼친 줄의 「고치기 · 인사이동」 — 사람 바꾸기 · 담당업무 등 · 공석으로 (2026-11-23, GAS org_write · 인증코드 로그인 세션)
+//   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml, toast, getSession.
 var OrgTab = (function () {
   var _inited = false, _units = null, _byId = {}, _kids = {};
   var _q = '', _bureau = '', _dept = '', _items = [], _total = 0, _open = {};
@@ -81,7 +82,9 @@ var OrgTab = (function () {
       _post({ action: 'org_search', q: q, unit_id: unit, limit: 200 }).then(function (d) {
         if (my !== _seq) return;                      // 늦게 온 옛 답은 버린다
         if (!d.ok) throw new Error(d.message || '찾지 못했어요');
-        _items = d.items || []; _total = d.total || 0; _open = {}; _busy = false; _paint();
+        _items = d.items || []; _total = d.total || 0; _open = {}; _busy = false;
+        _items.forEach(function (s) { _byId[s.seat_id] = s; });
+        _paint();
       }).catch(function (e) { if (my !== _seq) return; _busy = false; _err = String(e.message || e); _paint(); });
     }, delay || 0);
   }
@@ -120,6 +123,7 @@ var OrgTab = (function () {
           (s.as_of ? '<span' + (_stale(s.as_of) ? ' class="warn"' : '') + '>' + esc(s.as_of) + ' 기준' + (_stale(s.as_of) ? ' · 확인한 지 오래됐어요' : '') + '</span>' : '') +
         '</div>' +
         (s.needs_check ? '<div class="orgx-check">확인 필요 — ' + esc(s.needs_check) + '</div>' : '') +
+        '<button type="button" class="orgx-btn orgx-edit" onclick="OrgTab.edit(\'' + esc(s.seat_id) + '\')">✎ 고치기 · 인사이동</button>' +
       '</div>';
     }
     return h + '</div>';
@@ -159,7 +163,134 @@ var OrgTab = (function () {
     box.innerHTML = h;
   }
 
+
+  // ── 고치기 · 인사이동 (2026-11-23) ─────────────────────────
+  //   GAS org_write(OrgWrite.js) 하나로 쓴다 — 힘내자 대시보드와 같은 창구 · 같은 규칙(자리이력 · 변경이력 · 같은 이름 확인).
+  //   누가 고쳤는지는 인증코드 로그인 세션으로 서버가 정한다(직원목록 이름). 한 번에 10초 안팎.
+  var _byId = {};
+  function _write(payload) {
+    payload.session = (typeof getSession === 'function') ? getSession() : '';
+    payload.action = 'org_write';
+    return _post(payload);
+  }
+  function _modal(title, inner, onSave, saveLabel) {
+    var wrap = document.createElement('div');
+    wrap.className = 'orgx-scrim';
+    wrap.innerHTML = '<div class="orgx-modal" role="dialog" aria-modal="true">' +
+      '<div class="orgx-mhead"><b>' + esc(title) + '</b><button type="button" class="orgx-x" aria-label="닫기">×</button></div>' +
+      '<div class="orgx-mbody"></div>' +
+      '<div class="orgx-mfoot"><span class="orgx-saving" hidden>저장하는 중이에요 — 10초쯤 걸려요</span>' +
+      '<button type="button" class="orgx-btn orgx-cancel">취소</button><button type="button" class="orgx-btn orgx-save">' + esc(saveLabel || '저장') + '</button></div></div>';
+    var body = wrap.querySelector('.orgx-mbody');
+    if (typeof inner === 'string') body.innerHTML = inner; else body.appendChild(inner);
+    var close = function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); };
+    wrap.querySelector('.orgx-x').onclick = close;
+    wrap.querySelector('.orgx-cancel').onclick = close;
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) close(); });
+    var save = wrap.querySelector('.orgx-save'), hint = wrap.querySelector('.orgx-saving');
+    if (onSave) {
+      save.onclick = function () {
+        if (save.disabled) return;
+        save.disabled = true; hint.hidden = false;
+        Promise.resolve(onSave(body, close)).catch(function (e) {
+          toast('저장하지 못했어요 — ' + (e && e.message || e));
+        }).then(function () { save.disabled = false; hint.hidden = true; });
+      };
+    } else save.hidden = true;
+    document.body.appendChild(wrap);
+    return { body: body, close: close };
+  }
+  function _val(body, name) { var n = body.querySelector('[name="' + name + '"]'); return n ? String(n.value || '').trim() : ''; }
+
+  // 같은 이름 후보 — 이 사람 / 새 사람으로 / 그만두기 → {person_key} · 'new' · null
+  function _choose(cands, name) {
+    return new Promise(function (resolve) {
+      var h = '<p class="orgx-p">인명부에 <b>' + esc(name) + '</b> 이(가) 이미 있어요. 같은 사람인가요?</p>';
+      cands.forEach(function (c, i) {
+        h += '<button type="button" class="orgx-cand" data-i="' + i + '"><b>' + esc(c.name) + '</b> <span class="orgx-role">' + esc(c.org || '기관 모름') + '</span>' +
+             '<span class="orgx-where">' + esc([c.memo, c.phone].filter(Boolean).join(' · ') || c.person_key) + '</span><span class="orgx-pick">이 사람이에요</span></button>';
+      });
+      h += '<p class="orgx-dim">다른 사람이면 「새 사람으로」. 잘못 고르면 두 사람이 한 사람으로 묶여요.</p>' +
+           '<button type="button" class="orgx-btn orgx-new">새 사람으로</button>';
+      var done = false;
+      var m = _modal('같은 사람인가요?', h, null);
+      var fin = function (v) { if (done) return; done = true; m.close(); resolve(v); };
+      Array.prototype.forEach.call(m.body.querySelectorAll('.orgx-cand'), function (b) {
+        b.onclick = function () { fin({ person_key: cands[+b.getAttribute('data-i')].person_key }); };
+      });
+      m.body.querySelector('.orgx-new').onclick = function () { fin('new'); };
+      var x = m.body.parentNode.querySelector('.orgx-x'), c = m.body.parentNode.querySelector('.orgx-cancel');
+      x.onclick = c.onclick = function () { fin(null); };
+    });
+  }
+  function _writePerson(payload) {
+    return _write(payload).then(function (j) {
+      if (j.ok || j.reason !== 'needs_choice') return j;
+      return _choose(j.candidates || [], payload.person.name).then(function (pick) {
+        if (!pick) return null;
+        var p2 = {}; for (var k in payload) p2[k] = payload[k];
+        if (pick === 'new') { var np = {}; for (var q in payload.person) np[q] = payload.person[q]; np['new'] = true; p2.person = np; }
+        else p2.person = pick;
+        return _write(p2);
+      });
+    });
+  }
+
+  function edit(seatId) {
+    var s = _byId[seatId];
+    if (!s) return;
+    if (!getSession || !getSession()) { toast('인증코드로 로그인한 뒤 고칠 수 있어요'); return; }
+    var mode = 'person';
+    var box = document.createElement('div');
+    var paint = function () {
+      var tabs = [['person', '사람 바꾸기(인사이동)'], ['edit', '담당업무 · 내선 등'], ['vacate', '공석으로']].map(function (t) {
+        return '<button type="button" class="orgx-chip' + (mode === t[0] ? ' on' : '') + '" data-m="' + t[0] + '">' + t[1] + '</button>';
+      }).join('');
+      var f = '';
+      if (mode === 'person') {
+        f = '<label class="orgx-l">새로 온 사람 이름 *<input class="orgx-in" name="name"></label>' +
+            '<label class="orgx-l">전화(있으면)<input class="orgx-in" name="phone"></label>' +
+            '<label class="orgx-l">이메일(있으면)<input class="orgx-in" name="email"></label>' +
+            '<p class="orgx-dim">' + (s.vacant ? '' : esc(s.name || '지금 사람') + ' 은(는) 자리이력에 「끝」으로 남아요. ') + '같은 이름이 있으면 같은 사람인지 물어봐요.</p>';
+      } else if (mode === 'edit') {
+        f = '<label class="orgx-l">직책<input class="orgx-in" name="직책" value="' + esc(s.role || '') + '"></label>' +
+            '<label class="orgx-l">내선(전화)<input class="orgx-in" name="내선" value="' + esc(s.ext || '') + '"></label>' +
+            '<label class="orgx-l">이메일<input class="orgx-in" name="이메일" value="' + esc(s.email || '') + '"></label>' +
+            '<label class="orgx-l">담당업무<textarea class="orgx-in" name="담당업무" rows="5">' + esc(s.duties || '') + '</textarea></label>' +
+            '<label class="orgx-l">확인 필요 메모<input class="orgx-in" name="확인필요" value="' + esc(s.needs_check || '') + '"></label>';
+      } else {
+        f = '<p class="orgx-p">' + esc(s.name || '지금 사람') + ' 을(를) 이 자리에서 빼고 공석으로 둬요. 자리는 남고 자리이력에 「끝」으로 기록돼요.</p>';
+      }
+      box.innerHTML = '<p class="orgx-dim">' + esc((s.path || []).slice(-2).join(' › ')) + ' · ' + esc(s.role || '') + ' — 지금 ' + esc(s.vacant ? '공석' : (s.name || '이름 미확인')) + '</p>' +
+                      '<div class="orgx-chips">' + tabs + '</div>' + f;
+      Array.prototype.forEach.call(box.querySelectorAll('.orgx-chip'), function (b) { b.onclick = function () { mode = b.getAttribute('data-m'); paint(); }; });
+    };
+    paint();
+    _modal('자리 고치기', box, function (body, close) {
+      var p;
+      if (mode === 'person') {
+        var nm = _val(body, 'name');
+        if (!nm) { toast('이름을 적어 주세요'); return; }
+        p = _writePerson({ op: 'seat_person', seat_id: s.seat_id, person: { name: nm, phone: _val(body, 'phone'), email: _val(body, 'email') } });
+      } else if (mode === 'edit') {
+        var now = { '직책': s.role, '내선': s.ext, '이메일': s.email, '담당업무': s.duties, '확인필요': s.needs_check }, fields = {}, n = 0;
+        Object.keys(now).forEach(function (k) { var v = _val(body, k); if ((now[k] || '') !== v) { fields[k] = v; n++; } });
+        if (!n) { toast('바뀐 칸이 없어요'); return; }
+        p = _write({ op: 'seat_edit', seat_id: s.seat_id, fields: fields });
+      } else {
+        p = _write({ op: 'seat_vacate', seat_id: s.seat_id });
+      }
+      return p.then(function (j) {
+        if (!j) return;                               // 같은 사람 고르기에서 그만둠
+        if (!j.ok) { toast(j.reason === 'session_invalid' ? '로그인이 풀렸어요 — 다시 로그인해 주세요' : (j.message || '저장하지 못했어요')); return; }
+        toast('고쳤어요 — 변경이력에 남았어요');
+        close();
+        _search(0);                                   // 서버 캐시는 고칠 때 지워졌다 — 바로 다시 찾는다
+      });
+    });
+  }
+
   function retry() { _err = ''; if (!_units) init(); else _search(0); }
 
-  return { init: init, onBureau: onBureau, onDept: onDept, onInput: onInput, clear: clearAll, toggle: toggle, retry: retry };
+  return { init: init, onBureau: onBureau, onDept: onDept, onInput: onInput, clear: clearAll, toggle: toggle, retry: retry, edit: edit };
 })();

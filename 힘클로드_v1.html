@@ -650,6 +650,7 @@ html::-webkit-scrollbar-button,
 .mode-tab.tab-himclova { --tab-color: #7C5BC8;  --tab-tint: rgba(124,91,200,.14); }    /* 보라 계열 */
 .mode-tab.tab-calendar { --tab-color: #B8860B;  --tab-tint: rgba(184,134,11,.12); }    /* 앰버 계열 (일정 탭, 2026-08-09) */
 .mode-tab.tab-telegram { --tab-color: #2A9DD6;  --tab-tint: rgba(42,157,214,.12); }    /* 텔레그램 블루 (2026-08-10) */
+.mode-tab.tab-org      { --tab-color: #3F7F86;  --tab-tint: rgba(63,127,134,.12); }    /* 청록 계열 (유관부서 탭, 2026-11-23) */
 .mode-tab.tab-master   { --tab-color: #8A6D3B;  --tab-tint: rgba(138,109,59,.12); }    /* 브라운 계열 (마스터 승격 탭, 오너 전용, 2026-08-25) */
 
 /* hover (비활성) & active 동일 색상 — font-weight 만 차이로 구분 */
@@ -673,6 +674,7 @@ html::-webkit-scrollbar-button,
 #p1[data-mode="calendar"] .mode-content.mode-calendar {display:block}
 #p1[data-mode="telegram"] .mode-content.mode-telegram {display:block}
 #p1[data-mode="master"]  .mode-content.mode-master   {display:block}
+#p1[data-mode="org"]     .mode-content.mode-org      {display:block}
 /* 검색 모드는 하단 고정 버튼 없음 — 검색 패널 자체에 검색 버튼 포함 (Phase 2 이식 예정) */
 
 /* 힘클로바 모드: user-bar 우측 배치 + 이니셜 원 보라 톤
@@ -2344,6 +2346,7 @@ body.search-mode-active{
       <button class="mode-tab tab-search"    data-mode="search"  onclick="onTabClick('search')">💬 업무 인사이트</button>
       <button class="mode-tab tab-himclova"   data-mode="himclova" onclick="onTabClick('himclova')">🎙️ AI 회의록</button>
       <button class="mode-tab tab-calendar"   data-mode="calendar" onclick="onTabClick('calendar')">📅 일정</button>
+      <button class="mode-tab tab-org"        data-mode="org"      onclick="onTabClick('org')">📇 유관부서</button>
       <button class="mode-tab tab-telegram"  data-mode="telegram" onclick="onTabClick('telegram')">📨 텔레그램</button>
       <button class="mode-tab tab-master" id="tab-master-btn" data-mode="master" style="display:none" onclick="onTabClick('master')">🗂️ 마스터 <span class="rep-toggle" id="tab-master-count"></span></button>
     </div>
@@ -2710,6 +2713,52 @@ body.search-mode-active{
     <div id="calx-detail" class="calx-detail"></div>
   </div>
 
+  <!-- ── 유관부서 모드 (2026-11-23) — 인명부 마스터의 기관 · 부서 · 자리 찾기 (읽기 전용, js/11-org.js) ── -->
+  <div class="mode-content mode-org">
+    <style>
+      .orgx-wrap{padding:12px 20px 40px;max-width:760px;margin:0 auto}
+      .orgx-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .orgx-q{flex:1 1 220px;min-width:0;padding:9px 12px;border:1px solid rgba(0,0,0,.14);border-radius:10px;font-size:14px;background:#fff}
+      .orgx-q:focus{outline:2px solid rgba(63,127,134,.35);outline-offset:1px}
+      .orgx-sel{flex:1 1 130px;min-width:0;padding:8px 8px;border:1px solid rgba(0,0,0,.12);border-radius:10px;font-size:13px;background:#fffdf9}
+      .orgx-sel:disabled{opacity:.5}
+      .orgx-btn{border:1px solid rgba(0,0,0,.12);background:#fffdf9;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12.5px;margin-top:8px}
+      .orgx-clear{margin-top:0}
+      .orgx-count{font-size:12px;color:#8a7a63;margin:10px 2px 4px;min-height:16px}
+      .orgx-team{font-size:12px;font-weight:700;color:#3F7F86;margin:14px 2px 4px}
+      .orgx-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;background:#fffdf9;border:1px solid rgba(0,0,0,.07);border-radius:10px;padding:4px 10px 4px 4px;margin-bottom:5px}
+      .orgx-row.open{border-color:rgba(63,127,134,.45)}
+      .orgx-main{flex:1 1 200px;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:none;background:none;text-align:left;padding:6px 8px;cursor:pointer;font:inherit;color:inherit;border-radius:8px}
+      .orgx-main:hover{background:rgba(0,0,0,.03)}
+      .orgx-name{font-size:14px;font-weight:600;color:var(--ink)}
+      .orgx-role{font-size:12px;font-weight:400;color:#8a7a63;margin-left:2px}
+      .orgx-vacant{color:#b0752a}
+      .orgx-where{font-size:12px;color:#7a6a55;word-break:keep-all}
+      .orgx-tel{flex:0 0 auto;font-size:13px;font-variant-numeric:tabular-nums;color:#2f6f76;text-decoration:none;padding:8px 6px;white-space:nowrap}
+      .orgx-tel.plain{color:#8a7a63}
+      .orgx-more{flex:1 1 100%;border-top:1px dashed rgba(0,0,0,.1);margin:2px 6px 4px;padding:8px 2px 2px}
+      .orgx-up{font-size:11.5px;color:#a99a86;margin-bottom:4px}
+      .orgx-duties{font-size:13px;line-height:1.6;white-space:pre-line;color:var(--ink2);word-break:keep-all}
+      .orgx-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;color:#8a7a63;margin-top:8px}
+      .orgx-meta .warn{color:#b0752a}
+      .orgx-check{font-size:12px;color:#b0752a;background:#fdf4e7;border-radius:6px;padding:5px 8px;margin-top:8px}
+      .orgx-empty{padding:34px 10px;text-align:center;color:#8a7a63;font-size:13.5px;line-height:1.8}
+      .orgx-dim{color:#a99a86;font-size:12.5px}
+      .orgx-foot{font-size:11.5px;color:#a99a86;margin-top:16px;line-height:1.6}
+    </style>
+    <div class="orgx-wrap">
+      <div class="orgx-bar">
+        <input type="search" id="orgx-q" class="orgx-q" placeholder="담당업무 · 이름 · 내선 · 부서로 찾기" autocomplete="off" oninput="OrgTab.onInput(this.value)" aria-label="유관부서 담당자 찾기">
+        <select id="orgx-bureau" class="orgx-sel" onchange="OrgTab.onBureau(this.value)" aria-label="본부 · 실 · 국"><option value="">본부 · 실 · 국</option></select>
+        <select id="orgx-dept" class="orgx-sel" onchange="OrgTab.onDept(this.value)" aria-label="과" disabled><option value="">과</option></select>
+        <button type="button" class="orgx-btn orgx-clear" onclick="OrgTab.clear()">지우기</button>
+      </div>
+      <div class="orgx-count" id="orgx-count"></div>
+      <div id="orgx-list"></div>
+      <div class="orgx-foot">서울시 본청부터 채우는 중이에요. 틀린 곳이나 바뀐 담당자는 「인명부 마스터」 시트에서 고쳐요.</div>
+    </div>
+  </div>
+
   <!-- ── 텔레그램 모드 (2026-08-10) — 외부브리핑 선정·발송 (부서장 전용) ── -->
   <div class="mode-content mode-telegram">
     <!-- [2026-08-24] 큰 외부 모니터에서 화면 전체로 늘어지지 않도록 최대폭 제한 + 가운데 정렬.
@@ -2968,6 +3017,7 @@ body.search-mode-active{
 <script src="js/08-master.js"></script>  <!-- 프로젝트 마스터 승격 탭 (오너 전용, 2026-08-25) -->
 <script src="js/09-telegram.js"></script>  <!-- 텔레그램 외부브리핑 탭 (2026-08-25 이관) -->
 <script src="js/10-pjpick.js"></script>  <!-- 보고창 프로젝트 고르기·등록·지난 보고 카드 (2026-10-07) -->
+<script src="js/11-org.js"></script>  <!-- 유관부서 탭 — 인명부 마스터 찾기 (읽기 전용, 2026-11-23) -->
 
 
 <!-- ===== 음성 후처리 셋업 (2026-05-29) — vp-* JS. csTryCopy/csMsg/APPS_SCRIPT_URL 재사용 ===== -->

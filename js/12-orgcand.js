@@ -5,6 +5,7 @@
 //     · 지금 담당?        사업 조직도 줄의 지금 담당 자리를 후보 2~3개 중에서 고른다
 //     · 같은 사람?        같은 이름이 여럿 — 같은 사람만 골라 한 사람으로 묶는다(합침 칸만 채움, 지우지 않음)
 //     · 명함과 같은 사람? 리멤버 명함과 같은 사람인지
+//     · 사업에 더할까?    보고에 나온 사람을 그 사업 조직도에 더할지(힘내자가 하루 한 번 올린다, 2026-11-23)
 //   자동으로 합치지 않는다 — 한 장에 한 번 누르는 것까지는 사람이 한다.
 //   읽기는 이메일(마스터 탭 다른 목록과 같음), 처리는 인증코드 로그인 세션(누가 정리했는지 서버가 직원목록 이름으로 남긴다).
 //   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml, toast, getSession, MasterTab.
@@ -14,7 +15,7 @@ var OrgCand = (function () {
   var _skip = {};       // 나중에 — 이 화면에서만 뒤로 미룬다
   var _sel = {};        // cand_id → { keys: {사람키: true}, seat: 자리ID }
   var _busy = {};
-  var KINDS = [['all', '전체'], ['지금 담당?', '지금 담당'], ['같은 사람?', '같은 사람'], ['명함과 같은 사람?', '명함']];
+  var KINDS = [['all', '전체'], ['지금 담당?', '지금 담당'], ['사업에 더할까?', '보고에서'], ['같은 사람?', '같은 사람'], ['명함과 같은 사람?', '명함']];
 
   function _esc(s) { return escapeHtml(String(s == null ? '' : s)); }
   function _post(payload) {
@@ -113,6 +114,10 @@ var OrgCand = (function () {
     return on.length ? on[0].person_key : '';
   }
   function _selOf(it) {
+    if (!_sel[it.cand_id] && it.kind === '사업에 더할까?') {
+      // 기본 — 지금 자리의 사람 > 같은 이름이 없으면 새 사람. 같은 이름이 있으면 사람이 고르게 비워 둔다
+      _sel[it.cand_id] = { keys: {}, seat: '', who: (it.seat && it.seat.person_key) || ((it.people || []).length ? '' : 'new'), line: (it.report && it.report.line) || '' };
+    }
     if (!_sel[it.cand_id]) {
       var keys = {};
       (it.people || []).forEach(function (p) { keys[p.person_key] = true; });
@@ -125,7 +130,30 @@ var OrgCand = (function () {
     var sel = _selOf(it), busy = !!_busy[it.cand_id];
     var h = '<div class="mt-card oc-card' + (_skip[it.cand_id] ? ' oc-skipped' : '') + '" data-cid="' + _esc(it.cand_id) + '">';
     h += '<div class="oc-head"><span class="oc-kind">' + _esc(it.kind.replace('?', '')) + '</span> <b>' + _esc(it.title) + '</b></div>';
-    if (it.kind === '지금 담당?') {
+    if (it.kind === '사업에 더할까?') {
+      var r = it.report || {}, rn = 'oc-' + _esc(it.cand_id);
+      var choice = function (val, inner) {
+        return '<label class="oc-p"><input type="radio" name="' + rn + '" data-oc="who" value="' + _esc(val) + '"' + (sel.who === val ? ' checked' : '') + ' /><span class="oc-pb">' + inner + '</span></label>';
+      };
+      h += '<p class="oc-line"><b>' + _esc(r.code) + '</b> 보고에 <b>' + _esc(r.name) + '</b>' + (r.org || r.role ? ' (' + _esc([r.org, r.role].filter(Boolean).join(' ')) + ')' : '') +
+           ' — ' + _esc(r.reports) + '번 나왔어요' + (r.last ? ' · 마지막 ' + _esc(r.last) : '') + '</p>';
+      h += '<p class="oc-q">사업 조직도에 누구로 더할까요?</p>';
+      if (it.seat) h += choice(it.seat.person_key, '<b>' + _esc(it.seat.name) + '</b> <span class="oc-dim">' + _esc(it.seat.role || '') + '</span>' +
+                               '<span class="oc-line oc-now">지금 조직도 · ' + _esc(_tail(it.seat.path, 2)) + (it.seat.ext ? ' · ☎' + _esc(it.seat.ext) : '') + '</span>');
+      (it.people || []).forEach(function (p) {
+        if (it.seat && p.person_key === it.seat.person_key) return;
+        h += choice(p.person_key, '<b>' + _esc(p.name) + '</b> <span class="oc-dim">' + _esc(p.org || '') + ' ' + _esc(p.role || '') + '</span>' +
+                    (p.where && p.where.length ? '<span class="oc-line">인명부 · ' + _esc(_tail(p.where, 3)) + '</span>' : '') +
+                    (p.projects.length ? '<span class="oc-line oc-dim">사업 ' + _esc(p.projects.join(' · ')) + '</span>' : ''));
+      });
+      h += choice('new', '<b>새 사람으로</b><span class="oc-line">' + _esc(r.name) + (r.org ? ' · ' + _esc(r.org) : '') + ' — 인명부에 새로 만들어요</span>');
+      h += '<div class="oc-lines"><span class="oc-dim">라인</span>' + ['유관부서', '협업사'].map(function (ln) {
+        return '<button type="button" class="mt-chip' + (sel.line === ln ? ' on' : '') + '" data-oc="line" data-l="' + ln + '">' + ln + '</button>';
+      }).join('') + '</div>';
+      h += '<div class="oc-acts"><button type="button" class="mt-btn primary" data-oc="add"' + (sel.who && !busy ? '' : ' disabled') + '>사업 조직도에 더해요</button>' +
+           '<button type="button" class="mt-btn" data-oc="skip"' + (busy ? ' disabled' : '') + '>안 더해요</button>' +
+           '<button type="button" class="mt-btn" data-oc="later">나중에</button></div>';
+    } else if (it.kind === '지금 담당?') {
       var l = it.link || {}, p = l.person;
       h += '<p class="oc-line">' + _esc(l.code || '') + ' 사업 조직도 · ' + _esc(_tail(l.path, 3)) + ' — 당시 <b>' + _esc((p && p.name) || '이름 없음') + '</b> ' + _esc(l.role || '') + '</p>';
       if (l.duties) h += '<p class="oc-line oc-dim">' + _esc(l.duties) + '</p>';
@@ -163,6 +191,7 @@ var OrgCand = (function () {
     var sel = _selOf(it), act = t.getAttribute('data-oc');
     if (act === 'key') sel.keys[t.getAttribute('data-k')] = t.checked;
     if (act === 'seat') sel.seat = t.value;
+    if (act === 'who') sel.who = t.value;
     card.outerHTML = _cardHtml(it);
   }
   function _onClick(e) {
@@ -175,12 +204,14 @@ var OrgCand = (function () {
     var card = b.closest('[data-cid]'); if (!card) return;
     var it = _find(card.getAttribute('data-cid')); if (!it) return;
     if (act === 'later') { _skip[it.cand_id] = true; _renderList(); return; }
+    if (act === 'line') { _selOf(it).line = b.getAttribute('data-l'); card.outerHTML = _cardHtml(it); return; }
     var sel = _selOf(it), payload = { action: 'org_cand_resolve', cand_id: it.cand_id, decision: act };
     if (act === 'same') {
       payload.keys = Object.keys(sel.keys).filter(function (k) { return sel.keys[k]; });
       payload.target = _target(it, sel);
     }
     if (act === 'pick') payload.seat_id = sel.seat;
+    if (act === 'add') { payload.line = sel.line; if (sel.who === 'new') payload['new'] = true; else payload.person_key = sel.who; }
     _resolve(it, payload);
   }
   function _resolve(it, payload) {
@@ -193,7 +224,7 @@ var OrgCand = (function () {
       .then(function (j) {
         if (j && (j.ok || j.reason === 'done')) {
           _items = _items.filter(function (x) { return x.cand_id !== it.cand_id; });
-          toast(j.ok ? (j.status === '같은 사람' ? '한 사람으로 묶었어요' : j.status === '자리 고름' ? '지금 담당을 이었어요' : '다른 사람으로 두었어요') : j.message);
+          toast(j.ok ? ({ '같은 사람': '한 사람으로 묶었어요', '자리 고름': '지금 담당을 이었어요', '더함': '사업 조직도에 더했어요', '안 더함': '더하지 않았어요' }[j.status] || '다른 사람으로 두었어요') : j.message);
           _count();
           return;
         }
@@ -224,6 +255,7 @@ var OrgCand = (function () {
       '.oc-list{display:flex;flex-direction:column;gap:10px}',
       '.oc-acts .mt-btn.primary{background:var(--mt);border-color:var(--mt);color:#fff;font-weight:600}',
       '.oc-acts .mt-btn:disabled{opacity:.45;cursor:default}',
+      '.oc-lines{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 0;font-size:12.5px}',
       '.oc-basis{font-size:11.5px;color:var(--ink3,#888);margin:6px 0 0}',
       '.oc-more{width:100%;margin-top:8px;min-height:40px}'
     ].join('\n');

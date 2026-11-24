@@ -102,8 +102,22 @@ var MasterTab = (function () {
   // ── 줄 목록 (2026-11-24) — 한 줄에 질문 하나. 질문·답은 GAS PjAsk.js 가 만든다(ask) ──
   var KINDS = [['todo', '전체'], ['nas', 'NAS 폴더'], ['name', '새 이름'], ['temp', '임시코드'], ['stale', '오래된 것'], ['later', '미뤄 둔 것'], ['done', '끝난 것']];
   var RANK = { nas: 0, name: 1, temp: 2, stale: 3, later: 4, done: 5 };
+  // AI 메모에 적힌 코드(목록에 있는 것)를 후보 맨 앞으로 — 「서초구 공공디자인심의」 메모에 24-C07 이 있는데 후보엔 없던 것(2026-11-24)
+  var CODE_IN_MEMO = /\d{2}-[UCEA]\d{2}(?!\d)|검토-\d+_\d{6}|TEMP-\d{8}-\d{3}/g;
+  function _withMemo(ask, memo) {
+    if (!memo || !ask.find) return ask;
+    var first = [], seen = {};
+    (String(memo).match(CODE_IN_MEMO) || []).forEach(function (code) {
+      var p = _projByCode(code);
+      if (!p || seen[code] || first.length >= 2) return;
+      seen[code] = 1;
+      first.push({ label: p.name, sub: p.code + ' · 메모에 적힌 코드', body: _with(ask.find.body, { target: p.code }) });
+    });
+    if (!first.length) return ask;
+    return _with(ask, { picks: first.concat(ask.picks.filter(function (x) { return !seen[x.body.target]; })).slice(0, 4) });
+  }
   function _cards() {
-    var out = [], add = function (key, src, o) { if (!_gone[key] && src.ask) out.push({ key: key, src: src, ask: src.ask, kind: src.ask.kind, name: o.name || '', code: o.code || '', memo: o.memo || '', reports: src.reports || 0, last: src.last || '' }); };
+    var out = [], add = function (key, src, o) { if (!_gone[key] && src.ask) out.push({ key: key, src: src, ask: _withMemo(src.ask, o.memo), kind: src.ask.kind, name: o.name || '', code: o.code || '', memo: o.memo || '', reports: src.reports || 0, last: src.last || '' }); };
     _nas.forEach(function (x) { add('N:' + x.code, x, { name: x.name || x.folder, code: x.code }); });
     _pending.forEach(function (p) { add('P:' + p['키'], p, { name: p['키'], memo: p['값'] }); });
     _temps.forEach(function (t) { add('T:' + t.code, t, { name: t.name, code: t.code }); });

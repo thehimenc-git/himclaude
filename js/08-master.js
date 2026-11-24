@@ -142,8 +142,8 @@ var MasterTab = (function () {
       body.setAttribute('data-mt', '1');
       // 「사업 | 사람」 — 사람은 인명부 후보 정리(js/12-orgcand.js, 2026-11-23). 사업 쪽 화면은 그대로 아래에 둔다
       body.innerHTML =
-        '<div class="mt-kind" role="tablist" style="display:flex;gap:6px;margin:0 0 12px"><button type="button" class="mt-chip on" data-act="kind" data-k="pj">🗂️ 사업</button>' +
-        '<button type="button" class="mt-chip" data-act="kind" data-k="org">👤 사람 <span id="mt-org-n"></span></button></div>' +
+        '<div class="mt-kind" role="tablist" style="display:flex;gap:6px;margin:0 0 12px"><button type="button" class="mt-chip on" data-act="scope" data-k="pj">🗂️ 사업</button>' +
+        '<button type="button" class="mt-chip" data-act="scope" data-k="org">👤 사람 <span id="mt-org-n"></span></button></div>' +
         '<div class="mt-pj">' +
         '<p class="mt-intro">보고에서 새로 나온 사업 이름이에요. 하나씩 같은 사업이 있는지, 새 사업인지 확인해 주세요.</p>' +
         _guideHtml() +
@@ -334,7 +334,7 @@ var MasterTab = (function () {
     var b = e.target.closest('[data-act]');
     if (!b || b.disabled) return;
     var act = b.getAttribute('data-act');
-    if (act === 'kind') { _kind(b.getAttribute('data-k')); return; }
+    if (act === 'scope') { _kind(b.getAttribute('data-k')); return; }
     if (act === 'filter') { _filter = b.getAttribute('data-f'); _renderList(); return; }
     if (act === 'reload') { _tempsErr = ''; _tempsLoaded = false; _renderList(); _loadTemps(); return; }
     var el = b.closest('[data-key]'); if (!el) return;

@@ -2713,7 +2713,7 @@ body.search-mode-active{
     <div id="calx-detail" class="calx-detail"></div>
   </div>
 
-  <!-- ── 유관부서 모드 (2026-11-23) — 인명부 마스터의 기관 · 부서 · 자리 찾기 (읽기 전용, js/11-org.js) ── -->
+  <!-- ── 유관부서 모드 (2026-11-23 → 11-24 가로 조직도) — 사업 · 기관 조직도 (js/11-org.js) ── -->
   <div class="mode-content mode-org">
     <style>
       .orgx-wrap{padding:12px 20px 40px;max-width:760px;margin:0 auto}
@@ -2768,14 +2768,12 @@ body.search-mode-active{
     </style>
     <div class="orgx-wrap">
       <div class="orgx-bar">
-        <input type="search" id="orgx-q" class="orgx-q" placeholder="담당업무 · 이름 · 내선 · 부서로 찾기" autocomplete="off" oninput="OrgTab.onInput(this.value)" aria-label="유관부서 담당자 찾기">
-        <select id="orgx-bureau" class="orgx-sel" onchange="OrgTab.onBureau(this.value)" aria-label="본부 · 실 · 국"><option value="">본부 · 실 · 국</option></select>
-        <select id="orgx-dept" class="orgx-sel" onchange="OrgTab.onDept(this.value)" aria-label="과" disabled><option value="">과</option></select>
-        <button type="button" class="orgx-btn orgx-clear" onclick="OrgTab.clear()">지우기</button>
+        <input type="search" id="orgx-q" class="orgx-q" placeholder="사업 · 업무 · 부서 · 이름 · 번호로 찾기" autocomplete="off" oninput="OrgTab.onInput(this.value)" aria-label="유관부서 담당자 찾기">
+        <button type="button" class="orgx-btn orgx-clear" id="orgx-home" onclick="OrgTab.home()" hidden>← 처음으로</button>
       </div>
       <div class="orgx-count" id="orgx-count"></div>
       <div id="orgx-list"></div>
-      <div class="orgx-foot">서울시 본청부터 채우는 중이에요. 바뀐 담당자는 줄을 펼쳐 「고치기 · 인사이동」으로 바로 고쳐요 — 누가 고쳤는지 기록이 남아요.</div>
+      <div class="orgx-foot">이름을 누르면 담당업무가 보여요. 자리가 등록된 사람은 「고치기 · 인사이동」으로 바로 고치고, 누가 고쳤는지 기록이 남아요.</div>
     </div>
   </div>
 
@@ -3037,7 +3035,7 @@ body.search-mode-active{
 <script src="js/08-master.js"></script>  <!-- 프로젝트 마스터 승격 탭 (오너 전용, 2026-08-25) -->
 <script src="js/09-telegram.js"></script>  <!-- 텔레그램 외부브리핑 탭 (2026-08-25 이관) -->
 <script src="js/10-pjpick.js"></script>  <!-- 보고창 프로젝트 고르기·등록·지난 보고 카드 (2026-10-07) -->
-<script src="js/11-org.js"></script>  <!-- 유관부서 탭 — 인명부 마스터 찾기 (읽기 전용, 2026-11-23) -->
+<script src="js/11-org.js"></script>  <!-- 유관부서 탭 — 가로 조직도 (2026-11-24) -->
 <script src="js/12-orgcand.js"></script>  <!-- 마스터 탭 「사람」 — 인명부 후보 정리 (승인자, 2026-11-23) -->
 
 

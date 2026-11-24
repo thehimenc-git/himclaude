@@ -447,7 +447,6 @@ var MasterTab = (function () {
   }
 
   // ── 코드가 바뀌는 순서 (접힌 안내) ─────────────────────
-  // 정본: HIMNAEJA reference/PROJECT_CODE_SPEC.md '한눈에 보기' — 고칠 땐 거기부터
   function _guideHtml() {
     return '<details class="mt-guide"><summary>코드가 바뀌는 순서 · NAS 폴더와의 관계</summary><div class="mt-guide-body">' +
       '<ol>' +
@@ -458,7 +457,7 @@ var MasterTab = (function () {
       '<li><b>30일 넘게 보고가 없는 임시코드</b>는 「아직 하나요?」로 물어요. 자동으로 빼지 않아요 — [아직 해요]를 누르면 30일 동안 안 물어요.</li>' +
       '</ol>' +
       '<p><b>NAS 폴더는 평일 08:45·16:30에 읽어요.</b> 비슷한 이름이 여럿이라 애매하면 바꾸지 않고 맨 위에서 물어봐요 — 골라 주세요. 자동으로 바꾼 건 아래 「NAS가 자동으로 바꾼 것」에 남아요. 폴더 이름의 (취소)·미계약 종결도 단계에 반영돼요.</p>' +
-      '<p class="mt-guide-dim">반영: 보고창·브리핑 10분 안 · 노션 1시간 안 · 힘내자 대시보드 다음 날 새벽</p>' +
+      '<p class="mt-guide-dim">반영: 보고창·브리핑 10분 안 · 노션 1시간 안</p>' +
       '</div></details>';
   }
 

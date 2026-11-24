@@ -121,7 +121,8 @@ var OrgCand = (function () {
     var h = '<div class="oc-row" data-cid="' + _esc(it.cand_id) + '">';
     if (!a) return h + '<div class="oc-ask">' + _esc(it.title) + '</div><div class="oc-sub oc-dim">이 화면에서 못 다루는 후보예요. 새로고침해 주세요.</div></div>';
     h += '<div class="oc-txt"><div class="oc-ask">' + _esc(a.q) + '</div>';
-    if (a.from && a.to) h += '<div class="oc-sub">' + _who(a.from) + ' <span class="oc-arr">' + (it.kind === '같은 사람?' || it.kind === '명함과 같은 사람?' ? '=' : '→') + '</span> ' + _who(a.to) + '</div>';
+    if (a.from && a.from.name === '없음') h += '<div class="oc-sub">' + _who(a.to) + '</div>';
+    else if (a.from && a.to) h += '<div class="oc-sub">' + _who(a.from) + ' <span class="oc-arr">' + (it.kind === '같은 사람?' || it.kind === '명함과 같은 사람?' ? '=' : '→') + '</span> ' + _who(a.to) + '</div>';
     else if (a.from) h += '<div class="oc-sub">' + _esc(a.from.label) + ' ' + _who(a.from) + '</div>';
     if (a.many && !(o && o.mode === 'part')) h += a.many.map(function (p) { return '<div class="oc-sub">· ' + _who(p) + '</div>'; }).join('');
     if (a.why) h += '<div class="oc-sub oc-dim">' + _esc(a.why) + '</div>';
@@ -268,7 +269,14 @@ var OrgCand = (function () {
       })
       .then(function () {
         _sending -= batch.length;
-        if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('oc-name')) _chips(); else _render();
+        // 이름을 적는 중이면 다시 그리지 않고(글자가 끊기지 않게) 돌아온 줄만 위에 붙인다
+        if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('oc-name')) {
+          _chips();
+          var vis = _visible(), list = _box.querySelector('.oc-list');
+          batch.slice().reverse().forEach(function (q) {
+            if (vis.indexOf(q.it) >= 0 && !list.querySelector('[data-cid="' + q.it.cand_id + '"]')) list.insertAdjacentHTML('afterbegin', _rowHtml(q.it));
+          });
+        } else _render();
         _count(); _bar();
         if (_queue.length) _timer = setTimeout(_flush, 800);
       });

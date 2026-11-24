@@ -1,34 +1,32 @@
-// 08-master.js — 새 사업 정리 탭 (승인자 전용, 2026-08-25 → 2026-10-13 개편)
-//   보고에서 새로 나온 사업 이름을 하나씩 확인한다. 두 갈래가 같은 카드로 보인다:
-//     · 새로 찾음 — AI 가 브리핑에서 찾은 등록 대기 (AI 인덱스 B_학습, get_pending_pj_registrations)
-//     · 임시코드 — 이미 TEMP- 를 받은 사업 (프로젝트 목록 시트, master_temp_list)
-//   카드마다 판단 재료(보고 몇 번·마지막·누가, 비슷한 사업)와 세 갈래 질문을 둔다:
-//     [이미 있는 사업이에요] → 합치기(임시코드) / 별칭으로 연결(새로 찾음)
-//     [새 사업이 맞아요]     → 계약됨(정식 코드) · 검토 중(검토 폴더 번호) · 아직 몰라요(임시코드로, 새로 찾음만)
-//     [사업이 아니에요]     → 목록에서 빼기(되돌릴 수 있음) / 등록 대기에서 지우기
-//   예전엔 코드 칸에 늘 U 다음 번호가 미리 들어가 있었고(토목도 그대로 누르면 U), 칸 하나를 새 코드·합칠 대상
-//   두 용도로 같이 썼다. 확인·오류는 전부 alert 였다.
+// 08-master.js — 마스터 탭 「사업」 (승인자 전용, 2026-08-25 → 2026-11-24 새로 짬)
+//   한 줄에 질문 하나, 줄마다 바로 누른다. 무엇을 정해야 하는지 · 왜 · 고를 답만 보인다(사용자 결정 "화면은 무조건 단순하게, 빠르게 여러 건").
+//   질문과 답은 GAS PjAsk.js 가 만든다(ask). 네 갈래:
+//     · NAS 폴더 — 새 폴더가 어느 사업인지          · 새 이름 — AI 가 브리핑에서 찾은 등록 대기(B_학습)
+//     · 임시코드 — 최근 보고에 나온 TEMP-             · 오래된 것 — 30일 보고 없는 TEMP- 「아직 하나요?」(아직 해요 → 30일 안 묻는다)
+//   비슷한 사업 후보는 자주 틀려 「맞아요」를 기본으로 두지 않는다 — 후보를 직접 누른다.
+//   쓰기는 인증코드 로그인 세션으로만(master_resolve_many).
 //   활성 조건: #tab-master-btn 이 있고 get_pending_pj_registrations 가 승인자로 인정할 때만 탭 노출.
-//   정리 대상(2026-10-14): 30일 보고 없는 임시코드에 딱지·칩, 새로 넘어온 것만 이름 동그라미에 셈(S:).
+//   오래된 것은 새로 넘어온 것만 이름 동그라미에 센다(S:).
 //   전역 재사용: profile, APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, escapeHtml, toast.
 var MasterTab = (function () {
   var _pending = [], _temps = [], _projects = [];
   var _nas = [], _nasRecent = [];   // NAS 폴더 — 확인할 것(애매한 것) · 최근 자동 반영 (2026-10-13, GAS NasSync.js)
   var _sugg = {}, _meaning = {}, _loaded = false, _tempsLoaded = false, _tempsErr = '';
-  var _filter = 'todo', _q = '', _timer = null;
-  var _open = {};      // 카드 key → { choice: 'exist'|'new'|'not', kind, letter, target, tq }
-  var _err = {};       // 카드 key → 오류 문구
-  var _busy = {};      // 카드 key → 요청 중
+  var _filter = 'todo', _q = '', _shown = 30, _timer = null;
+  var _open = {};      // 줄 key → { mode: 'find'|'fresh', kind, letter, code, name, tq, target, err }
+  var _gone = {};      // 누른 줄 key — 저장이 끝날 때까지 안 보인다
+  var _queue = [], _sending = 0, _qt = null;      // 아직 안 보낸 답
+  var HOLD = 5000, BATCH = 15;
   var LETTERS = ['U', 'C', 'E', 'A'];
   var FORMAL_RE = /^\d{2}-[UCEA]\d{2}$/i, REVIEW_RE = /^검토-\d+_\d{6}$/;
 
-  function _post(payload) {
+  function _post(payload, keep) {
     payload.token = APPS_SCRIPT_TOKEN;
     payload.email = (profile && profile.email) || '';
     return fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload), keepalive: !!keep
     }).then(function (r) { return r.json(); });
   }
   function _esc(s) { return escapeHtml(String(s == null ? '' : s)); }
@@ -41,7 +39,7 @@ var MasterTab = (function () {
   var STALE_DAYS = 30;
   function _kstDay(offsetDays) { return new Date(Date.now() + 9 * 3600 * 1000 - (offsetDays || 0) * 86400 * 1000).toISOString().slice(0, 10); }
   function _isStale(t) {
-    if (!t || t.stage === '종결') return false;
+    if (!t || t.stage === '종결' || t.kept) return false;
     var ref = String(t.last || '').slice(0, 10);
     if (!ref) { var m = String(t.code || '').match(/^TEMP-(\d{4})(\d{2})(\d{2})-/); ref = m ? m[1] + '-' + m[2] + '-' + m[3] : ''; }
     return !!ref && ref < _kstDay(STALE_DAYS);
@@ -97,40 +95,29 @@ var MasterTab = (function () {
   }
   function _badge() {
     var b = document.getElementById('tab-master-count');
-    var n = _pending.length + _nas.length;
+    var n = _pending.filter(function (p) { return !_gone['P:' + p['키']]; }).length + _nas.filter(function (x) { return !_gone['N:' + x.code]; }).length;
     if (b) b.textContent = n ? String(n) : '';
   }
 
-  // ── 카드 목록 ─────────────────────────────────────
+  // ── 줄 목록 (2026-11-24) — 한 줄에 질문 하나. 질문·답은 GAS PjAsk.js 가 만든다(ask) ──
+  var KINDS = [['todo', '전체'], ['nas', 'NAS 폴더'], ['name', '새 이름'], ['temp', '임시코드'], ['stale', '오래된 것'], ['later', '미뤄 둔 것'], ['done', '끝난 것']];
+  var RANK = { nas: 0, name: 1, temp: 2, stale: 3, later: 4, done: 5 };
   function _cards() {
-    var out = [];
-    _nas.forEach(function (x) {
-      out.push({ key: 'N:' + x.code, type: 'nas', code: x.code, name: x.name || x.folder || '', folder: x.folder || '', cands: x.cands || [],
-                 nasKind: x.kind || '', reports: 0, last: '', who: [], similar: [], done: false });
-    });
-    _pending.forEach(function (p) {
-      out.push({ key: 'P:' + p['키'], type: 'pending', name: p['키'] || '', memo: p['값'] || '', src: p,
-                 reports: p.reports || 0, last: p.last || '', who: p.who || [], similar: p.similar || [], done: false });
-    });
-    _temps.forEach(function (t) {
-      out.push({ key: 'T:' + t.code, type: 'temp', code: t.code, name: t.name || '', note: t.note || '', stage: t.stage || '',
-                 reports: t.reports || 0, last: t.last || '', who: t.who || [], similar: t.similar || [], done: t.stage === '종결', stale: _isStale(t) });
-    });
+    var out = [], add = function (key, src, o) { if (!_gone[key] && src.ask) out.push({ key: key, src: src, ask: src.ask, kind: src.ask.kind, name: o.name || '', code: o.code || '', memo: o.memo || '', reports: src.reports || 0, last: src.last || '' }); };
+    _nas.forEach(function (x) { add('N:' + x.code, x, { name: x.name || x.folder, code: x.code }); });
+    _pending.forEach(function (p) { add('P:' + p['키'], p, { name: p['키'], memo: p['값'] }); });
+    _temps.forEach(function (t) { add('T:' + t.code, t, { name: t.name, code: t.code }); });
     return out;
   }
   function _visible(all) {
-    var q = _q.toLowerCase();
+    var q = _q.replace(/\s+/g, '').toLowerCase();
     return all.filter(function (c) {
-      if (_filter === 'todo' && c.done) return false;
-      if (_filter === 'done' && !c.done) return false;
-      if (_filter === 'stale' && !c.stale) return false;
-      if (!q) return true;
-      return (c.name + ' ' + (c.code || '') + ' ' + (c.note || '') + ' ' + (c.memo || '')).toLowerCase().indexOf(q) >= 0;
+      if (_filter === 'todo' ? RANK[c.kind] > 3 : c.kind !== _filter) return false;
+      return !q || (c.name + c.code + c.memo).replace(/\s+/g, '').toLowerCase().indexOf(q) >= 0;
     }).sort(function (a, b) {
-      var rank = { nas: 0, pending: 1, temp: 2 };                                   // NAS 확인 → 새로 찾음 → 임시코드
-      if (a.type !== b.type) return rank[a.type] - rank[b.type];
-      if (_filter === 'stale') return a.last < b.last ? -1 : a.last > b.last ? 1 : (a.key < b.key ? -1 : 1);   // 오래 잠잠한 것부터
-      return (b.reports - a.reports) || (b.last > a.last ? 1 : b.last < a.last ? -1 : 0) || (a.key < b.key ? 1 : -1);
+      if (a.kind !== b.kind) return RANK[a.kind] - RANK[b.kind];
+      if (a.kind === 'stale') return a.last < b.last ? -1 : a.last > b.last ? 1 : (a.key < b.key ? -1 : 1);   // 오래 잠잠한 것부터
+      return (b.reports - a.reports) || (a.key < b.key ? -1 : 1);
     });
   }
 
@@ -140,21 +127,26 @@ var MasterTab = (function () {
     if (!body.getAttribute('data-mt')) {
       // 머리(검색·칩)는 한 번만 그린다 — 검색칸을 다시 그리면 입력 중 포커스가 튄다
       body.setAttribute('data-mt', '1');
-      // 「사업 | 사람」 — 사람은 인명부 후보 정리(js/12-orgcand.js, 2026-11-23). 사업 쪽 화면은 그대로 아래에 둔다
+      if (typeof OrgCand !== 'undefined' && OrgCand.style) OrgCand.style();      // 줄 모양(oc-)은 「사람」과 같은 것을 쓴다
+      // 「사업 | 사람」 — 사람은 인명부 후보 정리(js/12-orgcand.js, 2026-11-23)
+      //   ⚠ 이 전환 버튼의 data-act 이름은 줄 안 버튼과 겹치면 안 된다(11/23 겹쳐서 화면이 비었다)
       body.innerHTML =
         '<div class="mt-kind" role="tablist" style="display:flex;gap:6px;margin:0 0 12px"><button type="button" class="mt-chip on" data-act="scope" data-k="pj">🗂️ 사업</button>' +
         '<button type="button" class="mt-chip" data-act="scope" data-k="org">👤 사람 <span id="mt-org-n"></span></button></div>' +
         '<div class="mt-pj">' +
-        '<p class="mt-intro">보고에서 새로 나온 사업 이름이에요. 하나씩 같은 사업이 있는지, 새 사업인지 확인해 주세요.</p>' +
-        _guideHtml() +
         '<div class="mt-bar"><div class="mt-chips"></div>' +
         '<input type="search" class="mt-search" placeholder="이름·코드로 찾기" /></div>' +
-        '<div class="mt-list"></div></div>' +
+        '<div class="mt-list"></div><div class="oc-bar mt-save" hidden></div><div class="mt-foot"></div></div>' +
         '<div class="mt-org" hidden></div>';
-      body.querySelector('.mt-search').addEventListener('input', function (e) { _q = String(e.target.value || ''); _renderList(); });
+      body.querySelector('.mt-search').addEventListener('input', function (e) { _q = String(e.target.value || ''); _shown = 30; _renderList(); });
       body.addEventListener('click', _onClick);
       body.addEventListener('input', _onInput);
-    }
+      body.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' || !e.target.getAttribute || e.target.getAttribute('data-in') !== 'code') return;
+        var b = e.target.closest('[data-key]').querySelector('[data-act="save"]'); if (b) b.click();
+      });
+      window.addEventListener('pagehide', function () { _flush(true); });         // 화면을 떠나면 모아 둔 답을 바로 보낸다
+    } else if (_typing()) { _chips(); return; }      // 글자를 적는 중이면 다시 그리지 않는다(끊기지 않게)
     _renderList();
   }
 
@@ -171,82 +163,79 @@ var MasterTab = (function () {
   var _org = [];
   function orgAlerts(items) { _org = Array.isArray(items) ? items : []; _bell(); }
 
+  function _typing() { var f = document.activeElement; return !!(f && f.getAttribute && f.getAttribute('data-in') && f.closest('.mt-pj')); }
+  function _chips() {
+    var body = document.getElementById('mode-master-body');
+    if (!body || !body.getAttribute('data-mt')) return;
+    var n = { todo: 0 };
+    _cards().forEach(function (c) { n[c.kind] = (n[c.kind] || 0) + 1; if (RANK[c.kind] <= 3) n.todo++; });
+    body.querySelector('.mt-chips').innerHTML = KINDS.filter(function (x) { return x[0] === 'todo' || n[x[0]] || _filter === x[0]; }).map(function (x) {
+      return '<button type="button" class="mt-chip' + (_filter === x[0] ? ' on' : '') + '" data-act="filter" data-f="' + x[0] + '">' + x[1] + ' <span>' + (n[x[0]] || 0) + '</span></button>';
+    }).join('');
+  }
   function _renderList() {
     var body = document.getElementById('mode-master-body');
     if (!body || !body.getAttribute('data-mt')) return;
-    var all = _cards();
-    var n = { todo: 0, stale: 0, done: 0, all: all.length };
-    all.forEach(function (c) { if (c.done) n.done++; else n.todo++; if (c.stale) n.stale++; });
-    body.querySelector('.mt-chips').innerHTML = [['todo', '확인 필요'], ['stale', '정리 대상'], ['done', '끝난 것'], ['all', '전체']].map(function (x) {
-      return '<button type="button" class="mt-chip' + (_filter === x[0] ? ' on' : '') + '" data-act="filter" data-f="' + x[0] + '">' +
-             x[1] + ' <span>' + n[x[0]] + '</span></button>';
-    }).join('');
+    _chips();
     var list = body.querySelector('.mt-list');
+    body.querySelector('.mt-foot').innerHTML = _recentHtml() + _guideHtml();
     if (!_loaded || (!_tempsLoaded && !_pending.length)) { list.innerHTML = '<div class="mt-empty">불러오는 중이에요… (처음엔 몇 초 걸려요)</div>'; return; }
-    var vis = _visible(all);
-    var h = _recentHtml();
+    var vis = _visible(_cards()), h = '';
     if (_tempsErr) h += '<div class="mt-empty err">' + _esc(_tempsErr) + ' <button type="button" class="mt-btn" data-act="reload">다시 시도</button></div>';
-    if (!vis.length) {
-      h += '<div class="mt-empty">' + (_q ? '찾는 이름이 없어요' : _filter === 'done' ? '끝난 것이 없어요' : _filter === 'stale' ? '정리 대상이 없어요 — 30일 넘게 보고가 없는 임시코드가 여기에 모여요' : '확인할 새 사업이 없어요 — 보고에 새 이름이 나오면 여기에 떠요') + '</div>';
-    } else {
-      if (_filter === 'stale') h += '<p class="mt-hint mt-stale-hint">30일 넘게 보고가 없는 임시코드예요. 끝났거나 사업이 아니면 [사업이 아니에요], 다른 사업과 같으면 [이미 있는 사업이에요], 아직 진행 중이면 그대로 두면 돼요.</p>';
-      if (!_tempsLoaded) h += '<div class="mt-empty">임시코드 목록을 불러오는 중이에요…</div>';
-      vis.forEach(function (c) { h += _cardHtml(c); });
-    }
+    if (!vis.length) h += '<div class="mt-empty">' + (_q ? '찾는 이름이 없어요' : '정리할 사업이 없어요') + '</div>';
+    else h += '<div class="oc-list">' + vis.slice(0, _shown).map(_rowHtml).join('') + '</div>';
+    if (vis.length > _shown) h += '<button type="button" class="mt-btn oc-more" data-act="more">더 보기 (' + (vis.length - _shown) + ')</button>';
+    if (!_tempsLoaded) h += '<div class="mt-empty">임시코드 목록을 불러오는 중이에요…</div>';
     list.innerHTML = h;
   }
 
-  function _cardHtml(c) {
-    if (c.type === 'nas') return _nasCardHtml(c);
-    var k = _esc(c.key), op = _open[c.key] || {}, busy = !!_busy[c.key];
-    var tag = c.type === 'pending'
-      ? '<span class="mt-tag new">새로 찾음</span>'
-      : '<span class="mt-tag temp">임시 · ' + _esc(c.code) + '</span>' + (c.done ? '<span class="mt-tag">끝남</span>' : '') +
-        (c.stale ? '<span class="mt-tag stale">정리 대상 · ' + (c.reports ? '30일 보고 없음' : '보고 없음') + '</span>' : '');
-    var meta = c.reports
-      ? '보고 ' + c.reports + '번 · 마지막 ' + _md(c.last) + (c.who.length ? ' · ' + _esc(c.who.join('·')) : '')
-      : '아직 보고에 안 나왔어요';
-    var h = '<div class="mt-card' + (busy ? ' busy' : '') + '" data-key="' + k + '">';
-    h += '<div class="mt-tags">' + tag + '</div>';
-    h += '<div class="mt-name">' + _esc(c.name || '(이름 없음)') + '</div>';
-    h += '<div class="mt-meta">' + meta + '</div>';
-    if (c.memo) h += '<div class="mt-memo" title="' + _esc(c.memo) + '">AI 메모: ' + _esc(c.memo) + '</div>';
-    var sim = c.similar[0];
-    if (sim && !op.choice) {
-      h += '<button type="button" class="mt-sim" data-act="sim" data-code="' + _esc(sim.code) + '">혹시 같은 사업인가요? <b>' + _esc(sim.code) + '</b> ' + _esc(sim.name) + '</button>';
-    }
-    h += '<div class="mt-choices">' +
-         '<button type="button" class="mt-btn' + (op.choice === 'exist' ? ' on' : '') + '" data-act="choose" data-c="exist">이미 있는 사업이에요</button>' +
-         '<button type="button" class="mt-btn' + (op.choice === 'new' ? ' on' : '') + '" data-act="choose" data-c="new">새 사업이 맞아요</button>' +
-         '<button type="button" class="mt-btn' + (op.choice === 'not' ? ' on' : '') + '" data-act="choose" data-c="not">사업이 아니에요</button></div>';
-    if (op.choice) h += '<div class="mt-panel">' + _panelHtml(c, op) + '</div>';
-    if (_err[c.key]) h += '<div class="mt-err">' + _esc(_err[c.key]) + '</div>';
-    return h + '</div>';
-  }
-
-  // NAS 에 폴더가 생겼는데 이어지는 사업이 애매할 때 — 후보 하나를 고르거나 '새 사업' (2026-10-13)
-  function _nasCardHtml(c) {
-    var k = _esc(c.key), op = _open[c.key] || {}, busy = _busy[c.key] ? ' disabled' : '';
-    var what = c.nasKind === 'project' ? '계약 프로젝트 폴더' : '검토 폴더';
-    var h = '<div class="mt-card mt-nas' + (_busy[c.key] ? ' busy' : '') + '" data-key="' + k + '">';
-    h += '<div class="mt-tags"><span class="mt-tag nas">NAS 폴더</span><span class="mt-tag">' + _esc(c.code) + '</span></div>';
-    h += '<div class="mt-name">' + _esc(c.name) + '</div>';
-    h += '<div class="mt-meta">NAS에 새 ' + what + '가 생겼어요. 이미 목록에 있는 사업과 같은지 확인해 주세요.</div>';
-    h += '<div class="mt-panel"><div class="mt-label">어느 쪽인가요?</div><div class="mt-opts">';
-    c.cands.forEach(function (x) {
-      var on = op.picked === x.code;
-      h += '<button type="button" class="mt-opt' + (on ? ' on' : '') + '" data-act="nas-pick" data-code="' + _esc(x.code) + '"><b>' + _esc(x.code) + '</b> ' + _esc(x.name) + ' 와 같은 사업이에요</button>';
-    });
-    h += '<button type="button" class="mt-opt' + (op.picked === '' ? ' on' : '') + '" data-act="nas-pick" data-code="">새 사업이에요 — ' + _esc(c.code) + ' 로 새로 등록</button>';
+  function _b(act, label, cls, extra) { return '<button type="button" class="mt-btn' + (cls ? ' ' + cls : '') + '" data-act="' + act + '"' + (extra || '') + '>' + _esc(label) + '</button>'; }
+  function _pickBtn(p, act, i) { return '<button type="button" class="mt-btn oc-pick" data-act="' + act + '" data-i="' + i + '"><b>' + _esc(p.label) + '</b><span>' + _esc(p.sub) + '</span></button>'; }
+  function _rowHtml(c) {
+    var a = c.ask, o = _open[c.key];
+    var h = '<div class="oc-row" data-key="' + _esc(c.key) + '"><div class="oc-txt"' + (c.code ? ' title="' + _esc(c.code) + '"' : '') + '><div class="oc-ask">' + _esc(a.q) + '</div>';
+    if (a.why) h += '<div class="oc-sub oc-dim">' + _esc(a.why) + '</div>';
+    if (c.memo) h += '<div class="oc-sub oc-dim mt-memo" title="' + _esc(c.memo) + '">' + _esc(c.memo) + '</div>';
     h += '</div>';
-    if (op.picked != null) {
-      h += '<button type="button" class="mt-go" data-act="do-nas"' + busy + '>' +
-           (op.picked ? _esc(op.picked) + ' → ' + _esc(c.code) + ' 로 바꾸기' : _esc(c.code) + ' 새로 등록하기') + '</button>';
+    if (o) return h + _openHtml(c, a, o) + '</div>';
+    h += '<div class="oc-btns">' + a.picks.map(function (p, i) { return _pickBtn(p, 'pick', i); }).join('');
+    // 후보가 없는 새 사업만 첫 답이 정해져 있다 — 그 밖엔 후보가 자주 틀려 어느 것도 앞세우지 않는다
+    if (a.fresh && a.fresh.label !== '새 사업') h += _b('fresh', a.fresh.label);
+    if (a.kind === 'stale') h += a.btns.map(function (x, i) { return _b('btn', x.label, '', ' data-i="' + i + '"'); }).join('') + _b('find', a.find.label);
+    else {
+      if (a.find) h += _b('find', a.find.label);
+      if (a.fresh && a.fresh.label === '새 사업') h += _b('fresh', '새 사업');
+      h += a.btns.map(function (x, i) { return _b('btn', x.label, '', ' data-i="' + i + '"'); }).join('');
     }
-    h += '</div>';
-    if (_err[c.key]) h += '<div class="mt-err">' + _esc(_err[c.key]) + '</div>';
-    return h + '</div>';
+    return h + '</div></div>';
   }
+  function _openHtml(c, a, o) {
+    var h = '<div class="oc-open">';
+    if (o.err) h += '<div class="oc-err">' + _esc(o.err) + '</div>';
+    if (o.mode === 'find') {
+      h += '<div class="oc-btns">' + _more(c, o).map(function (p, i) { return _pickBtn(p, 'more-pick', i); }).join('') + '</div>' +
+        '<input type="search" class="mt-search oc-name" style="flex:none;width:100%;max-width:none" data-in="tq" placeholder="사업 이름이나 코드" aria-label="사업 찾기" value="' + _esc(o.tq || '') + '" />' +
+        '<div class="oc-btns mt-results">' + _resultsHtml(c, o) + '</div>';
+    } else if (o.mode === 'fresh') {
+      if (a.fresh.name) h += '<input type="text" class="mt-search oc-name" style="flex:none;width:100%;max-width:none" data-in="name" maxlength="80" aria-label="사업 이름" value="' + _esc(o.name != null ? o.name : a.fresh.name) + '" />';
+      if (o.kind) {
+        h += '<div class="oc-sub oc-dim">' + (o.kind === 'formal' ? '재무 원장 코드와 같아야 해요' : 'NAS 검토 폴더의 번호·날짜 그대로 적어 주세요') + '</div>' +
+          '<div class="oc-btns"><input type="text" class="mt-search oc-name" data-in="code" maxlength="24" aria-label="코드" placeholder="' + (o.kind === 'formal' ? 'YY-X##' : '검토-12_260706') + '" value="' + _esc(o.code || '') + '" />' + _b('save', '저장', 'primary') + '</div>';
+      } else {
+        h += '<div class="oc-btns">' + LETTERS.map(function (L) {
+          return '<button type="button" class="mt-btn oc-pick" data-act="letter" data-l="' + L + '"><b>계약 · ' + _esc(_shortMeaning(L)) + '</b><span>' + _esc(_sugg[L] || 'YY-' + L + '##') + '</span></button>'; }).join('') +
+          '<button type="button" class="mt-btn oc-pick" data-act="review"><b>검토 중</b><span>검토 폴더 번호</span></button>' +
+          (a.fresh.kinds.indexOf('temp') >= 0 ? '<button type="button" class="mt-btn oc-pick" data-act="astemp"><b>아직 몰라요</b><span>임시코드로 올려 둬요</span></button>' : '') + '</div>';
+      }
+    }
+    // 오래된 것은 코드를 정할 일이 드물어 여기 안에 둔다
+    return h + '<div class="oc-btns">' + (o.mode === 'find' && a.fresh && (a.kind === 'stale' || a.kind === 'later') ? _b('fresh', '새 코드 정하기', 'oc-quiet') : '') + _b('close', '돌아가기', 'oc-quiet') + '</div></div>';
+  }
+  function _more(c, o) {
+    if (o.target) return [{ label: o.target.name, sub: o.target.code, body: _with(c.ask.find.body, { target: o.target.code }) }];
+    return c.ask.more || [];
+  }
+  function _with(b, x) { var o = {}; Object.keys(b).forEach(function (k) { o[k] = b[k]; }); Object.keys(x).forEach(function (k) { o[k] = x[k]; }); return o; }
 
   // 최근 자동 반영 — 확실해서 NAS 가 알아서 바꾼 것. 관리자가 모르고 지나가지 않게 (접힘)
   function _recentHtml() {
@@ -258,196 +247,189 @@ var MasterTab = (function () {
       }).join('') + '</ul><p class="mt-guide-dim">틀린 게 있으면 이 탭이나 노션에서 바로 고치면 돼요.</p></div></details>';
   }
 
-  function _panelHtml(c, op) {
-    var busy = _busy[c.key] ? ' disabled' : '';
-    if (op.choice === 'exist') {
-      var opts = c.similar.slice();
-      if (op.target && !opts.some(function (s) { return s.code === op.target.code; })) opts.unshift(op.target);
-      var h = '<div class="mt-label">어느 사업인가요?</div><div class="mt-opts">';
-      opts.forEach(function (s) {
-        var on = op.target && op.target.code === s.code;
-        h += '<button type="button" class="mt-opt' + (on ? ' on' : '') + '" data-act="pick" data-code="' + _esc(s.code) + '"><b>' + _esc(s.code) + '</b> ' + _esc(s.name) + '</button>';
-      });
-      h += '</div><input type="search" class="mt-input" data-in="tq" placeholder="다른 사업 찾기 — 이름이나 코드" value="' + _esc(op.tq || '') + '" />';
-      h += '<div class="mt-opts mt-results">' + _resultsHtml(c, op) + '</div>';
-      h += '<p class="mt-hint">' + (c.type === 'temp'
-        ? '이 임시코드를 고른 사업으로 합쳐요. 연결된 보고·일정은 내일 새벽에 그쪽으로 옮겨져요.'
-        : '고른 사업에 이 이름을 별칭으로 남겨요. 다음부터 이 표기로 보고해도 그 사업으로 붙어요.') + '</p>';
-      h += '<button type="button" class="mt-go" data-act="do-exist"' + (op.target ? '' : ' disabled') + busy + '>' +
-           (op.target ? _esc(op.target.code) + ' 로 ' + (c.type === 'temp' ? '합치기' : '연결하기') : '사업을 골라 주세요') + '</button>';
-      return h;
-    }
-    if (op.choice === 'new') {
-      var kinds = [['formal', '계약됐어요'], ['review', '검토 중이에요']];
-      if (c.type === 'pending') kinds.push(['temp', '아직 몰라요']);
-      var h2 = '';
-      if (c.type === 'pending') h2 += '<div class="mt-label">사업 이름</div><input type="text" class="mt-input" data-in="name" value="' + _esc(op.name != null ? op.name : c.name) + '" />';
-      h2 += '<div class="mt-label">지금 어떤 상태인가요?</div><div class="mt-opts">';
-      kinds.forEach(function (x) { h2 += '<button type="button" class="mt-opt' + (op.kind === x[0] ? ' on' : '') + '" data-act="kind" data-k="' + x[0] + '">' + x[1] + '</button>'; });
-      h2 += '</div>';
-      if (op.kind === 'formal') {
-        h2 += '<div class="mt-label">어느 쪽 사업인가요?</div><div class="mt-opts">';
-        LETTERS.forEach(function (L) {
-          h2 += '<button type="button" class="mt-opt' + (op.letter === L ? ' on' : '') + '" data-act="letter" data-l="' + L + '"><b>' + L + '</b> ' + _esc(_shortMeaning(L)) + '</button>';
-        });
-        h2 += '</div>';
-        if (op.letter) h2 += '<div class="mt-label">정식 코드 — 재무 원장 코드와 같아야 해요</div><input type="text" class="mt-input" data-in="code" value="' + _esc(op.code || '') + '" placeholder="' + _esc(_sugg[op.letter] || 'YY-X##') + '" />';
-      } else if (op.kind === 'review') {
-        h2 += '<div class="mt-label">검토 폴더 번호 — NAS 검토 폴더의 번호·날짜 그대로</div><input type="text" class="mt-input" data-in="code" value="' + _esc(op.code || '') + '" placeholder="검토-12_260706" />';
-      } else if (op.kind === 'temp') {
-        h2 += '<p class="mt-hint">임시코드를 받아 목록에 올려 둬요. 계약·검토가 정해지면 그때 바꾸면 돼요.</p>';
-      }
-      var ready = op.kind === 'temp' || (op.kind === 'formal' && FORMAL_RE.test(op.code || '')) || (op.kind === 'review' && REVIEW_RE.test(op.code || ''));
-      if (op.kind) h2 += '<button type="button" class="mt-go" data-act="do-new"' + (ready ? '' : ' disabled') + busy + '>' + (ready ? '등록하기' : '코드를 확인해 주세요') + '</button>';
-      return h2;
-    }
-    // not
-    return '<p class="mt-hint">' + (c.type === 'temp'
-      ? '목록과 AI 후보에서 빠져요. 연결된 보고는 그대로고, 나중에 되돌릴 수 있어요.'
-      : '등록 대기에서 지워요. 사업 목록에는 아무것도 바뀌지 않아요.') + '</p>' +
-      '<button type="button" class="mt-go danger" data-act="do-not"' + busy + '>' + (c.type === 'temp' ? '목록에서 빼기' : '등록 대기에서 지우기') + '</button>';
-  }
-
   function _shortMeaning(L) {
     return { U: '도시 업무', C: '토목', E: '더힘구조', A: 'AI' }[L] || String(_meaning[L] || '');
   }
-  function _resultsHtml(c, op) {
-    var q = String(op.tq || '').replace(/\s+/g, '').toLowerCase();
-    if (!q) return '';
-    var self = (c.code || '').toUpperCase();
-    var hits = _projects.filter(function (p) {
+  function _hits(c, o) {
+    var q = String(o.tq || '').replace(/\s+/g, '').toLowerCase(), self = c.code.toUpperCase();
+    if (!q) return [];
+    return _projects.filter(function (p) {
       return String(p.code).toUpperCase() !== self && (String(p.code) + String(p.name)).replace(/\s+/g, '').toLowerCase().indexOf(q) >= 0;
     }).slice(0, 6);
-    if (!hits.length) return '<span class="mt-hint">찾는 사업이 없어요</span>';
-    return hits.map(function (p) {
-      return '<button type="button" class="mt-opt" data-act="pick" data-code="' + _esc(p.code) + '"><b>' + _esc(p.code) + '</b> ' + _esc(p.name) + '</button>';
-    }).join('');
+  }
+  function _resultsHtml(c, o) {
+    if (!String(o.tq || '').trim()) return '';
+    var hits = _hits(c, o);
+    if (!hits.length) return '<span class="oc-dim">찾는 사업이 없어요</span>';
+    return hits.map(function (p, i) { return _pickBtn({ label: p.name, sub: p.code }, 'hit', i); }).join('');
   }
 
-  // ── 이벤트 ─────────────────────────────────────
+  // ── 누르기 ─────────────────────────────────────
   function _card(key) { return _cards().filter(function (c) { return c.key === key; })[0]; }
+  function _rowEl(key) {
+    var all = document.querySelectorAll('#mode-master-body .mt-pj [data-key]');
+    for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-key') === key) return all[i];
+    return null;
+  }
   function _projByCode(code) {
     var up = String(code).toUpperCase();
     return _projects.filter(function (p) { return String(p.code).toUpperCase() === up; })[0] || null;
   }
+  function _redraw(c, focus) {
+    var el = _rowEl(c.key);
+    if (!el) { _renderList(); return; }
+    el.outerHTML = _rowHtml(c);
+    var inp = focus && _rowEl(c.key).querySelector(focus);
+    if (inp) inp.focus();
+  }
   function _onClick(e) {
     var b = e.target.closest('[data-act]');
-    if (!b || b.disabled) return;
-    var act = b.getAttribute('data-act');
+    if (!b) return;
+    var act = b.getAttribute('data-act'), i = +(b.getAttribute('data-i') || 0);
     if (act === 'scope') { _kind(b.getAttribute('data-k')); return; }
-    if (act === 'filter') { _filter = b.getAttribute('data-f'); _renderList(); return; }
+    if (act === 'filter') { _filter = b.getAttribute('data-f'); _shown = 30; _renderList(); return; }
+    if (act === 'more') { _shown += 30; _renderList(); return; }
+    if (act === 'undo') { _undo(); return; }
     if (act === 'reload') { _tempsErr = ''; _tempsLoaded = false; _renderList(); _loadTemps(); return; }
     var el = b.closest('[data-key]'); if (!el) return;
     var key = el.getAttribute('data-key'), c = _card(key); if (!c) return;
-    var op = _open[key] || (_open[key] = {});
-    delete _err[key];
-    if (act === 'choose') { var ch = b.getAttribute('data-c'); op.choice = op.choice === ch ? '' : ch; }
-    else if (act === 'sim') {
-      var sc = b.getAttribute('data-code'), s = c.similar.filter(function (x) { return x.code === sc; })[0];
-      op.choice = 'exist'; op.target = s ? { code: s.code, name: s.name } : null;
-    }
-    else if (act === 'pick') {
-      var pc = b.getAttribute('data-code');
-      var hit = c.similar.filter(function (x) { return x.code === pc; })[0] || _projByCode(pc);
-      op.target = hit ? { code: hit.code, name: hit.name } : null;
-    }
-    else if (act === 'kind') { op.kind = b.getAttribute('data-k'); op.code = ''; op.letter = ''; }
-    else if (act === 'letter') { op.letter = b.getAttribute('data-l'); op.code = _sugg[op.letter] || ''; }
-    else if (act === 'do-exist') { _doExist(c, op); return; }
-    else if (act === 'do-new') { _doNew(c, op); return; }
-    else if (act === 'do-not') { _doNot(c); return; }
-    else if (act === 'nas-pick') { op.picked = b.getAttribute('data-code'); }
-    else if (act === 'do-nas') {
-      _run(c, { action: 'nas_resolve', code: c.code, target: op.picked || '' },
-           op.picked ? op.picked + ' → ' + c.code + ' 로 바꿨어요' : c.code + ' 를 새로 등록했어요',
-           function () { _loadTemps(); });   // 바뀐 임시코드·새 행이 아래 목록에도 보이게
-      return;
-    }
-    _rerenderCard(key);
+    var a = c.ask, o = _open[key];
+    if (act === 'pick') return _answer(c, a.picks[i].body);
+    if (act === 'btn') return _answer(c, a.btns[i].body);
+    if (act === 'more-pick') return _answer(c, _more(c, o)[i].body);
+    if (act === 'hit') { var h = _hits(c, o)[i]; if (h) _answer(c, _with(a.find.body, { target: h.code })); return; }
+    if (act === 'close') { if (o && o.kind) { o.kind = ''; o.err = ''; } else delete _open[key]; _redraw(c); return; }
+    if (act === 'find') { _open[key] = { mode: 'find' }; _redraw(c, '[data-in="tq"]'); return; }
+    if (act === 'fresh') { _open[key] = { mode: 'fresh' }; _redraw(c); return; }
+    if (!o) return;
+    if (act === 'letter') { o.kind = 'formal'; o.letter = b.getAttribute('data-l'); o.code = _sugg[o.letter] || ''; o.err = ''; _redraw(c, '[data-in="code"]'); return; }
+    if (act === 'review') { o.kind = 'review'; o.code = ''; o.err = ''; _redraw(c, '[data-in="code"]'); return; }
+    if (act === 'astemp') { _answer(c, _with(a.fresh.body, { kind: 'temp', name: _freshName(a, o) })); return; }
+    if (act === 'save') _save(c, a, o);
+  }
+  function _freshName(a, o) { return String(o.name != null ? o.name : a.fresh.name || '').replace(/\s+/g, ' ').trim(); }
+  function _save(c, a, o) {
+    var code = String(o.code || '').trim(), bad = '';
+    if (o.kind === 'formal') code = code.toUpperCase();
+    if (!(o.kind === 'formal' ? FORMAL_RE : REVIEW_RE).test(code)) bad = o.kind === 'formal' ? '코드는 26-U01 처럼 적어 주세요' : '번호는 검토-12_260706 처럼 적어 주세요';
+    else if (a.fresh.name && !_freshName(a, o)) bad = '사업 이름을 적어 주세요';
+    if (bad) { o.err = bad; _redraw(c, '[data-in="code"]'); return; }
+    var same = _projByCode(code);
+    if (same) { _open[c.key] = { mode: 'find', target: same, err: code + ' 는 이미 있어요. 같은 사업이면 눌러 주세요' }; _redraw(c); return; }
+    // 같은 추천 번호를 두 사업에 쓰지 않게 다음 번호로 올린다
+    if (o.letter && _sugg[o.letter] === code) _sugg[o.letter] = code.slice(0, 4) + ('0' + (+code.slice(4) + 1)).slice(-2);
+    _answer(c, a.fresh.body.op === 'formalize' ? _with(a.fresh.body, { new_code: code }) : _with(a.fresh.body, { kind: o.kind, name: _freshName(a, o), code: code }));
   }
   function _onInput(e) {
     var t = e.target, f = t.getAttribute && t.getAttribute('data-in');
     if (!f) return;
     var el = t.closest('[data-key]'); if (!el) return;
-    var key = el.getAttribute('data-key'), op = _open[key] || (_open[key] = {});
-    op[f] = String(t.value || '').trim();
-    if (f === 'code' && op.kind === 'formal') op.code = op.code.toUpperCase();
-    // 입력칸은 그대로 두고 아래 결과·버튼만 다시 그린다 (포커스 유지)
-    var c = _card(key); if (!c) return;
-    if (f === 'tq') { var r = el.querySelector('.mt-results'); if (r) r.innerHTML = _resultsHtml(c, op); }
-    var go = el.querySelector('.mt-go');
-    if (go && f === 'code') {
-      var ok = (op.kind === 'formal' && FORMAL_RE.test(op.code)) || (op.kind === 'review' && REVIEW_RE.test(op.code));
-      go.disabled = !ok; go.textContent = ok ? '등록하기' : '코드를 확인해 주세요';
-    }
-  }
-  function _rerenderCard(key) {
-    var c = _card(key), el = document.querySelector('#mode-master-body .mt-card[data-key="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]');
-    if (!c || !el) { _renderList(); return; }
-    var tmp = document.createElement('div'); tmp.innerHTML = _cardHtml(c);
-    el.parentNode.replaceChild(tmp.firstChild, el);
+    var o = _open[el.getAttribute('data-key')], c = _card(el.getAttribute('data-key'));
+    if (!o || !c) return;
+    o[f] = String(t.value || '');
+    // 입력칸은 그대로 두고 아래 결과만 다시 그린다 (포커스 유지)
+    if (f === 'tq') el.querySelector('.mt-results').innerHTML = _resultsHtml(c, o);
+    var er = el.querySelector('.oc-err');
+    if (er) { er.parentNode.removeChild(er); o.err = ''; }
   }
 
-  // ── 처리 ─────────────────────────────────────
-  function _run(c, payload, okMsg, after) {
-    _busy[c.key] = true; delete _err[c.key]; _rerenderCard(c.key);
-    _post(payload).then(function (resp) {
-      if (resp && resp.ok) { _finish(c, typeof okMsg === 'function' ? okMsg(resp) : okMsg); if (after) after(resp); return; }
-      if (resp && resp.reason === 'not_alias' && c.type === 'pending') {
-        // 업무 문장이라 별칭은 못 남긴다 — 등록 대기만 지우고 연결한 걸로 친다
-        return _post({ action: 'reject_pj_learning', source_key: c.src['키'] || '', source_value: c.src['값'] || '' }).then(function (r2) {
-          if (r2 && r2.ok) _finish(c, '업무 문장이라 별칭은 남기지 않고 정리했어요');
-          else _fail(c, r2, payload.action);
+  // ── 모아서 보내기 ─────────────────────────────────
+  //   누르면 줄이 바로 사라지고 5초 모아 여러 건을 한 번에 보낸다(master_resolve_many). 그 사이 되돌릴 수 있다.
+  //   한 건씩 사람이 누른 답이다 — 「전부」 버튼은 없다.
+  function _sess() { return (typeof getSession === 'function') ? getSession() : ''; }
+  function _saveBar() {
+    var b = document.querySelector('#mode-master-body .mt-save');
+    if (!b) return;
+    var n = _queue.length;
+    b.hidden = !n && !_sending;
+    b.innerHTML = '<span>' + (n ? n + '건 골랐어요' : '') + (_sending ? (n ? ' · ' : '') + _sending + '건 저장하는 중' : '') + '</span>' + (n ? _b('undo', '방금 것 되돌리기') : '');
+  }
+  function _answer(c, body) {
+    if (!_sess()) { toast('인증코드로 로그인한 뒤 정리할 수 있어요'); return; }
+    delete _open[c.key];
+    _gone[c.key] = 1;
+    _queue.push({ c: c, body: body, n: 0 });
+    var el = _rowEl(c.key);
+    if (el) el.parentNode.removeChild(el);
+    var left = _visible(_cards()).length;
+    if (document.querySelectorAll('#mode-master-body .mt-pj .oc-row').length < Math.min(12, left) || !left) _renderList(); else _chips();
+    _badge(); _saveBar();
+    _later(_queue.length >= BATCH ? 0 : HOLD);
+  }
+  function _later(ms) { clearTimeout(_qt); if (_queue.length) _qt = setTimeout(_flush, ms); }
+  function _undo() {
+    var q = _queue.pop();
+    if (!q) return;
+    delete _gone[q.c.key];
+    _renderList(); _badge(); _saveBar(); _later(HOLD);
+  }
+  function _flush(leaving) {
+    clearTimeout(_qt);
+    leaving = leaving === true;
+    if (!_queue.length) return;
+    if (_sending && !leaving) { _later(1500); return; }
+    var batch = _queue.splice(0, BATCH), wait = 800;
+    _sending += batch.length;
+    _saveBar();
+    var put = function (q, o) { delete _gone[q.c.key]; if (o) _open[q.c.key] = o; };
+    _post({ action: 'master_resolve_many', session: _sess(), items: batch.map(function (q) { return _with(q.body, { key: q.c.key }); }) }, leaving)
+      .then(function (j) {
+        if (!j || !j.ok) {
+          // 다른 사람이 정리하는 중 — 잠시 뒤 알아서 다시 보낸다
+          if (j && j.reason === 'busy' && batch.every(function (q) { return ++q.n < 6; })) { _queue = batch.concat(_queue); wait = 8000; return; }
+          batch.forEach(function (q) { put(q); });
+          toast(j && j.reason === 'session_invalid' ? '로그인이 풀렸어요. 다시 로그인한 뒤 눌러 주세요' : j && j.reason === 'not_approver' ? '프로젝트 승인자만 정리할 수 있어요' : '저장하지 못했어요. 다시 눌러 주세요');
+          return;
+        }
+        var by = {}, good = 0, bad = 0, reload = false, msg = '';
+        (j.results || []).forEach(function (r) { by[r.key] = r; });
+        batch.forEach(function (q) {
+          var r = by[q.c.key] || { reason: 'later' }, op = q.body.op;
+          if (r.ok || r.reason === 'done') {
+            good++;
+            if (op === 'keep') _kept(q.c); else _drop(q.c);
+            if (op === 'nas' || op === 'register') reload = true;
+            if (op === 'formalize') _projects.push({ code: r.code || q.body.new_code, name: q.c.name });
+            return;
+          }
+          bad++;
+          var same = r.reason === 'exists' && _projByCode(q.body.new_code);
+          if (same) put(q, { mode: 'find', target: same, err: r.message });
+          else if (op === 'formalize' || (op === 'register' && q.body.kind !== 'temp')) put(q, { mode: 'fresh', kind: FORMAL_RE.test(q.body.new_code || q.body.code) ? 'formal' : 'review', code: q.body.new_code || q.body.code, name: q.body.name, err: r.message || '저장하지 못했어요' });
+          else { put(q); msg = r.message || '저장하지 못했어요'; }
         });
-      }
-      _fail(c, resp, payload.action);
-    }).catch(function (e) { _fail(c, { message: '' }, payload.action, e); });
-  }
-  function _fail(c, resp, action, e) {
-    console.error('[master] ' + action, resp, e || '');
-    _busy[c.key] = false;
-    _err[c.key] = (resp && (resp.message || resp.error)) ? '처리하지 못했어요 — ' + (resp.message || resp.error) : '처리하지 못했어요. 잠시 뒤 다시 눌러 주세요';
-    _rerenderCard(c.key);
-  }
-  function _finish(c, msg) {
-    delete _busy[c.key]; delete _open[c.key]; delete _err[c.key];
-    if (c.type === 'nas') _nas = _nas.filter(function (x) { return x.code !== c.code; });
-    else if (c.type === 'pending') _pending = _pending.filter(function (p) { return 'P:' + p['키'] !== c.key; });
-    else _temps = _temps.filter(function (t) { return t.code !== c.code; });
-    _badge();
-    if (typeof toast === 'function') toast(msg);
-    _renderList();
-  }
-
-  function _doExist(c, op) {
-    if (!op.target) return;
-    if (c.type === 'temp') {
-      _run(c, { action: 'master_merge', code: c.code, target: op.target.code }, c.code + ' 를 ' + op.target.code + ' 로 합쳤어요');
-    } else {
-      _run(c, { action: 'register_pj_alias_only', pj_code: op.target.code, source_key: c.src['키'] || '', source_value: c.src['값'] || '' },
-           op.target.code + ' 에 연결했어요');
-    }
-  }
-  function _doNew(c, op) {
-    var code = String(op.code || '').trim();
-    if (op.kind === 'formal') code = code.toUpperCase();
-    if (code && _projByCode(code)) { _err[c.key] = code + ' 는 이미 있어요 (' + _projByCode(code).name + ') — 같은 사업이면 \'이미 있는 사업이에요\'를 눌러 주세요'; _rerenderCard(c.key); return; }
-    if (c.type === 'temp') {
-      _run(c, { action: 'master_formalize', code: c.code, new_code: code }, function (r) {
-        _projects.push({ code: r.code || code, name: c.name }); return c.code + ' → ' + (r.code || code) + ' 로 바꿨어요';
+        toast(good + '건 저장했어요' + (bad ? ' · ' + bad + '건은 한 번 더 봐 주세요' + (msg ? ' (' + msg + ')' : '') : ''));
+        if (reload) _loadTemps();      // 새로 생긴 줄 · 바뀐 코드가 목록에도 보이게
+      })
+      .catch(function (e) {
+        console.error('[master] resolve_many', e);
+        batch.forEach(function (q) { put(q); });
+        toast('저장하지 못했어요 — 잠시 뒤 다시 눌러 주세요');
+      })
+      .then(function () {
+        _sending -= batch.length;
+        // 글자를 적는 중이면 다시 그리지 않고 돌아온 줄만 위에 붙인다
+        if (_typing()) {
+          _chips();
+          var vis = _visible(_cards()), list = document.querySelector('#mode-master-body .mt-list .oc-list');
+          batch.forEach(function (q) {
+            var c = vis.filter(function (x) { return x.key === q.c.key; })[0];
+            if (c && list && !_rowEl(c.key)) list.insertAdjacentHTML('afterbegin', _rowHtml(c));
+          });
+        } else _renderList();
+        _badge(); _bell(); _saveBar(); _later(wait);
       });
-    } else {
-      var name = String(op.name != null ? op.name : c.name).trim();
-      _run(c, { action: 'master_register', kind: op.kind, name: name, code: code, source_key: c.src['키'] || '', source_value: c.src['값'] || '' }, function (r) {
-        var nc = r.code || r.pj_code || code;
-        if (nc) _projects.push({ code: nc, name: name });
-        return r.existed ? '이미 목록에 있어 ' + nc + ' 로 연결했어요' : nc + ' 로 등록했어요';
-      }, function () { _loadTemps(); });   // 임시코드로 등록했으면 아래 목록에도 보이게
-    }
   }
-  function _doNot(c) {
-    if (c.type === 'temp') _run(c, { action: 'master_exclude', code: c.code }, c.code + ' 를 목록에서 뺐어요');
-    else _run(c, { action: 'reject_pj_learning', source_key: c.src['키'] || '', source_value: c.src['값'] || '' }, '등록 대기에서 지웠어요');
+  function _drop(c) {
+    delete _gone[c.key];
+    if (c.key.charAt(0) === 'N') _nas = _nas.filter(function (x) { return 'N:' + x.code !== c.key; });
+    else if (c.key.charAt(0) === 'P') _pending = _pending.filter(function (p) { return 'P:' + p['키'] !== c.key; });
+    else _temps = _temps.filter(function (t) { return 'T:' + t.code !== c.key; });
+  }
+  function _kept(c) {      // 「아직 해요」 — 30일 동안 「미뤄 둔 것」 칩으로
+    delete _gone[c.key];
+    c.src.kept = _kstDay(0);
+    c.src.ask = _with(c.src.ask, { kind: 'later', btns: c.src.ask.btns.filter(function (x) { return x.body.op !== 'keep'; }) });
   }
 
   // ── 코드가 바뀌는 순서 (접힌 안내) ─────────────────────
@@ -458,10 +440,10 @@ var MasterTab = (function () {
       '<li><b>보고에 새 이름이 나오면</b> 목록에 없을 때 <code>TEMP-날짜-번호</code>가 자동으로 붙어요. 직원은 그 코드로 그대로 보고하면 돼요.</li>' +
       '<li><b>실이 NAS 검토 폴더(NN_YYMMDD_이름)를 만들면</b> 자동으로 <code>검토-NN_YYMMDD</code>가 돼요 — 이어지는 임시코드가 하나로 확실하면 그걸 바꾸고, 없으면 새로 등록해요.</li>' +
       '<li><b>계약되어 NAS 프로젝트 폴더(<code>YY-X##</code>)가 생기면</b> 같은 방식으로 정식 코드가 돼요. 옛 코드는 별칭으로 남아 지난 보고도 이어져요.</li>' +
-      '<li><b>사업이 아니면</b> [사업이 아니에요] — 나중에 되돌릴 수 있어요.</li>' +
-      '<li><b>30일 넘게 보고가 없는 임시코드</b>엔 「정리 대상」이 붙어요. 표시만 하고 자동으로 빼지 않아요 — 위 칩으로 모아 보고 정리해 주세요.</li>' +
+      '<li><b>사업이 아니면</b> [사업 아님] — 목록에서 빠지고, 노션에서 단계를 되돌리면 다시 살아나요.</li>' +
+      '<li><b>30일 넘게 보고가 없는 임시코드</b>는 「아직 하나요?」로 물어요. 자동으로 빼지 않아요 — [아직 해요]를 누르면 30일 동안 안 물어요.</li>' +
       '</ol>' +
-      '<p><b>NAS 폴더는 평일 08:45·16:30에 읽어요.</b> 비슷한 이름이 여럿이라 애매하면 바꾸지 않고 맨 위 [NAS 폴더] 카드로 물어봐요 — 골라 주세요. 자동으로 바꾼 건 아래 「NAS가 자동으로 바꾼 것」에 남아요. 폴더 이름의 (취소)·미계약 종결도 단계에 반영돼요.</p>' +
+      '<p><b>NAS 폴더는 평일 08:45·16:30에 읽어요.</b> 비슷한 이름이 여럿이라 애매하면 바꾸지 않고 맨 위에서 물어봐요 — 골라 주세요. 자동으로 바꾼 건 아래 「NAS가 자동으로 바꾼 것」에 남아요. 폴더 이름의 (취소)·미계약 종결도 단계에 반영돼요.</p>' +
       '<p class="mt-guide-dim">반영: 보고창·브리핑 10분 안 · 노션 1시간 안 · 힘내자 대시보드 다음 날 새벽</p>' +
       '</div></details>';
   }
@@ -588,7 +570,6 @@ var MasterTab = (function () {
     var s = document.createElement('style'); s.id = 'mt-style';
     s.textContent = [
       '#mode-master-body{--mt:#8A6D3B;--mt-tint:rgba(138,109,59,.10)}',
-      '.mt-intro{font-size:14px;color:var(--ink2);margin:0 0 10px;line-height:1.6}',
       '.mt-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}',
       '.mt-chips{display:flex;gap:6px;flex-wrap:wrap}',
       '.mt-chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;color:var(--ink2);cursor:pointer;min-height:34px}',
@@ -598,44 +579,16 @@ var MasterTab = (function () {
       '.mt-list{display:flex;flex-direction:column;gap:10px}',
       '.mt-empty{padding:18px;text-align:center;color:var(--ink3);font-size:14px;background:#fff;border:1px dashed var(--line);border-radius:10px}',
       '.mt-empty.err{color:var(--brush-rose)}',
-      '.mt-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}',
-      '.mt-card.busy{opacity:.6;pointer-events:none}',
-      '.mt-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}',
-      '.mt-tag{font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink3)}',
-      '.mt-tag.new{background:var(--mt-tint);border-color:var(--mt);color:var(--mt);font-weight:600}',
-      '.mt-tag.temp{border-style:dashed}',
-      '.mt-tag.stale{background:#FBF1E4;border-color:#C98A3C;color:#8F5A16;font-weight:600}',
-      '.mt-stale-hint{margin:0 0 4px}',
-      '.mt-name{font-size:16px;font-weight:600;line-height:1.45;word-break:keep-all}',
-      '.mt-meta{font-size:13px;color:var(--ink3);margin-top:2px}',
       '.mt-memo{font-size:13px;color:var(--ink2);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.mt-sim{display:block;width:100%;text-align:left;margin-top:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mt);background:var(--mt-tint);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}',
-      '.mt-sim b{color:var(--mt)}',
-      '.mt-choices{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}',
       '.mt-btn{flex:1 1 auto;min-height:40px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}',
       '.mt-btn:hover{border-color:var(--mt)}',
-      '.mt-btn.on{border-color:var(--mt);background:var(--mt-tint);color:var(--mt);font-weight:600}',
-      '.mt-panel{margin-top:10px;padding:12px;border-radius:10px;background:var(--paper2)}',
-      '.mt-label{font-size:13px;color:var(--ink2);margin:8px 0 6px}.mt-panel .mt-label:first-child{margin-top:0}',
-      '.mt-opts{display:flex;flex-direction:column;gap:6px}',
-      '.mt-opt{text-align:left;min-height:40px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit;font-size:14px;color:var(--ink);cursor:pointer;word-break:keep-all}',
-      '.mt-opt b{color:var(--ink2);margin-right:2px}',
-      '.mt-opt.on{border-color:var(--mt);background:var(--mt-tint)}.mt-opt.on b{color:var(--mt)}',
-      '.mt-input{display:block;width:100%;box-sizing:border-box;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;font-size:15px;background:#fff}',
-      '.mt-results{margin-top:6px}',
-      '.mt-hint{font-size:13px;color:var(--ink3);margin:8px 0 0;line-height:1.55}',
-      '.mt-go{display:block;width:100%;margin-top:10px;min-height:44px;border:0;border-radius:8px;background:var(--mt);color:#fff;font:inherit;font-size:15px;font-weight:600;cursor:pointer}',
-      '.mt-go:disabled{background:var(--line);color:var(--ink3);cursor:default}',
-      '.mt-go.danger{background:var(--brush-rose)}',
-      '.mt-err{margin-top:8px;font-size:13px;color:#B5533C}',
+      '@media (max-width:560px){.mt-pj .oc-btns .mt-btn:not(.oc-pick):not(.oc-quiet){flex:1 1 auto}}',
       '.mt-guide{margin:0 0 12px;border:1px solid var(--line);border-radius:10px;background:#fff}',
       '.mt-guide summary{cursor:pointer;padding:10px 12px;font-size:14px;color:var(--mt);font-weight:600;min-height:20px}',
       '.mt-guide-body{padding:0 14px 12px;font-size:13.5px;line-height:1.7;color:var(--ink2)}',
       '.mt-guide-body ol{margin:0 0 8px;padding-left:20px}.mt-guide-body li{margin-bottom:4px}',
       '.mt-guide-body code{background:var(--paper2);padding:0 4px;border-radius:4px;font-size:12.5px}',
       '.mt-guide-body p{margin:6px 0 0}.mt-guide-dim{color:var(--ink3);font-size:12.5px}',
-      '.mt-tag.nas{background:#E8F0F7;border-color:#5B7FA3;color:#2F5F8A;font-weight:600}',
-      '.mt-card.mt-nas{border-color:#9DB6CF}',
       '.mt-recent ul{margin:0;padding-left:18px}.mt-recent li{margin-bottom:3px}',
       '.user-dot{position:relative}',
       '.user-dot.ud-glow{box-shadow:0 0 0 2px #fff,0 0 0 4px #D9822B;animation:udGlow 1.8s ease-in-out infinite}',
@@ -654,8 +607,7 @@ var MasterTab = (function () {
       '.ud-item.fresh::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#D2452F;margin-right:6px;vertical-align:middle}',
       '.ud-tag{display:inline-block;font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:0 7px;margin-right:6px;color:var(--ink3)}.ud-tag.act{border-color:#8A6D3B;color:#8A6D3B}',
       '.ud-go{display:block;width:100%;margin-top:8px;min-height:42px;border:0;border-radius:10px;background:#8A6D3B;color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer}',
-      '.ud-out{display:block;width:100%;margin-top:8px;min-height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink2);font:inherit;font-size:14px;cursor:pointer}',
-      '@media (max-width:600px){.mt-choices{flex-direction:column}.mt-btn{width:100%}}'
+      '.ud-out{display:block;width:100%;margin-top:8px;min-height:42px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink2);font:inherit;font-size:14px;cursor:pointer}'
     ].join('\n');
     document.head.appendChild(s);
   }

@@ -315,5 +315,5 @@ var OrgCand = (function () {
     document.head.appendChild(s);
   }
 
-  return { init: init, load: load, count: count };
+  return { init: init, load: load, count: count, style: _injectStyle };
 })();

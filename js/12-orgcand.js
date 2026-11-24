@@ -1,7 +1,8 @@
 // 12-orgcand.js — 마스터 탭 「사람」: 인명부 후보 정리 (승인자 전용, 2026-11-23)
 //   「인명부 마스터」 「후보」 탭을 하나씩 고른다. 규칙은 GAS OrgCandidates.js 한 곳(org_cand_list · org_cand_resolve),
 //   힘내자 대시보드 데이터 정리도 같은 창구를 부른다 — 프로젝트 코드 정리(마스터 탭 「사업」)와 같은 구조.
-//   카드 세 가지:
+//   카드:
+//     · 사람이 바뀌었나요? 보고 · 공식 조직도에서 찾은 외부 인사이동(GAS OrgMoves.js, 2026-11-24). 눌러야 바뀐다
 //     · 지금 담당?        사업 조직도 줄의 지금 담당 자리를 후보 2~3개 중에서 고른다
 //     · 같은 사람?        같은 이름이 여럿 — 같은 사람만 골라 한 사람으로 묶는다(합침 칸만 채움, 지우지 않음)
 //     · 명함과 같은 사람? 리멤버 명함과 같은 사람인지
@@ -15,7 +16,7 @@ var OrgCand = (function () {
   var _skip = {};       // 나중에 — 이 화면에서만 뒤로 미룬다
   var _sel = {};        // cand_id → { keys: {사람키: true}, seat: 자리ID }
   var _busy = {};
-  var KINDS = [['all', '전체'], ['지금 담당?', '지금 담당'], ['사업에 더할까?', '보고에서'], ['같은 사람?', '같은 사람'], ['명함과 같은 사람?', '명함']];
+  var KINDS = [['all', '전체'], ['사람이 바뀌었나요?', '인사이동'], ['지금 담당?', '지금 담당'], ['사업에 더할까?', '보고에서'], ['같은 사람?', '같은 사람'], ['명함과 같은 사람?', '명함']];
 
   function _esc(s) { return escapeHtml(String(s == null ? '' : s)); }
   function _post(payload) {
@@ -60,12 +61,13 @@ var OrgCand = (function () {
     if (!box.getAttribute('data-oc')) {
       box.setAttribute('data-oc', '1');
       box.innerHTML =
-        '<p class="mt-intro">인명부에 같은 이름이 여럿이거나, 사업 조직도의 지금 담당을 못 고른 것들이에요. 한 장씩 골라 주세요 — 같은 사람이면 한 사람으로 묶이고(지우지 않아요), 누가 골랐는지 변경이력에 남아요.</p>' +
+        '<p class="mt-intro">담당이 바뀐 것 같거나, 인명부에 같은 이름이 여럿이거나, 사업 조직도의 지금 담당을 못 고른 것들이에요. 한 장씩 골라 주세요 — 같은 사람이면 한 사람으로 묶이고(지우지 않아요), 누가 골랐는지 변경이력에 남아요.</p>' +
         '<div class="mt-bar"><div class="mt-chips oc-chips"></div><input type="search" class="mt-search oc-search" placeholder="이름·사업 코드로 찾기" /></div>' +
         '<div class="oc-list"></div>';
       box.querySelector('.oc-search').addEventListener('input', function (e) { _q = String(e.target.value || ''); _shown = 30; _renderList(); });
       box.addEventListener('click', _onClick);
       box.addEventListener('change', _onChange);
+      box.addEventListener('input', _onName);
     }
     if (!_loaded) load(); else _render();
   }
@@ -76,7 +78,7 @@ var OrgCand = (function () {
     return _items.filter(function (it) {
       if (_filter !== 'all' && it.kind !== _filter) return false;
       if (!q) return true;
-      var hay = it.title + ' ' + (it.people || []).map(function (p) { return p.name + ' ' + p.projects.join(' '); }).join(' ') + ' ' + ((it.link && it.link.code) || '');
+      var hay = it.title + ' ' + (it.people || []).map(function (p) { return p.name + ' ' + p.projects.join(' '); }).join(' ') + ' ' + ((it.link && it.link.code) || '') + ' ' + ((it.move && it.move.codes) || []).join(' ');
       return hay.replace(/\s+/g, '').toLowerCase().indexOf(q) >= 0;
     }).sort(function (a, b) { return (_skip[a.cand_id] ? 1 : 0) - (_skip[b.cand_id] ? 1 : 0); });   // 나머지 순서는 서버 순서(쓸모 큰 것부터)
   }
@@ -118,6 +120,10 @@ var OrgCand = (function () {
     return on.length ? on[0].person_key : '';
   }
   function _selOf(it) {
+    if (!_sel[it.cand_id] && it.kind === '사람이 바뀌었나요?') {
+      var mv = it.move || {};
+      _sel[it.cand_id] = { keys: {}, name: mv.new_name || '', who: '', choices: (it.people || []).length ? it.people : null, line: '', code: (mv.codes || []).length === 1 ? mv.codes[0] : '' };
+    }
     if (!_sel[it.cand_id] && it.kind === '사업에 더할까?') {
       // 기본 — 지금 자리의 사람 > 같은 이름이 없으면 새 사람. 같은 이름이 있으면 사람이 고르게 비워 둔다
       _sel[it.cand_id] = { keys: {}, seat: '', who: (it.seat && it.seat.person_key) || ((it.people || []).length ? '' : 'new'), line: (it.report && it.report.line) || '' };
@@ -134,7 +140,9 @@ var OrgCand = (function () {
     var sel = _selOf(it), busy = !!_busy[it.cand_id];
     var h = '<div class="mt-card oc-card' + (_skip[it.cand_id] ? ' oc-skipped' : '') + '" data-cid="' + _esc(it.cand_id) + '">';
     h += '<div class="oc-head"><span class="oc-kind">' + _esc(it.kind.replace('?', '')) + '</span> <b>' + _esc(it.title) + '</b></div>';
-    if (it.kind === '사업에 더할까?') {
+    if (it.kind === '사람이 바뀌었나요?') {
+      h += _moveHtml(it, sel, busy);
+    } else if (it.kind === '사업에 더할까?') {
       var r = it.report || {}, rn = 'oc-' + _esc(it.cand_id);
       var choice = function (val, inner) {
         return '<label class="oc-p"><input type="radio" name="' + rn + '" data-oc="who" value="' + _esc(val) + '"' + (sel.who === val ? ' checked' : '') + ' /><span class="oc-pb">' + inner + '</span></label>';
@@ -169,6 +177,9 @@ var OrgCand = (function () {
       });
       h += '<div class="oc-acts"><button type="button" class="mt-btn primary" data-oc="pick"' + (sel.seat && !busy ? '' : ' disabled') + '>이 사람이 맡아요</button>' +
            '<button type="button" class="mt-btn" data-oc="later">나중에</button></div>';
+    } else if (it.kind !== '같은 사람?' && it.kind !== '명함과 같은 사람?') {
+      // 모르는 종류를 "같은 사람" 카드로 그리면 엉뚱하게 닫힌다
+      h += '<p class="oc-line">새 종류예요. 화면을 새로고침해 주세요.</p><div class="oc-acts"><button type="button" class="mt-btn" data-oc="later">나중에</button></div>';
     } else {
       var target = _target(it, sel);
       (it.people || []).forEach(function (p) { h += _personHtml(it, p, sel, target); });
@@ -186,6 +197,62 @@ var OrgCand = (function () {
     return h + '</div>';
   }
 
+  // 사람이 바뀌었나요? — 자리(자리의 사람) · 줄(사업 조직도) · 확인(기관 예고)
+  function _moveOk(it, sel) {
+    var m = it.move || {};
+    var needLine = m.branch === '줄' && !(m.lines || []).length;
+    return !_busy[it.cand_id] && !m.changed && !!sel.name && !(sel.choices && !sel.who) && !(m.branch === '줄' && !sel.code) && !(needLine && !sel.line);
+  }
+  function _moveHtml(it, sel, busy) {
+    var m = it.move || {}, lines = m.lines || [], codes = m.codes || [], dis = busy ? ' disabled' : '', h = '';
+    var btn = function (act, label, cls, off) { return '<button type="button" class="mt-btn' + (cls ? ' ' + cls : '') + '" data-oc="' + act + '"' + (off || busy ? ' disabled' : '') + '>' + label + '</button>'; };
+    h += '<p class="oc-line">' + (m.branch === '자리' ? _esc(_tail((m.seat && m.seat.path) || m.unit_path, 3)) + ' ' + _esc(m.role) + ' · 지금 <b>' + _esc((m.seat && m.seat.name) || '공석') + '</b>'
+                                                     : _esc((m.unit_path || []).join(' › ')) + ' ' + _esc(m.role) + (codes.length ? ' · 사업 ' + _esc(codes.join(' · ')) : '')) + '</p>';
+    if (m.changed) h += '<p class="oc-line oc-now">후보가 올라온 뒤에 이 자리가 바뀌었어요. 맞는지 보고 「아직 그대로예요」나 「아니에요」로 닫아 주세요.</p>';
+    if (lines.length) {
+      h += '<p class="oc-line oc-dim">걸린 사업 조직도 ' + _esc(m.lines_total) + '줄 · ' + _esc(lines.slice(0, 6).map(function (l) { return [l.code, l.role, l.name].filter(Boolean).join(' '); }).join(' / ')) + (m.lines_total > 6 ? ' …' : '') + '</p>';
+    }
+    if (m.branch === '확인') {
+      return h + '<p class="oc-q">담당이 바뀌었으면 사업 조직도에서 고친 뒤 눌러 주세요</p><div class="oc-acts">' + btn('keep', '확인했어요', 'primary') + btn('wrong', '아니에요') + btn('later', '나중에') + '</div>';
+    }
+    h += '<p class="oc-q">새로 맡은 사람은 누구인가요?</p><input type="text" class="mt-search oc-name" data-oc="name" maxlength="20" placeholder="이름" aria-label="새로 맡은 사람 이름" value="' + _esc(sel.name) + '"' + dis + ' />';
+    if (sel.choices) {
+      var opt = function (val, inner) {
+        return '<label class="oc-p"><input type="radio" name="oc-' + _esc(it.cand_id) + '" data-oc="who" value="' + _esc(val) + '"' + (sel.who === val ? ' checked' : '') + ' /><span class="oc-pb">' + inner + '</span></label>';
+      };
+      h += '<div class="oc-choices"><p class="oc-line">인명부에 같은 이름이 있어요. 누구인지 골라 주세요.</p>';
+      sel.choices.forEach(function (p) {
+        h += opt(p.person_key, '<b>' + _esc(p.name) + '</b> <span class="oc-dim">' + _esc(p.org || '') + ' ' + _esc(p.role || '') + '</span>' +
+                 (p.where && p.where.length ? '<span class="oc-line">' + _esc(_tail(p.where, 3)) + '</span>' : '') +
+                 (p.projects && p.projects.length ? '<span class="oc-line oc-dim">사업 ' + _esc(p.projects.join(' · ')) + '</span>' : ''));
+      });
+      h += opt('new', '<b>새 사람으로</b><span class="oc-line">같은 이름의 다른 사람이에요</span>') + '</div>';
+    }
+    var chips = function (label, list, key) {
+      return '<div class="oc-lines"><span class="oc-dim">' + label + '</span>' + list.map(function (v) {
+        return '<button type="button" class="mt-chip' + (sel[key] === v ? ' on' : '') + '" data-oc="' + (key === 'line' ? 'line' : 'code') + '" data-l="' + _esc(v) + '">' + _esc(v) + '</button>';
+      }).join('') + '</div>';
+    };
+    if (m.branch === '줄' && codes.length > 1) h += chips('사업', codes, 'code');
+    if (m.branch === '줄' && !lines.length) h += chips('라인', ['유관부서', '협업사'], 'line');
+    h += '<div class="oc-acts">' + btn('move', m.branch === '자리' ? '이 사람으로 바꿔요' : '새 사람을 더해요', 'primary', !_moveOk(it, sel));
+    if (m.branch === '자리') h += btn('vacate', '비었어요', '', m.changed);
+    else if (lines.length) h += btn('leave', '옛 사람만 빠졌어요', '', !sel.code);
+    return h + btn('keep', '아직 그대로예요') + btn('wrong', '아니에요') + btn('later', '나중에') + '</div>';
+  }
+  // 이름을 적는 동안 카드를 다시 그리지 않는다(글자가 끊기지 않게) — 단추만 켜고 끈다
+  function _onName(e) {
+    if (e.target.getAttribute('data-oc') !== 'name') return;
+    var card = e.target.closest('[data-cid]'), it = card && _find(card.getAttribute('data-cid'));
+    if (!it) return;
+    var sel = _selOf(it);
+    sel.name = e.target.value.trim(); sel.who = ''; sel.choices = null;
+    var ch = card.querySelector('.oc-choices');
+    if (ch) ch.parentNode.removeChild(ch);
+    var go = card.querySelector('[data-oc="move"]');
+    if (go) go.disabled = !_moveOk(it, sel);
+  }
+
   // ── 고르기 ──
   function _find(cid) { return _items.filter(function (x) { return x.cand_id === cid; })[0]; }
   function _onChange(e) {
@@ -193,6 +260,7 @@ var OrgCand = (function () {
     if (!card) return;
     var it = _find(card.getAttribute('data-cid')); if (!it) return;
     var sel = _selOf(it), act = t.getAttribute('data-oc');
+    if (act === 'name') return;
     if (act === 'key') sel.keys[t.getAttribute('data-k')] = t.checked;
     if (act === 'seat') sel.seat = t.value;
     if (act === 'who') sel.who = t.value;
@@ -208,6 +276,7 @@ var OrgCand = (function () {
     var card = b.closest('[data-cid]'); if (!card) return;
     var it = _find(card.getAttribute('data-cid')); if (!it) return;
     if (act === 'later') { _skip[it.cand_id] = true; _renderList(); return; }
+    if (act === 'code') { _selOf(it).code = b.getAttribute('data-l'); card.outerHTML = _cardHtml(it); return; }
     if (act === 'line') { _selOf(it).line = b.getAttribute('data-l'); card.outerHTML = _cardHtml(it); return; }
     var sel = _selOf(it), payload = { action: 'org_cand_resolve', cand_id: it.cand_id, decision: act };
     if (act === 'same') {
@@ -215,6 +284,17 @@ var OrgCand = (function () {
       payload.target = _target(it, sel);
     }
     if (act === 'pick') payload.seat_id = sel.seat;
+    if (act === 'move' || act === 'vacate' || act === 'leave') {
+      payload.decision = 'move';
+      if (sel.code) payload.code = sel.code;
+      if (sel.line) payload.line = sel.line;
+      if (act === 'vacate') payload.vacate = true;
+      else if (act === 'leave') payload.leave = true;
+      else {
+        payload.person = sel.who && sel.who !== 'new' ? { person_key: sel.who } : { name: sel.name };
+        if (sel.who === 'new') payload.person['new'] = true;
+      }
+    }
     if (act === 'add') { payload.line = sel.line; if (sel.who === 'new') payload['new'] = true; else payload.person_key = sel.who; }
     _resolve(it, payload);
   }
@@ -228,10 +308,11 @@ var OrgCand = (function () {
       .then(function (j) {
         if (j && (j.ok || j.reason === 'done')) {
           _items = _items.filter(function (x) { return x.cand_id !== it.cand_id; });
-          toast(j.ok ? ({ '같은 사람': '한 사람으로 묶었어요', '자리 고름': '지금 담당을 이었어요', '더함': '사업 조직도에 더했어요', '안 더함': '더하지 않았어요' }[j.status] || '다른 사람으로 두었어요') : j.message);
+          toast(j.ok ? ({ '같은 사람': '한 사람으로 묶었어요', '자리 고름': '지금 담당을 이었어요', '더함': '사업 조직도에 더했어요', '안 더함': '더하지 않았어요', '바꿈': '인명부를 바꿨어요', '아직 그대로': '그대로 두었어요', '확인함': '확인했어요', '아니에요': '아닌 것으로 닫았어요' }[j.status] || '다른 사람으로 두었어요') : j.message);
           _count();
           return;
         }
+        if (j && j.reason === 'needs_choice' && j.candidates) { var s = _selOf(it); s.choices = j.candidates; s.who = ''; }
         toast(j && j.reason === 'session_invalid' ? '로그인이 풀렸어요 — 다시 로그인해 주세요' : (j && j.message) || '저장하지 못했어요');
       })
       .catch(function (e) { console.error('[orgcand] resolve', e); toast('저장하지 못했어요 — 잠시 뒤 다시 해 주세요'); })
@@ -254,6 +335,7 @@ var OrgCand = (function () {
       '.oc-now{color:var(--mt);font-weight:600}',
       '.oc-dim{color:var(--ink3,#888)}',
       '.oc-tag{font-size:11px;padding:0 6px;border-radius:8px;border:1px solid var(--mt);color:var(--mt)}',
+      '.oc-name{width:100%;max-width:260px;min-height:40px;box-sizing:border-box;margin:2px 0 4px}',
       '.oc-q{font-size:13px;font-weight:600;margin:8px 0 2px}',
       '.oc-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}',
       '.oc-list{display:flex;flex-direction:column;gap:10px}',

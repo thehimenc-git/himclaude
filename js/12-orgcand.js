@@ -210,10 +210,10 @@ var OrgCand = (function () {
                                                      : _esc((m.unit_path || []).join(' › ')) + ' ' + _esc(m.role) + (codes.length ? ' · 사업 ' + _esc(codes.join(' · ')) : '')) + '</p>';
     if (m.changed) h += '<p class="oc-line oc-now">후보가 올라온 뒤에 이 자리가 바뀌었어요. 맞는지 보고 「아직 그대로예요」나 「아니에요」로 닫아 주세요.</p>';
     if (lines.length) {
-      h += '<p class="oc-line oc-dim">걸린 사업 조직도 ' + _esc(m.lines_total) + '줄 · ' + _esc(lines.slice(0, 6).map(function (l) { return [l.code, l.role, l.name].filter(Boolean).join(' '); }).join(' / ')) + (m.lines_total > 6 ? ' …' : '') + '</p>';
+      h += '<p class="oc-line oc-dim">걸린 사업 조직도 ' + _esc(m.lines_total) + '줄 · ' + _esc(lines.slice(0, 6).map(function (l) { return [l.code, l.role, l.name].filter(Boolean).join(' ') + (l.now && l.now !== l.name ? ' (지금 ' + l.now + ')' : ''); }).join(' / ')) + (m.lines_total > 6 ? ' …' : '') + '</p>';
     }
     if (m.branch === '확인') {
-      return h + '<p class="oc-q">담당이 바뀌었으면 사업 조직도에서 고친 뒤 눌러 주세요</p><div class="oc-acts">' + btn('keep', '확인했어요', 'primary') + btn('wrong', '아니에요') + btn('later', '나중에') + '</div>';
+      return h + '<p class="oc-q">담당이 바뀌었으면 유관부서 탭이나 사업 조직도에서 고친 뒤 눌러 주세요</p><div class="oc-acts">' + btn('keep', '확인했어요', 'primary') + btn('wrong', '아니에요') + btn('later', '나중에') + '</div>';
     }
     h += '<p class="oc-q">새로 맡은 사람은 누구인가요?</p><input type="text" class="mt-search oc-name" data-oc="name" maxlength="20" placeholder="이름" aria-label="새로 맡은 사람 이름" value="' + _esc(sel.name) + '"' + dis + ' />';
     if (sel.choices) {
